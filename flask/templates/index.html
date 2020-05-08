@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Consent Form</title>
+
+    <link rel="stylesheet" href = "{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+
+    <style>
+    p {
+      padding-left: 40px;
+    }
+    h4 {
+      padding-left: 30px;
+    }
+    h3
+    {
+      padding-left: 20px;
+    }
+    </style>
+    <script type="text/javascript">
+      function checkForm(){
+        var agreeChecks = document.getElementsByName('agree');
+
+        if (!(agreeChecks[0].checked)) {
+          alert("You may only proceed if you agree to the consent form.");
+          return false;
+        }
+        return true;
+      }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <h1><center>THIS WILL BE THE <br>CONSENT FORM</center></h1><br>
+<h2><center>“Title of Study Here”</center></h2><br>
+
+<br>
+<h4>CONSENT FORM HEADER</h4>
+<p>Consent form Text.</p>
+
+
+<!-- <h4>RESEARCHER'S STATEMENT</h4>
+<p>We are asking you to participate in a research study. This form is designed to give you information about the study, so that you can make an informed decision about whether you want to participate. Please read this form carefully.</p>
+
+<br>
+<h4>PURPOSE OF THE STUDY</h4>
+<p>We are interested in developing a robotic assistant that can help humans in packing tasks (e.g. suitcase packing, package packing etc). As a first step towards this goal, we seek to understand the mechanisms underlying human packing. This study will provide us with a dataset of human packing strategies, from which we will build a predictive model of human packing. This model will be useful to a robot that will be working with a human partner in a real-world packing task.</p>
+
+<h4>STUDY PROCEDURES</h4>
+<p>In this study, you will be asked to place a series of objects inside a container in a virtual environment. The study is expected to last about 5-10 minutes in total.</p>
+
+<h4>RISKS, STRESS, OR DISCOMFORT</h4>
+<p>This study does not present any risks that are greater than those of daily activities that involve using a personal computer or laptop. </p>
+<h4>BENEFITS OF THE STUDY</h4>
+<p>There are no direct benefits to you for participating. Your participation will inform the design of computational frameworks for human-robot collaboration.</p>
+<h4>SOURCE OF FUNDING</h4>
+<p>The researchers involved in this study are receiving financial support from the National Science Foundation, the Honda Research Institute USA, and the General Dynamics Land Systems – Robotics division.</p>
+
+<h4>TAKING PART IS VOLUNTARY</h4>
+<p>Your participation in this study is voluntary. You may refuse to participate before the study begins or discontinue at any time, with no penalty to you, and no effect on the compensation earned before withdrawing.</p>
+
+<h4>PAYMENT FOR PARTICIPATION </h4>
+<p>A $5 Amazon gift card code will be provided to you at the end of the study. </p>
+<h4>CONFIDENTIALITY OF RESEARCH INFORMATION</h4>
+<p>The data collected with this study will remain confidential and will be stored in secure servers. There will be no association between your name and the answers you provide. </p>
+<h4>IF YOU HAVE QUESTIONS</h4>
+<p>The Principal Investigator in this study is Christoforos Mavrogiannis, a research associate at the University of Washington. If you have questions later, you may contact him at <a href="mailto:hriuserstudy@gmail.com">hriuserstudy@gmail.com</a>.</p> -->
+<h4>STATEMENT OF CONSENT</h4>
+<p>I have read the above information, and have received answers to any questions I had. I am at least 18 years of age. I consent to take part in the study. </p>
+
+<center>
+<form action="../consent" method="post" onsubmit="return checkForm();">
+  <input type="radio" name="agree" value="agree" /> Agree
+  &nbsp;
+  <input type="radio" name="agree" value="disagree" /> Disagree
+  <br><br>
+  <input type="hidden" id="uuid" name="uuid" value="{{uuid}}">
+
+  <input type="submit" value="Submit">
+
+</form>
+<br><br><br><br>
+</body>
+</html>

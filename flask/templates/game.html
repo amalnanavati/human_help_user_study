@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+</head>
+<body>
+
+    <script>
+    var gameWidth = 600;
+    var gameHeight = 600;
+
+    var config = {
+        type: Phaser.AUTO,
+        width: gameWidth,
+        height: gameHeight,
+        physics: {
+            default: "matter",
+            matter: {
+                gravity: { y: 0 }, // This is the default value, so we could omit this
+                debug: true,
+            }
+        },
+        scene: {
+            preload: preload,
+            create: create,
+            update: update,
+        },
+    };
+
+    game = new Phaser.Game(config);
+    game.width = gameWidth;
+    game.height = gameHeight;
+    game.base_url = "http://0.0.0.0:8193/";
+    game.old_logged_game_state = null;
+    game.load = {{load|default("false", false)}};
+    game.dataToLoad = {{dataToLoad|default([], false)|tojson}};
+
+    function preload()
+    {
+        this.load.image('background', 'assets/map_cse2_2.png');
+        this.load.json('background_mask_physics', 'assets/map_cse2_2_mask.json');
+        this.load.spritesheet(
+          'characters',
+          'assets/character_64x96_spritesheet_bw.png',
+          {frameWidth: 64, frameHeight: 96},
+        );
+    }
+
+    function create()
+    {
+
+        var background_mask_physics = this.cache.json.get('background_mask_physics');
+        var player_start_x = 1137; // in map coordinates
+        var player_start_y = 168; // in map coordinates
+        var background_scale = 1.0;
+        var player_scale = 0.75;
+        var player_speed = 5;
+
+        // Add the background
+        game.background = this.matter.add.sprite(0, 0, 'background', null, {shape: background_mask_physics.map_cse2_2_mask}).setBounce(0); // center_x, center_y
+        game.background.setScale(background_scale);
+        var startXY = getMapXY(player_start_x, player_start_y);
+        game.background.setPosition(startXY.x, startXY.y);
+        Phaser.Physics.Matter.Matter.Body.setInertia(game.background.body, Infinity);
+        // game.background.setCollidesWith([]);
+
+        // Add the Wall Time
+        game.wall_time = this.add.text(0, 0, getWallTimeStr(0), {font: "bold 40px Arial", color: "#FFFFFF"});
+        game.wall_time.x = game.width*29/30-game.wall_time.displayWidth;
+        game.wall_time.setStroke("#000000", 10);
+
+        // Add the player
+        game.player = this.matter.add.sprite(this.game.width/2, this.game.height/2, 'characters');
+        game.player.speed = player_speed;
+        game.player.setExistingBody(Phaser.Physics.Matter.Matter.Bodies.rectangle(this.game.width/2, this.game.height/2, 50, 80));
+        game.player.setBounce(0).setFriction(0).setStatic(true)
+        game.player.setScale(player_scale);
+
+        this.anims.create({
+            key: 'down',
+            frames: this.anims.generateFrameNumbers('characters', {start: 0, end: 3}),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'up',
+            frames: this.anims.generateFrameNumbers('characters', {start: 4, end: 7}),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'left',
+            frames: this.anims.generateFrameNumbers('characters', {start: 8, end: 11}),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'right',
+            frames: this.anims.generateFrameNumbers('characters', {start: 12, end: 15}),
+            frameRate: 10,
+            repeat: -1
+        });
+        game.player.anims.play('down', true);
+
+        // Add keyboardInput
+        this.controls = this.input.keyboard.createCursorKeys();
+
+        // Add the start time
+        game.start_time = Date.now(); // ms
+        if (!game.load) logGameConfig();
+    }
+
+    function getWallTimeStr(dtime) {
+      var dtimeMultiplier = 10;
+      var dTimeOffset = 9*60*60*1000; // ms
+      var wallTimeMs = dtime*dtimeMultiplier + dTimeOffset;
+      var wallTimeMin = Math.round(wallTimeMs/1000/60);
+      var hours = ("0" + Math.floor(wallTimeMin / 60).toString()).slice(-2);
+      var mins = ("0" + wallTimeMin % 60).slice(-2);
+      var ampm = (wallTimeMin < 12*60) ? "AM" : "PM";
+      return hours+":"+mins+" "+ampm;
+    }
+
+    function logGameConfig() {
+      var url = game.base_url + "log_game_config";
+      var data = {
+        uuid:"{{uuid}}",
+        gid:"{{gid}}",
+        start_time: game.start_time,
+        background_scale: game.background.scale,
+        player_scale: game.player.scale,
+      };
+      console.log("Send ", data)
+      $.post(url, data, function(received_data, status)
+      {
+          console.log(`${received_data} and status is ${status}`)
+      });
+    }
+
+    function logGameState() {
+      var url = game.base_url + "log_game_state";
+      var result = getPlayerXY();
+      // console.log(result);
+      var granularity = 5; // px
+      var data = {
+        uuid:"{{uuid}}",
+        gid:"{{gid}}",
+        dtime: Date.now() - game.start_time,
+        player_x: Math.round(result.x/granularity)*granularity,
+        player_y: Math.round(result.y/granularity)*granularity,
+        player_anim_key: game.player.anims.getCurrentKey(),
+      };
+      // Only send data if it is different from the last one
+      if (
+        game.old_logged_game_state != null &&
+        game.old_logged_game_state.player_x == data.player_x &&
+        game.old_logged_game_state.player_y == data.player_y) {
+        return;
+      }
+
+      console.log("Send ", data)
+      $.post(url, data, function(received_data, status)
+      {
+          console.log(`${received_data} and status is ${status}`)
+      });
+      game.old_logged_game_state = data;
+    }
+
+    function getPlayerXY() {
+      // Get's the player's (x,y) position on the map, where (0,0) is the
+      // top-left corner
+      var cx_in_world = (game.background.centerOfMass.x)*game.background.displayWidth;
+      var cy_in_world = (game.background.centerOfMass.y)*game.background.displayHeight;
+
+      var cx_in_game = game.background.x;
+      var cy_in_game = game.background.y;
+
+      var player_x_in_game = game.player.x;
+      var player_y_in_game = game.player.y;
+
+      var player_x_in_world = player_x_in_game + cx_in_world - cx_in_game;
+      var player_y_in_world = player_y_in_game + cy_in_world - cy_in_game;
+
+      return {x:player_x_in_world, y:player_y_in_world};
+    }
+
+    function getMapXY(player_x_in_world, player_y_in_world) {
+      // Gets the position of the map in the world, given a playerX, playerY on
+      // the map where the top-left of the map is (0, 0)
+      var cx_in_world = (game.background.centerOfMass.x)*game.background.displayWidth;
+      var cy_in_world = (game.background.centerOfMass.y)*game.background.displayHeight;
+
+      var player_x_in_game = this.game.width/2;
+      var player_y_in_game = this.game.height/2;
+
+      var cx_in_game = player_x_in_game - player_x_in_world + cx_in_world;
+      var cy_in_game = player_y_in_game - player_y_in_world + cy_in_world;
+
+      return {x:cx_in_game, y:cy_in_game};
+    }
+
+    function update() {
+      if (game.load) {
+        if (game.dataToLoad.length > 0) {
+          var dtime = Date.now() - game.start_time;
+          game.wall_time.setText(getWallTimeStr(dtime));
+          var i = 0;
+          while (game.dataToLoad.length > 1) {
+            var next_dtime = game.dataToLoad[i+1].dtime;
+            if (dtime >= next_dtime) {
+              game.dataToLoad.splice(i, 1);
+            } else {
+              break;
+            }
+          }
+          var result = getMapXY(game.dataToLoad[i].player_x, game.dataToLoad[i].player_y);
+          game.background.x = result.x;
+          game.background.y = result.y;
+          game.player.anims.play(game.dataToLoad[i].player_anim_key, true);
+          if (game.dataToLoad.length == 1) {
+            console.log("finished playback!");
+            game.dataToLoad = []
+          }
+        }
+      } else {
+        // console.log(game.background.x, game.background.y);
+        // Log data
+        logGameState();
+        game.wall_time.setText(getWallTimeStr(Date.now() - game.start_time));
+        // Up
+        if (this.controls.up.isDown) {
+            game.background.setVelocityX(0);
+            if (game.background.y <= this.game.height/2 + (game.background.centerOfMass.y)*game.background.displayHeight - game.player.displayHeight/2) {
+              game.background.setVelocityY(game.player.speed);
+            } else {
+              game.background.setVelocityY(0);
+            }
+            game.player.anims.play('up', true);
+
+        // Down
+        } else if (this.controls.down.isDown) {
+            game.background.setVelocityX(0);
+            if (game.background.y >= this.game.height/2 - (1-game.background.centerOfMass.y)*game.background.displayHeight + game.player.displayHeight/2) {
+              game.background.setVelocityY(-game.player.speed);
+            } else {
+              game.background.setVelocityY(0);
+            }
+            game.player.anims.play('down', true);
+
+        // Left
+        } else if (this.controls.left.isDown) {
+            if (game.background.x <= this.game.width/2 + (game.background.centerOfMass.x)*game.background.displayWidth - game.player.displayWidth/2) {
+              game.background.setVelocityX(game.player.speed);
+            } else {
+              game.background.setVelocityX(0);
+            }
+            game.background.setVelocityY(0);
+            game.player.anims.play('left', true);
+
+        // Right
+        } else if (this.controls.right.isDown) {
+          if (game.background.x >= this.game.width/2 - (1-game.background.centerOfMass.x)*game.background.displayWidth + game.player.displayWidth/2) {
+            game.background.setVelocityX(-game.player.speed);
+          } else {
+            game.background.setVelocityX(0);
+          }
+            game.background.setVelocityY(0);
+            game.player.anims.play('right', true);
+
+        // Still
+        } else {
+            game.player.anims.stop();
+            game.background.setVelocityX(0);
+            game.background.setVelocityY(0);
+        }
+      }
+
+    }
+    </script>
+
+</body>
+</html>

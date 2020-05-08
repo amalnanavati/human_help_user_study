@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Index</title>
+
+    <link rel="stylesheet" href = "{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+
+    <style>
+    p {
+      padding-left: 40px;
+    }
+    h4 {
+      padding-left: 30px;
+    }
+    h3
+    {
+      padding-left: 20px;
+    }
+    </style>
+
+    <script type="text/javascript">
+      function checkForm(){
+        var genderChecks = document.getElementsByName('gender');
+
+        var isGenderFilled = false;
+        for (var i = 0; i < genderChecks.length; i++) {
+          if (genderChecks[i].checked) {
+            isGenderFilled = true;
+            break;
+          }
+        }
+
+        if (!isGenderFilled) {
+          alert("Please complete the gender question");
+          return false;
+        }
+
+        var age = document.getElementById('age').value;
+
+        if (age == "") {
+          alert("Please complete the age question");
+          return false;
+        }
+
+        return true;
+      }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <h1><center>Demographic Information</center></h1><br>
+<p> Please answer the following questions before you proceed. </p>
+<center>
+<form action="../demography" method="post" onsubmit="return checkForm();" >
+  <br><br>
+  Gender: <input type="radio" name="gender" value="male" /> Male
+  &nbsp;
+  <input type="radio" name="gender" value="female" /> Female
+  &nbsp;
+  <input type="radio" name="gender" value="other" /> Other
+  &nbsp;
+  <input type="radio" name="gender" value="na" /> Prefer not to answer
+  <br><br>
+  Age (18-65):  &nbsp;  &nbsp;
+  <input type="number" id="age" name="age"
+       min="18" max="65">
+  <br><br>
+
+ <input type="hidden" id="uuid" name="uuid" value="{{uuid}}">
+
+ <input type="submit" value="Submit">
+
+</form>
+<br><br><br><br>
+</body>
+</html>
