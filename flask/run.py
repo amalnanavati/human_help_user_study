@@ -127,7 +127,7 @@ class FlaskExample:
             return _check_and_send_file(source, "assets")
 
         app.debug = False
-        app.run(host='0.0.0.0', port=8193, threaded=True)
+        app.run(host='0.0.0.0', port=8194, threaded=True)
 
 
 if __name__ == '__main__':
