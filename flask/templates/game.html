@@ -1,94 +1,118 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-</head>
-<body>
+    <script src="./assets/PriorityQueue.js"></script>
+  </head>
+  <body>
 
     <script>
-    var gameWidth = 600;
-    var gameHeight = 600;
+      const tileSize = 64;
+      const screenSizeX = 13;
+      const screenSizeY = 11;
+      const playerMsPerStep = 200;
+      const robotMsPerStep = 350;
 
-    var config = {
-        type: Phaser.AUTO,
-        width: gameWidth,
-        height: gameHeight,
-        physics: {
-            default: "matter",
-            matter: {
-                gravity: { y: 0 }, // This is the default value, so we could omit this
-                debug: true,
-            }
-        },
+      const config = {
+        type: Phaser.AUTO, // Which renderer to use
+        width: tileSize*screenSizeX, // Canvas width in pixels; must be odd multipliers so the player starts centered
+        height: tileSize*screenSizeY, // Canvas height in pixels; must be odd multipliers so the player starts centered
+        parent: "game-container", // ID of the DOM element to add the canvas to
         scene: {
-            preload: preload,
-            create: create,
-            update: update,
+          preload: preload,
+          create: create,
+          update: update
         },
-    };
+        physics: {
+          default: "arcade",
+          arcade: {
+            gravity: { y: 0 } // Top down game, so no gravity
+          },
+        },
+      };
 
-    game = new Phaser.Game(config);
-    game.width = gameWidth;
-    game.height = gameHeight;
-    game.base_url = "http://0.0.0.0:8194/";
-    game.old_logged_game_state = null;
-    game.load = {{load|default("false", false)}};
-    game.dataToLoad = {{dataToLoad|default([], false)|tojson}};
+      const game = new Phaser.Game(config);
 
-    function preload()
-    {
-        this.load.image('background', 'assets/map_cse2_2.png');
-        this.load.json('background_mask_physics', 'assets/map_cse2_2_mask.json');
+      function preload() {
+        // Load the tiles and tile map (created in Tiled https://www.mapeditor.org/ )
+        this.load.image("tiles", "./assets/tiles64x64.png");
+        this.load.tilemapTiledJSON("map", "../assets/map.json");
+
+        // Load the character
         this.load.spritesheet(
           'characters',
           'assets/character_64x96_spritesheet_bw.png',
           {frameWidth: 64, frameHeight: 96},
         );
-    }
 
-    function create()
-    {
+        // Load the robot
+        this.load.spritesheet(
+          'robot',
+          'assets/robot.png',
+          {frameWidth: 64, frameHeight: 64},
+        );
+      }
 
-        var background_mask_physics = this.cache.json.get('background_mask_physics');
-        console.log(background_mask_physics);
-        var background_scale = 1.3;
-        var player_scale = 0.75;
-        game.map_start_x = 1137*background_scale; // in map coordinates
-        game.map_start_y = 168*background_scale; // in map coordinates
-        var player_speed = 7*background_scale;
+      function tileToGameXY(tile) {
+        return {x : (tile.x + 0.5) * tileSize, y : (tile.y + 0.5) * tileSize};
+      }
 
-        // Add the background
-        game.background = this.matter.add.sprite(0, 0, 'background', null, {shape: background_mask_physics.map_cse2_2_mask}).setBounce(0); // center_x, center_y
-        game.background.setScale(background_scale);
-        var startXY = getMapXYGivenPlayerXYInMapCoords(game.map_start_x, game.map_start_y);
-        game.background.setPosition(startXY.x, startXY.y);
-        game.map_start_x_in_game = startXY.x;
-        game.map_start_y_in_game = startXY.y;
-        console.log(game.background);
-        // throw "stop";
-        // game.background.alpha = 0.0;
-        Phaser.Physics.Matter.Matter.Body.setInertia(game.background.body, Infinity);
-        // game.background.setCollidesWith([]);
-        game.mapGranularity = 13;
-        game.robotWidth = 30;
-        game.robotHeight = 50;
-        // generateMapGraph(this);
+      function gameToTileXY(gameXY) {
+        return {x : Math.floor(gameXY.x / tileSize), y : Math.floor(gameXY.y / tileSize)};
+      }
 
-        // Add the Wall Time
-        game.wall_time = this.add.text(0, 0, getWallTimeStr(0), {font: "bold 40px Arial", color: "#FFFFFF"});
-        game.wall_time.x = game.width*29/30-game.wall_time.displayWidth;
-        game.wall_time.setStroke("#000000", 10);
+      function create() {
+        // Create the map and its layers
+        game.map = this.make.tilemap({ key: "map" });
+        game.tileset = game.map.addTilesetImage("tiles64x64", "tiles");
+        game.belowLayer = game.map.createStaticLayer("Below Player", game.tileset, 0, 0);
+        game.worldLayer = game.map.createStaticLayer("World", game.tileset, 0, 0);
+        game.aboveLayer = game.map.createStaticLayer("Above Player", game.tileset, 0, 0);
+        game.aboveLayer.setDepth(10);
+        // game.worldLayer.setCollisionByProperty({ collides: true });
 
-        // Add the player
-        var playerWidth = 50;
-        var playerHeight = 80;
-        game.player = this.matter.add.sprite(this.game.width/2, this.game.height/2, 'characters');
-        game.player.speed = player_speed;
-        game.player.setExistingBody(Phaser.Physics.Matter.Matter.Bodies.rectangle(this.game.width/2, this.game.height/2, playerWidth, playerHeight, {label: 'player'}));
-        game.player.setBounce(0).setFriction(0).setStatic(true);
-        game.player.setScale(player_scale);
+        // Create the player
+        game.player = this.physics.add.sprite(game.config.width/2, game.config.width/2, 'characters');
+        game.player.setScale(0.80);
+        game.player.currentTile = {x : 1, y : 3};
+        game.player.nextTile = game.player.currentTile;
+        var gameXY = tileToGameXY(game.player.currentTile);
+        game.player.x = gameXY.x;
+        game.player.y = gameXY.y;
 
+        // Add collisions between the player and world layer
+        // this.physics.add.collider(game.player, game.worldLayer);
+
+        // Create the robot
+        game.robot = this.physics.add.sprite(game.config.width/2, game.config.width/2, 'robot');
+        game.robot.currentTile = {x : 5, y : 5};
+        gameXY = tileToGameXY(game.robot.currentTile);
+        game.robot.x = gameXY.x;
+        game.robot.y = gameXY.y;
+
+        // Create and configure the camera
+        game.camera = this.cameras.main;
+        game.camera.startFollow(game.player);
+        game.camera.setBounds(0, 0, game.map.widthInPixels, game.map.heightInPixels);
+
+        // Configure the keyboard input
+        // game.cursors = this.input.keyboard.createCursorKeys();
+        // this.input.on('pointerdown', function (pointer) {
+        //   game.robot.goalTile = gameToTileXY({x : game.camera.scrollX + pointer.x, y : game.camera.scrollY + pointer.y});
+        //   game.robot.plan = generatePlan(game.robot.currentTile, game.robot.goalTile);
+        // });
+
+        // Create help text in the top-left corner
+        this.add.text(16, 16, "Arrow keys to move", {
+          font: "18px monospace",
+          fill: "#ffffff",
+          padding: { x: 20, y: 10 },
+          backgroundColor: "#000000"
+        })
+        .setScrollFactor(0);
+
+        // Create the player animations
         this.anims.create({
             key: 'down',
             frames: this.anims.generateFrameNumbers('characters', {start: 0, end: 3}),
@@ -115,349 +139,198 @@
         });
         game.player.anims.play('down', true);
 
-        // Add keyboardInput
-        game.keyboard = this.input.keyboard.createCursorKeys();
+        // Render the player's bounding box
+        // this.physics.world.createDebugGraphic();
 
-        // Add mouse Input
-        game.mouse = this.input.keyboard.createCursorKeys();
+      }
 
-        // Add the start time
-        game.start_time = Date.now(); // ms
-        if (!game.load) logGameConfig();
+      // Implements the A* algorithm to search for a path from start to the goal
+      function generatePlan(startTile, endTile) {
+        // Used so that each unique (x,y) pair has maximally one object in the
+        // queues/sets.
+        var xyToUniqueObject = {};
+        xyToUniqueObject[String([startTile.x, startTile.y])] = {x : startTile.x, y : startTile.y, f : distance(endTile, startTile), dist : 0, visitedFrom : null};
+        xyToUniqueObject[String([endTile.x, endTile.y])] = {x : endTile.x, y : endTile.y, f : null, dist : null, visitedFrom : null};
 
-        game.hasLoaded = true;
-    }
+        // The nodes we have yet to search through
+        var openNodes = new PriorityQueue((a, b) => a.f < b.f);
+        openNodes.push(xyToUniqueObject[String([startTile.x, startTile.y])]);
 
-    function discretizeMapPoint(x, y) {
-      var discretizedX = Math.floor(x/game.mapGranularity)*game.mapGranularity + game.mapGranularity/2;
-      var discretizedY = Math.floor(y/game.mapGranularity)*game.mapGranularity + game.mapGranularity/2;
-      return {x : discretizedX, y : discretizedY}
-    }
+        // The nodes we have already searched through
+        var closedNodes = new Set();
 
-    function wouldRobotOnPointBeInMap(x, y) {
-      return (x-game.robotWidth/2 >= 0 && x+game.robotWidth/2 <= game.background.displayWidth &&
-              y-game.robotHeight/2 >= 0 && y+game.robotHeight/2 <= game.background.displayHeight)
-    }
+        var goalReachable = false;
 
-    function generateMapGraph(scene) {
-      // First, create a collision sprite the same size as the robot
-      var zero = convertMapCoordsToGameCoords(0,0);
-      var collision_checking_sprite = scene.matter.add.sprite(game.width/2, game.height/2, 'characters');
-      collision_checking_sprite.setExistingBody(Phaser.Physics.Matter.Matter.Bodies.rectangle(0, 0, game.robotWidth, game.robotHeight, {isSensor: true, label: 'collision_checking_sprite'}));
-      collision_checking_sprite.setPosition(zero.x, zero.y);
-      collision_checking_sprite.alpha = 0.0;
+        while (!openNodes.isEmpty()) {
+          var currNode = openNodes.pop();
+          closedNodes.add(currNode);
 
-      did_collide = false;
-      // Add a collision event to the collision_checking_sprite
-      collision_checking_sprite.setOnCollide(
-        function(collision) {
-          did_collide = true;
-        }
-      );
+          if (currNode.x == endTile.x && currNode.y == endTile.y) {
+            goalReachable = true;
+            break;
+          }
 
-      // Start from the player start position, and move to nearby cells
-      game.graph = {}
-      safe_locations = []
-      var result = convertGameCoordsToMapCoords(game.width/2, game.height/2);
-      result = discretizeMapPoint(result.x, result.y);
-      toSearch = [[result.x, result.y]] // all the points in this will have already been checked for validity. We just have to add them to the graph
-      searched = {};
-      while (toSearch.length > 0) {
-        var pos = toSearch.pop();
-        var x = pos[0];
-        var y = pos[1];
-        console.log(x, y);
-        // We know x, y is already discretized and a valid location
-        var key = String([x, y]);
-        if (key in searched) {
-          continue;
-        }
-        game.graph[key] = [];
-        safe_locations.push([x,y]);
-        var dxDy = [[-1,0],[0,-1],[1,0],[0,1]];
-        for (i = 0; i < dxDy.length; i++) {
-          var dx = dxDy[i][0]*game.mapGranularity;
-          var dy = dxDy[i][1]*game.mapGranularity;
-          if (wouldRobotOnPointBeInMap(x+dx, y+dy)) {
-            result = convertMapCoordsToGameCoords(x+dx, y+dy);
-            collision_checking_sprite.setPosition(result.x, result.y);
-            scene.matter.world.update(Date.now, 0); // check for collision
-            if (did_collide) {
-              searched[String([x+dx, y+dy])] = null;
-              did_collide = false;
+          for (dNode of [{x:0,y:1},{x:1,y:0},{x:0,y:-1},{x:-1,y:0}]) {
+            var childX = currNode.x + dNode.x;
+            var childY = currNode.y + dNode.y;
+            if (!(String([childX, childY]) in xyToUniqueObject)) {
+              xyToUniqueObject[String([childX, childY])] = {x : childX, y : childY, f : null, dist : null, visitedFrom : null};
+            }
+            var childNode = xyToUniqueObject[String([childX, childY])];
+            if (!(childNode.x == endTile.x && childNode.y == endTile.y) && !isValidTile(childNode, true, false)) {
               continue;
-            } else {
-              game.graph[key].push([x+dx, y+dy]);
-              toSearch.push([x+dx, y+dy]);
-              searched[String([x, y])] = null;
             }
-            // Matter JS checks if the colliding edge has changed, not if the sprites are in collision.
-            // Hence, I need to reset the sprite's position.
-            collision_checking_sprite.setPosition(zero.x, zero.y);
-            scene.matter.world.update(Date.now, 0);
-          }
-        }
-      }
-
-      // console.log(game.graph);
-      // game.rects = []
-      // var graphics = scene.add.graphics();
-      // var keys = Object.keys(game.graph);
-      // for (i = 0; i < safe_locations.length; i++) {
-      //   var x = safe_locations[i][0];
-      //   var y = safe_locations[i][1];
-      //   var result = convertMapCoordsToGameCoords(x, y);
-      //   console.log(x, y);
-      //   var rect = new Phaser.GameObjects.Rectangle(scene, result.x, result.y, game.mapGranularity, game.mapGranularity);
-      //   rect.setStrokeStyle(1, 0x0000FF);
-      //   scene.add.existing(rect);
-      //   game.rects.push([rect, [result.x, result.y]]);
-      //   // console.log(rect.willRender(scene.cameras.cameras[0]));
-      //   // var rect = scene.add.rectangle(x, y, game.robotWidth, game.robotHeight, 0xff0000);
-      // }
-      // console.log(scene);
-      // // throw "stop";
-
-      // Finally, delete the collision_checking_sprite
-      collision_checking_sprite.destroy();
-    }
-
-    function getRootBody(body) {
-        if (body.parent === body) {
-            return body;
-        }
-        while (body.parent !== body) {
-            body = body.parent;
-        }
-        return body;
-    }
-
-    function getWallTimeStr(dtime) {
-      var dtimeMultiplier = 10;
-      var dTimeOffset = 9*60*60*1000; // ms
-      var wallTimeMs = dtime*dtimeMultiplier + dTimeOffset;
-      var wallTimeMin = Math.round(wallTimeMs/1000/60);
-      var hours = ("0" + Math.floor((wallTimeMin / 60) % 24).toString()).slice(-2);
-      var mins = ("0" + wallTimeMin % 60).slice(-2);
-      var ampm = ((wallTimeMin % (24*60)) < 12*60) ? "AM" : "PM";
-      return hours+":"+mins+" "+ampm;
-    }
-
-    function logGameConfig() {
-      var url = game.base_url + "log_game_config";
-      var data = {
-        uuid:"{{uuid}}",
-        gid:"{{gid}}",
-        start_time: game.start_time,
-        background_scale: game.background.scale,
-        player_scale: game.player.scale,
-      };
-      console.log("Send ", data)
-      $.post(url, data, function(received_data, status)
-      {
-          console.log(`${received_data} and status is ${status}`)
-      });
-    }
-
-    function logGameState() {
-      var url = game.base_url + "log_game_state";
-      var result = convertGameCoordsToMapCoords(game.player.x, game.player.y);
-      // console.log(result);
-      var granularity = 5; // px
-      var data = {
-        uuid:"{{uuid}}",
-        gid:"{{gid}}",
-        dtime: Date.now() - game.start_time,
-        player_x: Math.round(result.x/granularity)*granularity,
-        player_y: Math.round(result.y/granularity)*granularity,
-        player_anim_key: game.player.anims.getCurrentKey(),
-      };
-      // Only send data if it is different from the last one
-      if (
-        game.old_logged_game_state != null &&
-        game.old_logged_game_state.player_x == data.player_x &&
-        game.old_logged_game_state.player_y == data.player_y) {
-        return;
-      }
-
-      console.log("Send ", data)
-      $.post(url, data, function(received_data, status)
-      {
-          console.log(`${received_data} and status is ${status}`)
-      });
-      game.old_logged_game_state = data;
-    }
-
-    function convertGameCoordsToMapCoords(x_in_game, y_in_game) {
-      // Get's the player's (x,y) position on the map, where (0,0) is the
-      // top-left corner
-      var cx_in_world = (game.background.centerOfMass.x)*game.background.displayWidth;
-      var cy_in_world = (game.background.centerOfMass.y)*game.background.displayHeight;
-
-      var cx_in_game = game.background.x;
-      var cy_in_game = game.background.y;
-
-      var x_in_world = x_in_game + cx_in_world - cx_in_game;
-      var y_in_world = y_in_game + cy_in_world - cy_in_game;
-
-      return {x:x_in_world, y:y_in_world};
-    }
-
-    function convertMapCoordsToGameCoords(x_in_world, y_in_world) {
-      // Get's the player's (x,y) position on the map, where (0,0) is the
-      // top-left corner
-      var cx_in_world = (game.background.centerOfMass.x)*game.background.displayWidth;
-      var cy_in_world = (game.background.centerOfMass.y)*game.background.displayHeight;
-
-      var cx_in_game = game.background.x;
-      var cy_in_game = game.background.y;
-
-      var x_in_game = x_in_world - cx_in_world + cx_in_game;
-      var y_in_game = y_in_world - cy_in_world + cy_in_game;
-
-      return {x:x_in_game, y:y_in_game};
-    }
-
-    function getMapXYGivenPlayerXYInMapCoords(player_x_in_world, player_y_in_world) {
-      // Gets the position of the map in the world, given a playerX, playerY on
-      // the map where the top-left of the map is (0, 0)
-      var cx_in_world = (game.background.centerOfMass.x)*game.background.displayWidth;
-      var cy_in_world = (game.background.centerOfMass.y)*game.background.displayHeight;
-
-      var player_x_in_game = this.game.width/2;
-      var player_y_in_game = this.game.height/2;
-
-      var cx_in_game = player_x_in_game - player_x_in_world + cx_in_world;
-      var cy_in_game = player_y_in_game - player_y_in_world + cy_in_world;
-
-      return {x:cx_in_game, y:cy_in_game};
-    }
-
-    function convertXYInMapCoordsToGameCoords(x_in_world, y_in_world) {
-      // Gets the position of the map in the world, given a playerX, playerY on
-      // the map where the top-left of the map is (0, 0)
-      var cx_in_world = (game.background.centerOfMass.x)*game.background.displayWidth;
-      var cy_in_world = (game.background.centerOfMass.y)*game.background.displayHeight;
-
-      var player_x_in_game = this.game.width/2;
-      var player_y_in_game = this.game.height/2;
-
-      var cx_in_game = player_x_in_game - player_x_in_world + cx_in_world;
-      var cy_in_game = player_y_in_game - player_y_in_world + cy_in_world;
-
-      return {x:cx_in_game, y:cy_in_game};
-    }
-
-    function update() {
-      if (game.hasLoaded) {
-        var pointer = this.input.activePointer;
-        if (pointer.isDown) {
-          console.log(pointer.x, pointer.y);
-          // console.log(game.background.body.vertices);
-          // console.log(Phaser.Physics.Matter.Matter.Vertices.contains(game.background.body.vertices, {x : pointer.x, y : pointer.y}));
-
-          // Phaser.Physics.Matter.Matter.Body.setPosition(game.collision_checking_sprite.body, {x : pointer.x, y : pointer.y});
-
-          // var result = convertGameCoordsToMapCoords(pointer.x, pointer.y);
-          // result = discretizeMapPoint(result.x, result.y);
-          // result = convertMapCoordsToGameCoords(result.x, result.y);
-          // Phaser.Physics.Matter.Matter.Body.setPosition(game.collision_checking_sprite.body, {x : result.x, y : result.y});
-
-          // console.log(game.player.body);
-          // console.log(game.background.body);
-          // console.log(Phaser.Physics.Matter.Matter.SAT.collides(game.background.body, game.player.body));
-        }
-
-        if (game.load) {
-          if (game.dataToLoad.length > 0) {
-            var dtime = Date.now() - game.start_time;
-            game.wall_time.setText(getWallTimeStr(dtime));
-            var i = 0;
-            while (game.dataToLoad.length > 1) {
-              var next_dtime = game.dataToLoad[i+1].dtime;
-              if (dtime >= next_dtime) {
-                game.dataToLoad.splice(i, 1);
-              } else {
-                break;
-              }
+            if (closedNodes.has(childNode)) {
+              continue;
             }
-            var result = getMapXYGivenPlayerXYInMapCoords(game.dataToLoad[i].player_x, game.dataToLoad[i].player_y);
-            game.background.x = result.x;
-            game.background.y = result.y;
-            game.player.anims.play(game.dataToLoad[i].player_anim_key, true);
-            if (game.dataToLoad.length == 1) {
-              console.log("finished playback!");
-              game.dataToLoad = []
+            var heuristicDist = distance(endTile, childNode);
+            var childDist = currNode.dist + 1;
+
+            if (childNode.dist == null || childDist < childNode.dist) {
+              childNode.dist = childDist;
+              childNode.visitedFrom = currNode;
+              childNode.f = childDist + heuristicDist;
+              openNodes.push(childNode);
             }
           }
-        } else {
-          // var result = convertGameCoordsToMapCoords(game.player.x, game.player.y);
-          // result = discretizeMapPoint(result.x, result.y);
-          // console.log(String([result.x, result.y] in game.graph));
+        }
 
-          // console.log("game.background.x, game.background.y", game.background.x, game.background.y);
-          // Log data
-          logGameState();
-          game.wall_time.setText(getWallTimeStr(Date.now() - game.start_time));
-          // Up
-          if (game.keyboard.up.isDown) {
-              game.background.setVelocityX(0);
-              if (game.background.y <= this.game.height/2 + (game.background.centerOfMass.y)*game.background.displayHeight - game.player.displayHeight/2) {
-                game.background.setVelocityY(game.player.speed);
-              } else {
-                game.background.setVelocityY(0);
-              }
-              game.player.anims.play('up', true);
+        if (!goalReachable) {
+          return [];
+        }
 
-          // Down
-          } else if (game.keyboard.down.isDown) {
-              game.background.setVelocityX(0);
-              if (game.background.y >= this.game.height/2 - (1-game.background.centerOfMass.y)*game.background.displayHeight + game.player.displayHeight/2) {
-                game.background.setVelocityY(-game.player.speed);
-              } else {
-                game.background.setVelocityY(0);
-              }
-              game.player.anims.play('down', true);
+        var plan = [];
+        var currNode = xyToUniqueObject[String([endTile.x, endTile.y])];
+        while (currNode.x != startTile.x || currNode.y != startTile.y) {
+          plan.unshift({x : currNode.x, y : currNode.y});
+          currNode = currNode.visitedFrom;
+        }
+        // plan.unshift({x : startTile.x, y : startTile.y});
 
-          // Left
-          } else if (game.keyboard.left.isDown) {
-              if (game.background.x <= this.game.width/2 + (game.background.centerOfMass.x)*game.background.displayWidth - game.player.displayWidth/2) {
-                game.background.setVelocityX(game.player.speed);
-              } else {
-                game.background.setVelocityX(0);
-              }
-              game.background.setVelocityY(0);
-              game.player.anims.play('left', true);
+        return plan;
+      }
 
-          // Right
-          } else if (game.keyboard.right.isDown) {
-            if (game.background.x >= this.game.width/2 - (1-game.background.centerOfMass.x)*game.background.displayWidth + game.player.displayWidth/2) {
-              game.background.setVelocityX(-game.player.speed);
-            } else {
-              game.background.setVelocityX(0);
-            }
-              game.background.setVelocityY(0);
-              game.player.anims.play('right', true);
+      function distance(tile0, tile1) {
+        return Math.abs(tile0.x - tile1.x) + Math.abs(tile0.y - tile1.y);
+      }
 
-          // Still
+      // Return whether or not a tile is valid for the player/robot to be in.
+      // includePlayer indicates whether we should treat the player as an obstacle,
+      // and includeRobot indicates whether we should treat the robot as an
+      // obstacle
+      function isValidTile(tile, includePlayer, includeRobot) {
+        return (
+          tile.x >= 0 &&
+          tile.x < game.map.width &&
+          tile.y >= 0 &&
+          tile.y < game.map.height &&
+          (!includePlayer || !((tile.x == game.player.currentTile.x && tile.y == game.player.currentTile.y) || (tile.x == game.player.nextTile.x && tile.y == game.player.nextTile.y))) &&
+          (!includeRobot || !((tile.x == game.robot.currentTile.x && tile.y == game.robot.currentTile.y) || (game.robot.plan != null && game.robot.plan.length > 0 && tile.x == game.robot.plan[0].x && tile.y == game.robot.plan[0].y))) &&
+          game.worldLayer.getTileAt(tile.x, tile.y) == null
+        )
+      }
+
+      function update(time, delta) {
+
+        // If we are in the middle of rendering a player movement animation
+        if (game.player.movementTimer) {
+          var p = game.player.movementTimer.getOverallProgress();
+          var gameXY = tileToGameXY({
+            x : game.player.currentTile.x * (1-p) + game.player.nextTile.x * p,
+            y : game.player.currentTile.y * (1-p) + game.player.nextTile.y * p,
+          });
+          game.player.x = gameXY.x;
+          game.player.y = gameXY.y;
+          if (game.player.movementTimer.getOverallProgress() == 1.0) {
+              game.player.currentTile = game.player.nextTile;
+              game.player.movementTimer = null;
+          }
+        }
+
+        // If we have finished rendering the last player movement animation
+        if (game.player.movementTimer == null) {
+          var newAction = false;
+          if (game.cursors.left.isDown) {
+            game.player.nextTile = {
+              x : game.player.currentTile.x - 1,
+              y : game.player.currentTile.y,
+            };
+            game.player.anims.play('left', true);
+            newAction = isValidTile(game.player.nextTile, false, true);
+          } else if (game.cursors.right.isDown) {
+            game.player.nextTile = {
+              x : game.player.currentTile.x + 1,
+              y : game.player.currentTile.y,
+            };
+            game.player.anims.play('right', true);
+            newAction = isValidTile(game.player.nextTile, false, true);
+          } else if (game.cursors.up.isDown) {
+            game.player.nextTile = {
+              x : game.player.currentTile.x,
+              y : game.player.currentTile.y - 1,
+            };
+            game.player.anims.play('up', true);
+            newAction = isValidTile(game.player.nextTile, false, true);
+          } else if (game.cursors.down.isDown) {
+            game.player.nextTile = {
+              x : game.player.currentTile.x,
+              y : game.player.currentTile.y + 1,
+            };
+            game.player.anims.play('down', true);
+            newAction = isValidTile(game.player.nextTile, false, true);
           } else {
-              game.player.anims.stop();
-              game.background.setVelocityX(0);
-              game.background.setVelocityY(0);
+            game.player.anims.stop();
           }
 
-          // for (i = 0; i < game.rects.length; i++) {
-          //   if (i == 0) {
-          //     console.log(game.rects[i][0].x, game.rects[i][1][0], game.background.x, game.map_start_x_in_game);
-          //   }
-          //   game.rects[i][0].x = game.rects[i][1][0] + game.background.x - game.map_start_x_in_game;
-          //   game.rects[i][0].y = game.rects[i][1][1] + game.background.y - game.map_start_y_in_game;
-          // }
-
+          if (newAction) {
+            game.player.movementTimer = this.time.addEvent({delay: playerMsPerStep});
+          }
         }
+
+        // If we are in the middle of rendering a robot movement animation
+        if (game.robot.movementTimer) {
+          var p = game.robot.movementTimer.getOverallProgress();
+          var gameXY = tileToGameXY({
+            x : game.robot.currentTile.x * (1-p) + game.robot.plan[0].x * p,
+            y : game.robot.currentTile.y * (1-p) + game.robot.plan[0].y * p,
+          });
+          game.robot.x = gameXY.x;
+          game.robot.y = gameXY.y;
+          if (game.robot.movementTimer.getOverallProgress() == 1.0) {
+              game.robot.currentTile = game.robot.plan[0];
+              game.robot.plan.splice(0,1);
+              game.robot.movementTimer = null;
+          }
+        }
+        if (game.robot.movementTimer == null) {
+          // Chase the human
+          if (game.robot.plan == null || game.robot.plan.length == 0 || (distance(game.robot.plan[game.robot.plan.length-1], game.player.currentTile) > 1)) {
+            game.robot.plan = generatePlan(game.robot.currentTile, game.player.currentTile);
+          }
+        }
+
+        // If we have finished rendering the last robot movement animation
+        if (game.robot.movementTimer == null && game.robot.plan != null && game.robot.plan.length > 0) {
+          // If the robot's plan would collide with the human
+          if ((game.robot.plan[0].x == game.player.currentTile.x && game.robot.plan[0].y == game.player.currentTile.y) ||
+              (game.robot.plan[0].x == game.player.nextTile.x && game.robot.plan[0].y == game.player.nextTile.y)) {
+              // If the human is in the goal position, terminate the plan
+              if (game.robot.plan.length == 1) {
+                game.robot.plan = null;
+              }
+              // Else, replan
+              else {
+                game.robot.plan = generatePlan(game.robot.currentTile, game.robot.goalTile);
+              }
+
+          }
+          if (game.robot.plan != null) {
+            game.robot.movementTimer = this.time.addEvent({delay: robotMsPerStep});
+          }
+        }
+
       }
-    }
     </script>
 
-</body>
+  </body>
 </html>

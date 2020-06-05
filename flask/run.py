@@ -121,6 +121,24 @@ class FlaskExample:
             return json.dumps(
                 {'status': 'success', 'msg': 'saved'})
 
+        # Log game graph
+        @app.route('/log_game_graph', methods=['POST'])
+        def log_game_graph():
+
+            background_scale = request.json['background_scale']
+            map_granularity = request.json['map_granularity']
+            robot_width = request.json['robot_width']
+            robot_height = request.json['robot_height']
+
+            fname ="assets/map_graph_{}_{}_{}_{}.json".format(background_scale, map_granularity, robot_width, robot_height)
+            with open(fname, "a") as f:
+                dataJSON = json.dumps(request.json, separators=(',', ':'))
+                f.write(dataJSON+"\n")
+                print("Wrote to ", fname)
+
+            return json.dumps(
+                {'status': 'success', 'msg': 'saved'})
+
         # Called to access files in the assets folder
         @app.route('/assets/<source>', methods=['GET'])
         def get_file(source):

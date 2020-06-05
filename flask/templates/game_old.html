@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+</head>
+<body>
+
+    <script>
+    var gameWidth = 1200;
+    var gameHeight = 800;
+
+    var config = {
+        type: Phaser.AUTO,
+        width: gameWidth,
+        height: gameHeight,
+        physics: {
+            default: "matter",
+            matter: {
+                gravity: { y: 0 }, // This is the default value, so we could omit this
+                debug: true,
+            }
+        },
+        scene: {
+            preload: preload,
+            create: create,
+            update: update,
+        },
+    };
+
+    game = new Phaser.Game(config);
+    game.width = gameWidth;
+    game.height = gameHeight;
+    game.base_url = "http://0.0.0.0:8194/";
+    game.old_logged_game_state = null;
+    game.load = {{load|default("false", false)}};
+    game.dataToLoad = {{dataToLoad|default([], false)|tojson}};
+
+    game.background_scale = 1.3;
+    game.mapGranularity = 30; // 13;
+    game.robotWidth = 30;
+    game.robotHeight = 50;
+
+    function preload()
+    {
+        console.log("scene", this);
+
+        this.load.image('background', 'assets/map_cse2_2.png');
+        this.load.json('background_mask_physics', 'assets/map_cse2_2_mask.json');
+        this.load.spritesheet(
+          'characters',
+          'assets/character_64x96_spritesheet_bw.png',
+          {frameWidth: 64, frameHeight: 96},
+        );
+        this.load.json('map_graph', 'assets/map_graph_' + game.background_scale.toString() + '_' + game.mapGranularity.toString() + '_' + game.robotWidth.toString() + '_' + game.robotHeight.toString() + '.json');
+
+        game.clock = new Phaser.Time.Clock(this);
+        console.log("clock", game.clock);
+    }
+
+    function create()
+    {
+
+        var background_mask_physics = this.cache.json.get('background_mask_physics');
+        // console.log(background_mask_physics);
+        var player_scale = 0.75;
+        game.map_start_x = 1137*game.background_scale; // in map coordinates
+        game.map_start_y = 168*game.background_scale; // in map coordinates
+        var player_speed = 7*game.background_scale;
+
+        // Add the background
+        game.background = this.matter.add.sprite(0, 0, 'background', null, {shape: background_mask_physics.map_cse2_2_mask}).setBounce(0); // center_x, center_y
+        game.background.setScale(game.background_scale);
+        var startXY = getMapXYGivenPlayerXYInMapCoords(game.map_start_x, game.map_start_y);
+        startXY = discretizeMapPoint(startXY.x, startXY.y);
+        game.background.setPosition(startXY.x, startXY.y);
+        game.map_start_x_in_game = startXY.x;
+        game.map_start_y_in_game = startXY.y;
+        // console.log(game.background);
+        // throw "stop";
+        // game.background.alpha = 0.0;
+        Phaser.Physics.Matter.Matter.Body.setInertia(game.background.body, Infinity);
+        // game.background.setCollidesWith([]);
+
+        // var map_graph = this.cache.json.get('map_graph');
+        // console.log(map_graph);
+        // if (map_graph.status == "failed") {
+        //   generateAndSaveMapGraph();
+        // } else {
+        //   game.graph = map_graph["graph"];
+        // }
+        // drawGraphRects(this);
+
+        // Add the Wall Time
+        game.wall_time = this.add.text(0, 0, getWallTimeStr(0), {font: "bold 40px Arial", color: "#FFFFFF"});
+        game.wall_time.x = game.width*29/30-game.wall_time.displayWidth;
+        game.wall_time.setStroke("#000000", 10);
+
+        // Add the player
+        var playerWidth = 50;
+        var playerHeight = 80;
+        game.player = this.matter.add.sprite(this.game.width/2, this.game.height/2, 'characters');
+        game.player.speed = player_speed;
+        game.player.setExistingBody(Phaser.Physics.Matter.Matter.Bodies.rectangle(this.game.width/2, this.game.height/2, playerWidth, playerHeight, {label: 'player'}));
+        game.player.setBounce(0).setFriction(0).setStatic(true);
+        game.player.setScale(player_scale);
+
+        this.anims.create({
+            key: 'down',
+            frames: this.anims.generateFrameNumbers('characters', {start: 0, end: 3}),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'up',
+            frames: this.anims.generateFrameNumbers('characters', {start: 4, end: 7}),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'left',
+            frames: this.anims.generateFrameNumbers('characters', {start: 8, end: 11}),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'right',
+            frames: this.anims.generateFrameNumbers('characters', {start: 12, end: 15}),
+            frameRate: 10,
+            repeat: -1
+        });
+        game.player.anims.play('down', true);
+
+        // Add keyboardInput
+        game.keyboard = this.input.keyboard.createCursorKeys();
+
+        // Add mouse Input
+        game.mouse = this.input.keyboard.createCursorKeys();
+
+        // Add the start time
+        game.start_time = Date.now(); // ms
+        if (!game.load) logGameConfig();
+
+        game.hasLoaded = true;
+    }
+
+    function discretizeMapPoint(x, y) {
+      var discretizedX = Math.floor(x/game.mapGranularity)*game.mapGranularity + game.mapGranularity/2;
+      var discretizedY = Math.floor(y/game.mapGranularity)*game.mapGranularity + game.mapGranularity/2;
+      return {x : discretizedX, y : discretizedY}
+    }
+
+    function wouldRobotOnPointBeInMap(x, y) {
+      return (x-game.robotWidth/2 >= 0 && x+game.robotWidth/2 <= game.background.displayWidth &&
+              y-game.robotHeight/2 >= 0 && y+game.robotHeight/2 <= game.background.displayHeight)
+    }
+
+    function generateAndSaveMapGraph() {
+      // First, create a collision sprite the same size as the robot
+      var zero = convertMapCoordsToGameCoords(0,0);
+      var collision_checking_sprite = scene.matter.add.sprite(game.width/2, game.height/2, 'characters');
+      collision_checking_sprite.setExistingBody(Phaser.Physics.Matter.Matter.Bodies.rectangle(0, 0, game.robotWidth, game.robotHeight, {isSensor: true, label: 'collision_checking_sprite'}));
+      collision_checking_sprite.setPosition(zero.x, zero.y);
+      collision_checking_sprite.alpha = 0.0;
+
+      did_collide = false;
+      // Add a collision event to the collision_checking_sprite
+      collision_checking_sprite.setOnCollide(
+        function(collision) {
+          did_collide = true;
+        }
+      );
+
+      // Start from the player start position, and move to nearby cells
+      game.graph = {}
+      safe_locations = []
+      var result = convertGameCoordsToMapCoords(game.width/2, game.height/2);
+      result = discretizeMapPoint(result.x, result.y);
+      toSearch = [[result.x, result.y]] // all the points in this will have already been checked for validity. We just have to add them to the graph
+      searched = {};
+      while (toSearch.length > 0) {
+        var pos = toSearch.pop();
+        var x = pos[0];
+        var y = pos[1];
+        console.log(x, y);
+        // We know x, y is already discretized and a valid location
+        var key = String([x, y]);
+        if (key in searched) {
+          continue;
+        }
+        game.graph[key] = [];
+        safe_locations.push([x,y]);
+        var dxDy = [[-1,0],[0,-1],[1,0],[0,1]];
+        for (i = 0; i < dxDy.length; i++) {
+          var dx = dxDy[i][0]*game.mapGranularity;
+          var dy = dxDy[i][1]*game.mapGranularity;
+          if (wouldRobotOnPointBeInMap(x+dx, y+dy)) {
+            result = convertMapCoordsToGameCoords(x+dx, y+dy);
+            collision_checking_sprite.setPosition(result.x, result.y);
+            scene.matter.world.update(Date.now, 0); // check for collision
+            if (did_collide) {
+              searched[String([x+dx, y+dy])] = null;
+              did_collide = false;
+              continue;
+            } else {
+              game.graph[key].push([x+dx, y+dy]);
+              toSearch.push([x+dx, y+dy]);
+              searched[String([x, y])] = null;
+            }
+            // Matter JS checks if the colliding edge has changed, not if the sprites are in collision.
+            // Hence, I need to reset the sprite's position.
+            collision_checking_sprite.setPosition(zero.x, zero.y);
+            scene.matter.world.update(Date.now, 0);
+          }
+        }
+      }
+
+      console.log(game.graph)
+
+      var url = game.base_url + "log_game_graph";
+      var data = {
+        background_scale: game.background.scale,
+        map_granularity: game.mapGranularity,
+        robot_width: game.robotWidth,
+        robot_height: game.robotHeight,
+        graph: game.graph,
+        // graphA: {"a" : [[0,1],[2,3],[4,5]]},
+        // graphB: {"b" : [0,1,2,3,4,5]},
+        // graphC: [0,1,2,3,4,5],
+        // graphD: {"a" : {"0" : {"x":0,"y":1},"1":{"x":2,"y":3},"2":{"x":4,"y":5}}},
+      };
+      console.log("Send ", data)
+      $.ajax({
+        type : "POST",
+        url : url,
+        data: JSON.stringify(data, null, '\t'),
+        contentType: 'application/json;charset=UTF-8',
+        success: function(received_data, status) {
+            console.log(`${received_data} and status is ${status}`);
+        }
+      });
+
+      // console.log(scene);
+      // throw "stop";
+
+      // Finally, delete the collision_checking_sprite
+      collision_checking_sprite.destroy();
+    }
+
+    function drawGraphRects(scene) {
+      game.rects = [];
+
+      for (key in game.graph) {
+        var nums = key.split(",");
+        var x  = parseFloat(nums[0]);
+        var y  = parseFloat(nums[1]);
+        var result = convertMapCoordsToGameCoords(x, y);
+        var rect = new Phaser.GameObjects.Rectangle(scene, result.x, result.y, game.mapGranularity, game.mapGranularity);
+        rect.setStrokeStyle(1, 0x0000FF);
+        scene.add.existing(rect);
+        game.rects.push([rect, [result.x, result.y]]);
+      }
+    }
+
+    function getRootBody(body) {
+        if (body.parent === body) {
+            return body;
+        }
+        while (body.parent !== body) {
+            body = body.parent;
+        }
+        return body;
+    }
+
+    function getWallTimeStr(dtime) {
+      var dtimeMultiplier = 10;
+      var dTimeOffset = 9*60*60*1000; // ms
+      var wallTimeMs = dtime*dtimeMultiplier + dTimeOffset;
+      var wallTimeMin = Math.round(wallTimeMs/1000/60);
+      var hours = ("0" + Math.floor((wallTimeMin / 60) % 24).toString()).slice(-2);
+      var mins = ("0" + wallTimeMin % 60).slice(-2);
+      var ampm = ((wallTimeMin % (24*60)) < 12*60) ? "AM" : "PM";
+      return hours+":"+mins+" "+ampm;
+    }
+
+    function logGameConfig() {
+      var url = game.base_url + "log_game_config";
+      var data = {
+        uuid:"{{uuid}}",
+        gid:"{{gid}}",
+        start_time: game.start_time,
+        background_scale: game.background.scale,
+        player_scale: game.player.scale,
+      };
+      console.log("Send ", data)
+      $.post(url, data, function(received_data, status)
+      {
+          console.log(`${received_data} and status is ${status}`)
+      });
+    }
+
+    function logGameState() {
+      var url = game.base_url + "log_game_state";
+      var result = convertGameCoordsToMapCoords(game.player.x, game.player.y);
+      // console.log(result);
+      var granularity = 5; // px
+      var data = {
+        uuid:"{{uuid}}",
+        gid:"{{gid}}",
+        dtime: Date.now() - game.start_time,
+        player_x: Math.round(result.x/granularity)*granularity,
+        player_y: Math.round(result.y/granularity)*granularity,
+        player_anim_key: game.player.anims.getCurrentKey(),
+      };
+      // Only send data if it is different from the last one
+      if (
+        game.old_logged_game_state != null &&
+        game.old_logged_game_state.player_x == data.player_x &&
+        game.old_logged_game_state.player_y == data.player_y) {
+        return;
+      }
+
+      console.log("Send ", data)
+      $.post(url, data, function(received_data, status)
+      {
+          console.log(`${received_data} and status is ${status}`)
+      });
+      game.old_logged_game_state = data;
+    }
+
+    function convertGameCoordsToMapCoords(x_in_game, y_in_game) {
+      // Get's the player's (x,y) position on the map, where (0,0) is the
+      // top-left corner
+      var cx_in_world = (game.background.centerOfMass.x)*game.background.displayWidth;
+      var cy_in_world = (game.background.centerOfMass.y)*game.background.displayHeight;
+
+      var cx_in_game = game.background.x;
+      var cy_in_game = game.background.y;
+
+      var x_in_world = x_in_game + cx_in_world - cx_in_game;
+      var y_in_world = y_in_game + cy_in_world - cy_in_game;
+
+      return {x:x_in_world, y:y_in_world};
+    }
+
+    function convertMapCoordsToGameCoords(x_in_world, y_in_world) {
+      // Get's the player's (x,y) position on the map, where (0,0) is the
+      // top-left corner
+      var cx_in_world = (game.background.centerOfMass.x)*game.background.displayWidth;
+      var cy_in_world = (game.background.centerOfMass.y)*game.background.displayHeight;
+
+      var cx_in_game = game.background.x;
+      var cy_in_game = game.background.y;
+
+      var x_in_game = x_in_world - cx_in_world + cx_in_game;
+      var y_in_game = y_in_world - cy_in_world + cy_in_game;
+
+      return {x:x_in_game, y:y_in_game};
+    }
+
+    function getMapXYGivenPlayerXYInMapCoords(player_x_in_world, player_y_in_world) {
+      // Gets the position of the map in the world, given a playerX, playerY on
+      // the map where the top-left of the map is (0, 0)
+      var cx_in_world = (game.background.centerOfMass.x)*game.background.displayWidth;
+      var cy_in_world = (game.background.centerOfMass.y)*game.background.displayHeight;
+
+      var player_x_in_game = this.game.width/2;
+      var player_y_in_game = this.game.height/2;
+
+      var cx_in_game = player_x_in_game - player_x_in_world + cx_in_world;
+      var cy_in_game = player_y_in_game - player_y_in_world + cy_in_world;
+
+      return {x:cx_in_game, y:cy_in_game};
+    }
+
+    function convertXYInMapCoordsToGameCoords(x_in_world, y_in_world) {
+      // Gets the position of the map in the world, given a playerX, playerY on
+      // the map where the top-left of the map is (0, 0)
+      var cx_in_world = (game.background.centerOfMass.x)*game.background.displayWidth;
+      var cy_in_world = (game.background.centerOfMass.y)*game.background.displayHeight;
+
+      var player_x_in_game = this.game.width/2;
+      var player_y_in_game = this.game.height/2;
+
+      var cx_in_game = player_x_in_game - player_x_in_world + cx_in_world;
+      var cy_in_game = player_y_in_game - player_y_in_world + cy_in_world;
+
+      return {x:cx_in_game, y:cy_in_game};
+    }
+
+    function update() {
+      if (game.hasLoaded) {
+        var pointer = this.input.activePointer;
+        if (pointer.isDown) {
+          // console.log(pointer.x, pointer.y);
+
+          // console.log(game.background.body.vertices);
+          // console.log(Phaser.Physics.Matter.Matter.Vertices.contains(game.background.body.vertices, {x : pointer.x, y : pointer.y}));
+
+          // Phaser.Physics.Matter.Matter.Body.setPosition(game.collision_checking_sprite.body, {x : pointer.x, y : pointer.y});
+
+          // var result = convertGameCoordsToMapCoords(pointer.x, pointer.y);
+          // result = discretizeMapPoint(result.x, result.y);
+          // result = convertMapCoordsToGameCoords(result.x, result.y);
+          // Phaser.Physics.Matter.Matter.Body.setPosition(game.collision_checking_sprite.body, {x : result.x, y : result.y});
+
+          // console.log(game.player.body);
+          // console.log(game.background.body);
+          // console.log(Phaser.Physics.Matter.Matter.SAT.collides(game.background.body, game.player.body));
+        }
+
+        if (game.load) {
+          if (game.dataToLoad.length > 0) {
+            var dtime = Date.now() - game.start_time;
+            game.wall_time.setText(getWallTimeStr(dtime));
+            var i = 0;
+            while (game.dataToLoad.length > 1) {
+              var next_dtime = game.dataToLoad[i+1].dtime;
+              if (dtime >= next_dtime) {
+                game.dataToLoad.splice(i, 1);
+              } else {
+                break;
+              }
+            }
+            var result = getMapXYGivenPlayerXYInMapCoords(game.dataToLoad[i].player_x, game.dataToLoad[i].player_y);
+            game.background.x = result.x;
+            game.background.y = result.y;
+            game.player.anims.play(game.dataToLoad[i].player_anim_key, true);
+            if (game.dataToLoad.length == 1) {
+              console.log("finished playback!");
+              game.dataToLoad = []
+            }
+          }
+        } else {
+          // var result = convertGameCoordsToMapCoords(game.player.x, game.player.y);
+          // result = discretizeMapPoint(result.x, result.y);
+          // console.log(String([result.x, result.y] in game.graph));
+
+          // console.log("game.background.x, game.background.y", game.background.x, game.background.y);
+          // Log data
+          logGameState();
+          game.wall_time.setText(getWallTimeStr(Date.now() - game.start_time));
+          // Up
+          if (game.keyboard.up.isDown) {
+              game.background.setVelocityX(0);
+              if (game.background.y <= this.game.height/2 + (game.background.centerOfMass.y)*game.background.displayHeight - game.player.displayHeight/2) {
+                game.background.setVelocityY(game.player.speed);
+              } else {
+                game.background.setVelocityY(0);
+              }
+              game.player.anims.play('up', true);
+
+          // Down
+          } else if (game.keyboard.down.isDown) {
+              game.background.setVelocityX(0);
+              if (game.background.y >= this.game.height/2 - (1-game.background.centerOfMass.y)*game.background.displayHeight + game.player.displayHeight/2) {
+                game.background.setVelocityY(-game.player.speed);
+              } else {
+                game.background.setVelocityY(0);
+              }
+              game.player.anims.play('down', true);
+
+          // Left
+          } else if (game.keyboard.left.isDown) {
+              if (game.background.x <= this.game.width/2 + (game.background.centerOfMass.x)*game.background.displayWidth - game.player.displayWidth/2) {
+                game.background.setVelocityX(game.player.speed);
+              } else {
+                game.background.setVelocityX(0);
+              }
+              game.background.setVelocityY(0);
+              game.player.anims.play('left', true);
+
+          // Right
+          } else if (game.keyboard.right.isDown) {
+            if (game.background.x >= this.game.width/2 - (1-game.background.centerOfMass.x)*game.background.displayWidth + game.player.displayWidth/2) {
+              game.background.setVelocityX(-game.player.speed);
+            } else {
+              game.background.setVelocityX(0);
+            }
+              game.background.setVelocityY(0);
+              game.player.anims.play('right', true);
+
+          // Still
+          } else {
+              game.player.anims.stop();
+              game.background.setVelocityX(0);
+              game.background.setVelocityY(0);
+          }
+
+          // for (i = 0; i < game.rects.length; i++) {
+          //   if (i == 0) {
+          //     // console.log(game.rects[i][0].x, game.rects[i][1][0], game.background.x, game.map_start_x_in_game);
+          //   }
+          //   game.rects[i][0].x = game.rects[i][1][0] + game.background.x - game.map_start_x_in_game;
+          //   game.rects[i][0].y = game.rects[i][1][1] + game.background.y - game.map_start_y_in_game;
+          // }
+
+        }
+      }
+    }
+    </script>
+
+</body>
+</html>
