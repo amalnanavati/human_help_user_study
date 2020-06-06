@@ -72,16 +72,16 @@ class FlaskExample:
                     if len(line.strip()) == 0:
                         break
                     dataToLoad.append(json.loads(line))
+                # Sometimes, the data arrives a few ms out of order
+                dataToLoad.sort(key=lambda x : x['dtime'])
             return render_template('game.html', uuid=uuid, gid=gid, load="true", dataToLoad=dataToLoad)
 
 
         # Called to log the game state
         @app.route('/log_game_state', methods=['POST'])
         def log_game_state():
-            data = dict(request.form)
-
-            uuid = request.form['uuid']
-            gid = request.form['gid']
+            uuid = request.json['uuid']
+            gid = request.json['gid']
 
             dirname = "outputs/{}".format(uuid)
             if not os.path.exists(dirname):
@@ -89,7 +89,7 @@ class FlaskExample:
 
             fname ="outputs/{}/{}_data.json".format(uuid, gid)
             with open(fname, "a") as f:
-                dataJSON = json.dumps(data, separators=(',', ':'))
+                dataJSON = json.dumps(request.json, separators=(',', ':'))
                 f.write(dataJSON+"\n")
                 print("Wrote to ", fname)
 
@@ -99,10 +99,8 @@ class FlaskExample:
         # Called to log the game config
         @app.route('/log_game_config', methods=['POST'])
         def log_game_config():
-            data = dict(request.form)
-
-            uuid = request.form['uuid']
-            gid = request.form['gid']
+            uuid = request.json['uuid']
+            gid = request.json['gid']
 
             dirname = "outputs/{}".format(uuid)
             if not os.path.exists(dirname):
@@ -110,30 +108,12 @@ class FlaskExample:
 
             fname ="outputs/{}/{}_config.json".format(uuid, gid)
             with open(fname, "w") as f:
-                dataJSON = json.dumps(data, separators=(',', ':'))
+                dataJSON = json.dumps(request.json, separators=(',', ':'))
                 f.write(dataJSON+"\n")
                 print("Wrote to ", fname)
             fname ="outputs/{}/{}_data.json".format(uuid, gid)
             with open(fname, "w") as f:
                 f.write("")
-                print("Wrote to ", fname)
-
-            return json.dumps(
-                {'status': 'success', 'msg': 'saved'})
-
-        # Log game graph
-        @app.route('/log_game_graph', methods=['POST'])
-        def log_game_graph():
-
-            background_scale = request.json['background_scale']
-            map_granularity = request.json['map_granularity']
-            robot_width = request.json['robot_width']
-            robot_height = request.json['robot_height']
-
-            fname ="assets/map_graph_{}_{}_{}_{}.json".format(background_scale, map_granularity, robot_width, robot_height)
-            with open(fname, "a") as f:
-                dataJSON = json.dumps(request.json, separators=(',', ':'))
-                f.write(dataJSON+"\n")
                 print("Wrote to ", fname)
 
             return json.dumps(

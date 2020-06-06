@@ -11,8 +11,22 @@
       const tileSize = 64;
       const screenSizeX = 13;
       const screenSizeY = 11;
+
       const playerMsPerStep = 200;
       const robotMsPerStep = 350;
+
+      const playerStartTileX = 1;
+      const playerStartTileY = 3;
+      const robotStartTileX = 5;
+      const robotStartTileY = 6;
+
+      const baseURL = "http://0.0.0.0:8194/";
+      const logGameConfigEndpoint = "log_game_config";
+      const logGameStateEndpoint = "log_game_state";
+
+      const load = {{load|default("false", false)}};
+      dataToLoad = {{dataToLoad|default([], false)|tojson}};
+      lastLoadedData = null;
 
       const config = {
         type: Phaser.AUTO, // Which renderer to use
@@ -75,7 +89,7 @@
         // Create the player
         game.player = this.physics.add.sprite(game.config.width/2, game.config.width/2, 'characters');
         game.player.setScale(0.80);
-        game.player.currentTile = {x : 1, y : 3};
+        game.player.currentTile = {x : playerStartTileX, y : playerStartTileY};
         game.player.nextTile = game.player.currentTile;
         var gameXY = tileToGameXY(game.player.currentTile);
         game.player.x = gameXY.x;
@@ -86,7 +100,7 @@
 
         // Create the robot
         game.robot = this.physics.add.sprite(game.config.width/2, game.config.width/2, 'robot');
-        game.robot.currentTile = {x : 5, y : 5};
+        game.robot.currentTile = {x : robotStartTileX, y : robotStartTileY};
         gameXY = tileToGameXY(game.robot.currentTile);
         game.robot.x = gameXY.x;
         game.robot.y = gameXY.y;
@@ -97,7 +111,9 @@
         game.camera.setBounds(0, 0, game.map.widthInPixels, game.map.heightInPixels);
 
         // Configure the keyboard input
-        // game.cursors = this.input.keyboard.createCursorKeys();
+        game.cursors = this.input.keyboard.createCursorKeys();
+
+        // Configure the mouse click event
         // this.input.on('pointerdown', function (pointer) {
         //   game.robot.goalTile = gameToTileXY({x : game.camera.scrollX + pointer.x, y : game.camera.scrollY + pointer.y});
         //   game.robot.plan = generatePlan(game.robot.currentTile, game.robot.goalTile);
@@ -142,6 +158,66 @@
         // Render the player's bounding box
         // this.physics.world.createDebugGraphic();
 
+        game.start_time = Date.now(); // ms
+
+        // Log the game configuration and initial state
+        if (!load) {
+          logData(logGameConfigEndpoint, getGameConfig());
+          logData(logGameStateEndpoint, getGameState());
+        }
+
+      }
+
+      function getGameConfig() {
+        return {
+          uuid:"{{uuid}}",
+          gid:"{{gid}}",
+          start_time: game.start_time,
+          playerMsPerStep: playerMsPerStep,
+          robotMsPerStep: robotMsPerStep,
+          playerStartTileX: playerStartTileX,
+          playerStartTileY: playerStartTileY,
+          robotStartTileX: robotStartTileX,
+          robotStartTileY: robotStartTileY,
+        };
+      }
+
+      function getGameState() {
+        return {
+          // User study details
+          uuid:"{{uuid}}",
+          gid:"{{gid}}",
+          // Game state
+          dtime: Date.now() - game.start_time,
+          player: {
+            currentTile: game.player.currentTile,
+            nextTile: game.player.nextTile,
+          },
+          robot: {
+            currentTile: game.robot.currentTile,
+            plan: game.robot.plan,
+          },
+          // Animation information
+          player_anim_is_playing: game.player.anims.isPlaying,
+          player_anim_key: game.player.anims.getCurrentKey(),
+          robot_anim_key: null,
+          active_player_movement_timer: game.player.movementTimer != null,
+          active_robot_movement_timer: game.robot.movementTimer != null,
+        };
+      }
+
+      function logData(endpoint, data) {
+        var url = baseURL + endpoint;
+        // console.log("Send ", data)
+        $.ajax({
+          type : "POST",
+          url : url,
+          data: JSON.stringify(data, null, '\t'),
+          contentType: 'application/json;charset=UTF-8',
+          success: function(received_data, status) {
+              // console.log(`${received_data} and status is ${status}`);
+          }
+        });
       }
 
       // Implements the A* algorithm to search for a path from start to the goal
@@ -230,106 +306,189 @@
         )
       }
 
+      function renderPlayerMovementAnimation() {
+        var p = game.player.movementTimer.getOverallProgress();
+        var gameXY = tileToGameXY({
+          x : game.player.currentTile.x * (1-p) + game.player.nextTile.x * p,
+          y : game.player.currentTile.y * (1-p) + game.player.nextTile.y * p,
+        });
+        game.player.x = gameXY.x;
+        game.player.y = gameXY.y;
+        if (game.player.movementTimer.getOverallProgress() == 1.0) {
+            game.player.currentTile = game.player.nextTile;
+            game.player.movementTimer = null;
+            // Log the game state
+            if (!load) logData(logGameStateEndpoint, getGameState());
+        }
+      }
+
+      function renderRobotMovementAnimation() {
+        var p = game.robot.movementTimer.getOverallProgress();
+        var gameXY = tileToGameXY({
+          x : game.robot.currentTile.x * (1-p) + game.robot.plan[0].x * p,
+          y : game.robot.currentTile.y * (1-p) + game.robot.plan[0].y * p,
+        });
+        game.robot.x = gameXY.x;
+        game.robot.y = gameXY.y;
+        if (game.robot.movementTimer.getOverallProgress() == 1.0) {
+            game.robot.currentTile = game.robot.plan[0];
+            game.robot.plan.splice(0,1);
+            game.robot.movementTimer = null;
+            // Log the game state
+            if (!load) logData(logGameStateEndpoint, getGameState());
+        }
+      }
+
       function update(time, delta) {
 
-        // If we are in the middle of rendering a player movement animation
-        if (game.player.movementTimer) {
-          var p = game.player.movementTimer.getOverallProgress();
-          var gameXY = tileToGameXY({
-            x : game.player.currentTile.x * (1-p) + game.player.nextTile.x * p,
-            y : game.player.currentTile.y * (1-p) + game.player.nextTile.y * p,
-          });
-          game.player.x = gameXY.x;
-          game.player.y = gameXY.y;
-          if (game.player.movementTimer.getOverallProgress() == 1.0) {
-              game.player.currentTile = game.player.nextTile;
-              game.player.movementTimer = null;
-          }
-        }
+        if (load) {
+          if (dataToLoad.length > 0) {
+            var dtime = Date.now() - game.start_time;
+            while (dataToLoad.length > 1) {
 
-        // If we have finished rendering the last player movement animation
-        if (game.player.movementTimer == null) {
-          var newAction = false;
-          if (game.cursors.left.isDown) {
-            game.player.nextTile = {
-              x : game.player.currentTile.x - 1,
-              y : game.player.currentTile.y,
-            };
-            game.player.anims.play('left', true);
-            newAction = isValidTile(game.player.nextTile, false, true);
-          } else if (game.cursors.right.isDown) {
-            game.player.nextTile = {
-              x : game.player.currentTile.x + 1,
-              y : game.player.currentTile.y,
-            };
-            game.player.anims.play('right', true);
-            newAction = isValidTile(game.player.nextTile, false, true);
-          } else if (game.cursors.up.isDown) {
-            game.player.nextTile = {
-              x : game.player.currentTile.x,
-              y : game.player.currentTile.y - 1,
-            };
-            game.player.anims.play('up', true);
-            newAction = isValidTile(game.player.nextTile, false, true);
-          } else if (game.cursors.down.isDown) {
-            game.player.nextTile = {
-              x : game.player.currentTile.x,
-              y : game.player.currentTile.y + 1,
-            };
-            game.player.anims.play('down', true);
-            newAction = isValidTile(game.player.nextTile, false, true);
-          } else {
-            game.player.anims.stop();
-          }
+              console.log("dtime", dtime, "dataToLoad[0].dtime", dataToLoad[0].dtime);
 
-          if (newAction) {
-            game.player.movementTimer = this.time.addEvent({delay: playerMsPerStep});
-          }
-        }
+              game.player.currentTile = dataToLoad[0].player.currentTile;
+              game.player.nextTile = dataToLoad[0].player.nextTile;
+              if (lastLoadedData == null || game.player.anims.getCurrentKey() != lastLoadedData.player_anim_key) game.player.anims.play(dataToLoad[0].player_anim_key, true);
+              if (!dataToLoad[0].player_anim_is_playing) game.player.anims.stop();
 
-        // If we are in the middle of rendering a robot movement animation
-        if (game.robot.movementTimer) {
-          var p = game.robot.movementTimer.getOverallProgress();
-          var gameXY = tileToGameXY({
-            x : game.robot.currentTile.x * (1-p) + game.robot.plan[0].x * p,
-            y : game.robot.currentTile.y * (1-p) + game.robot.plan[0].y * p,
-          });
-          game.robot.x = gameXY.x;
-          game.robot.y = gameXY.y;
-          if (game.robot.movementTimer.getOverallProgress() == 1.0) {
-              game.robot.currentTile = game.robot.plan[0];
-              game.robot.plan.splice(0,1);
-              game.robot.movementTimer = null;
-          }
-        }
-        if (game.robot.movementTimer == null) {
-          // Chase the human
-          if (game.robot.plan == null || game.robot.plan.length == 0 || (distance(game.robot.plan[game.robot.plan.length-1], game.player.currentTile) > 1)) {
-            game.robot.plan = generatePlan(game.robot.currentTile, game.player.currentTile);
-          }
-        }
+              game.robot.currentTile = dataToLoad[0].robot.currentTile;
+              game.robot.plan = dataToLoad[0].robot.plan;
 
-        // If we have finished rendering the last robot movement animation
-        if (game.robot.movementTimer == null && game.robot.plan != null && game.robot.plan.length > 0) {
-          // If the robot's plan would collide with the human
-          if ((game.robot.plan[0].x == game.player.currentTile.x && game.robot.plan[0].y == game.player.currentTile.y) ||
-              (game.robot.plan[0].x == game.player.nextTile.x && game.robot.plan[0].y == game.player.nextTile.y)) {
-              // If the human is in the goal position, terminate the plan
-              if (game.robot.plan.length == 1) {
-                game.robot.plan = null;
-              }
-              // Else, replan
-              else {
-                game.robot.plan = generatePlan(game.robot.currentTile, game.robot.goalTile);
+              if (!dataToLoad[0].active_player_movement_timer) {
+                game.player.movementTimer = null;
+              } else if (lastLoadedData != null && dataToLoad[0].active_player_movement_timer && !lastLoadedData.active_player_movement_timer && game.player.movementTimer == null) {
+                game.player.movementTimer = this.time.addEvent({delay: playerMsPerStep});
               }
 
+              if (game.player.movementTimer != null) {
+                renderPlayerMovementAnimation();
+              } else {
+                var gameXY = tileToGameXY(game.player.currentTile);
+                game.player.x = gameXY.x;
+                game.player.y = gameXY.y;
+              }
+
+              if (!dataToLoad[0].active_robot_movement_timer) {
+                game.robot.movementTimer = null;
+              } else if (lastLoadedData != null && dataToLoad[0].active_robot_movement_timer && !lastLoadedData.active_robot_movement_timer && game.robot.movementTimer == null) {
+                game.robot.movementTimer = this.time.addEvent({delay: robotMsPerStep});
+              }
+
+              if (game.robot.movementTimer != null) {
+                renderRobotMovementAnimation();
+              } else {
+                var gameXY = tileToGameXY(game.robot.currentTile);
+                game.robot.x = gameXY.x;
+                game.robot.y = gameXY.y;
+              }
+
+              var next_dtime = dataToLoad[1].dtime;
+              if (dtime >= next_dtime) {
+                lastLoadedData = dataToLoad.splice(0, 1);
+              } else {
+                lastLoadedData = dataToLoad[0];
+                break;
+              }
+            }
+
+            if (dataToLoad.length == 1) {
+              console.log("Finished Playback!");
+              dataToLoad = []
+            }
           }
-          if (game.robot.plan != null) {
-            game.robot.movementTimer = this.time.addEvent({delay: robotMsPerStep});
+        } else {
+
+          // If we are in the middle of rendering a player movement animation
+          if (game.player.movementTimer) {
+            renderPlayerMovementAnimation();
+          }
+
+          // If we have finished rendering the last player movement animation
+          if (game.player.movementTimer == null) {
+            var newAction = false;
+            var shouldLogData = false;
+            if (game.cursors.left.isDown) {
+              game.player.nextTile = {
+                x : game.player.currentTile.x - 1,
+                y : game.player.currentTile.y,
+              };
+              game.player.anims.play('left', true);
+              newAction = isValidTile(game.player.nextTile, false, true);
+              shouldLogData = true;
+            } else if (game.cursors.right.isDown) {
+              game.player.nextTile = {
+                x : game.player.currentTile.x + 1,
+                y : game.player.currentTile.y,
+              };
+              game.player.anims.play('right', true);
+              newAction = isValidTile(game.player.nextTile, false, true);
+              shouldLogData = true;
+            } else if (game.cursors.up.isDown) {
+              game.player.nextTile = {
+                x : game.player.currentTile.x,
+                y : game.player.currentTile.y - 1,
+              };
+              game.player.anims.play('up', true);
+              newAction = isValidTile(game.player.nextTile, false, true);
+              shouldLogData = true;
+            } else if (game.cursors.down.isDown) {
+              game.player.nextTile = {
+                x : game.player.currentTile.x,
+                y : game.player.currentTile.y + 1,
+              };
+              game.player.anims.play('down', true);
+              newAction = isValidTile(game.player.nextTile, false, true);
+              shouldLogData = true;
+            } else {
+              if (game.player.anims.isPlaying) shouldLogData = true;
+              game.player.anims.stop();
+            }
+
+            if (newAction) {
+              game.player.movementTimer = this.time.addEvent({delay: playerMsPerStep});
+            }
+            // Log the game state
+            if (shouldLogData && !load) logData(logGameStateEndpoint, getGameState());
+          }
+
+          // If we are in the middle of rendering a robot movement animation
+          if (game.robot.movementTimer) {
+            renderRobotMovementAnimation();
+          }
+          if (game.robot.movementTimer == null) {
+            // Chase the human
+            if (game.robot.plan == null || game.robot.plan.length == 0 || game.robot.goalTile == null || game.robot.goalTile.x != game.player.currentTile.x || game.robot.goalTile.y != game.player.currentTile.y) {
+              game.robot.goalTile = game.player.currentTile;
+              game.robot.plan = generatePlan(game.robot.currentTile, game.robot.goalTile);
+            }
+          }
+
+          // If we have finished rendering the last robot movement animation
+          if (game.robot.movementTimer == null && game.robot.plan != null && game.robot.plan.length > 0) {
+            // If the robot's plan would collide with the human
+            if ((game.robot.plan[0].x == game.player.currentTile.x && game.robot.plan[0].y == game.player.currentTile.y) ||
+                (game.robot.plan[0].x == game.player.nextTile.x && game.robot.plan[0].y == game.player.nextTile.y)) {
+                // If the human is in the goal position, terminate the plan
+                if (game.robot.plan.length == 1) {
+                  game.robot.plan = null;
+                }
+                // Else, replan
+                else {
+                  game.robot.plan = generatePlan(game.robot.currentTile, game.robot.goalTile);
+                }
+
+            }
+            if (game.robot.plan != null) {
+              game.robot.movementTimer = this.time.addEvent({delay: robotMsPerStep});
+              // Log the game state
+              if (!load) logData(logGameStateEndpoint, getGameState());
+            }
           }
         }
-
       }
+
     </script>
 
   </body>
