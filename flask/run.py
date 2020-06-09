@@ -124,6 +124,11 @@ class FlaskExample:
         def get_file(source):
             return _check_and_send_file(source, "assets")
 
+        # Called to access files in the assets folder
+        @app.route('/assets/tasks/<source>', methods=['GET'])
+        def get_task_file(source):
+            return _check_and_send_file(source, "assets/tasks")
+
         app.debug = False
         app.run(host='0.0.0.0', port=8194, threaded=True)
 

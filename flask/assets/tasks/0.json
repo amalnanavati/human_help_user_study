@@ -1,0 +1,33 @@
+{
+  "player_start_location": {
+    "x": 3,
+    "y": 1
+  },
+  "robot_start_location": {
+    "x": 9,
+    "y": 6
+  },
+  "tasks": [
+    {
+      "semanticLabel": "Room 23"
+    },
+    {
+      "semanticLabel": "Lounge"
+    },
+    {
+      "semanticLabel": "Room 24"
+    },
+    {
+      "semanticLabel": "Room 11"
+    },
+    {
+      "semanticLabel": "Room 22"
+    },
+    {
+      "semanticLabel": "Lounge"
+    },
+    {
+      "semanticLabel": "Room 13"
+    }
+  ]
+}

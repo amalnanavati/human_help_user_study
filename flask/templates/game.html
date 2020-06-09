@@ -4,6 +4,7 @@
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="./assets/PriorityQueue.js"></script>
+    <script src="./assets/SpeechBubble.js"></script>
   </head>
   <body>
 
@@ -14,11 +15,6 @@
 
       const playerMsPerStep = 200;
       const robotMsPerStep = 350;
-
-      const playerStartTileX = 1;
-      const playerStartTileY = 3;
-      const robotStartTileX = 5;
-      const robotStartTileY = 6;
 
       const baseURL = "http://0.0.0.0:8194/";
       const logGameConfigEndpoint = "log_game_config";
@@ -66,6 +62,9 @@
           'assets/robot.png',
           {frameWidth: 64, frameHeight: 64},
         );
+
+        // Load the tasks for this game ID
+        this.load.json('tasks', 'assets/tasks/{{gid}}.json');
       }
 
       function tileToGameXY(tile) {
@@ -82,14 +81,35 @@
         game.tileset = game.map.addTilesetImage("tiles64x64", "tiles");
         game.belowLayer = game.map.createStaticLayer("Below Player", game.tileset, 0, 0);
         game.worldLayer = game.map.createStaticLayer("World", game.tileset, 0, 0);
+        // game.worldLayer.setCollisionByProperty({ collides: true });
         game.aboveLayer = game.map.createStaticLayer("Above Player", game.tileset, 0, 0);
         game.aboveLayer.setDepth(10);
-        // game.worldLayer.setCollisionByProperty({ collides: true });
+        game.semanticLabels = {};
+        for (i = 0; i < game.map.objects.length; i++) {
+          if (game.map.objects[i].name == "Objects") {
+            for (j = 0; j < game.map.objects[i].objects.length; j++) {
+              if (!game.map.objects[i].objects[j].rectangle) {
+                continue;
+              }
+              var rect = game.map.objects[i].objects[j];
+              for (tileX = Math.ceil(rect.x/tileSize); tileX <= Math.floor((rect.x+rect.width)/tileSize); tileX++) {
+                for (tileY = Math.ceil(rect.y/tileSize); tileY <= Math.floor((rect.y+rect.height)/tileSize); tileY++) {
+                  game.semanticLabels[String([tileX, tileY])] = rect.name;
+                }
+              }
+            }
+            break;
+          }
+        }
+
+        // Load the tasks for this Game ID
+        game.tasks = this.cache.json.get('tasks');
+        game.currentTaskI = 0;
 
         // Create the player
         game.player = this.physics.add.sprite(game.config.width/2, game.config.width/2, 'characters');
         game.player.setScale(0.80);
-        game.player.currentTile = {x : playerStartTileX, y : playerStartTileY};
+        game.player.currentTile = {x : game.tasks.player_start_location.x, y : game.tasks.player_start_location.y};
         game.player.nextTile = game.player.currentTile;
         var gameXY = tileToGameXY(game.player.currentTile);
         game.player.x = gameXY.x;
@@ -100,10 +120,21 @@
 
         // Create the robot
         game.robot = this.physics.add.sprite(game.config.width/2, game.config.width/2, 'robot');
-        game.robot.currentTile = {x : robotStartTileX, y : robotStartTileY};
+        game.robot.currentTile = {x : game.tasks.robot_start_location.x, y : game.tasks.robot_start_location.y};
         gameXY = tileToGameXY(game.robot.currentTile);
         game.robot.x = gameXY.x;
         game.robot.y = gameXY.y;
+
+        // Add the robot's help bubble
+        game.questions = [
+          "Can you tell me if I'm at the Lounge?",
+          "Can you lead me towards Room 23?",
+          "Am I in front of Room 11?",
+          "I need help",
+          "Is the room in front of me called the Lounge?",
+        ];
+        game.questionI = 0;
+        game.robotHelpBubble = new SpeechBubble(this, 200, 300, 300, game.questions[game.questionI]);
 
         // Create and configure the camera
         game.camera = this.cameras.main;
@@ -113,20 +144,38 @@
         // Configure the keyboard input
         game.cursors = this.input.keyboard.createCursorKeys();
 
-        // Configure the mouse click event
-        // this.input.on('pointerdown', function (pointer) {
-        //   game.robot.goalTile = gameToTileXY({x : game.camera.scrollX + pointer.x, y : game.camera.scrollY + pointer.y});
-        //   game.robot.plan = generatePlan(game.robot.currentTile, game.robot.goalTile);
-        // });
+        // Configure the mouse click event -- often used for easy debugging
+        this.input.on('pointerdown', function (pointer) {
+          // // Set the robot goal
+          // game.robot.goalTile = gameToTileXY({x : game.camera.scrollX + pointer.x, y : game.camera.scrollY + pointer.y});
+          // game.robot.plan = generatePlan(game.robot.currentTile, game.robot.goalTile);
+
+          // // Move the speech bubble position
+          // game.robotHelpBubble.setPosition(pointer.x, pointer.y);
+
+          // // Change the speech bubble text
+          // game.questionI = (game.questionI + 1) % game.questions.length;
+          // game.robotHelpBubble.setText(game.questions[game.questionI]);
+
+          // // Change the speech bubble visibility
+          // game.robotHelpBubble.setVisibile(!game.robotHelpBubble.getVisibile());
+
+          // // Change the speech bubble width
+          // game.questionI = (game.questionI + 1) % game.questions.length;
+          // game.robotHelpBubble.setWidth(((game.questionI % 2) + 1)*200);
+        });
 
         // Create help text in the top-left corner
-        this.add.text(16, 16, "Arrow keys to move", {
+        game.baseInstructionsStr = "Arrow keys to move";
+        game.instructionText = this.add.text(16, 16, "", {
           font: "18px monospace",
           fill: "#ffffff",
           padding: { x: 20, y: 10 },
           backgroundColor: "#000000"
-        })
-        .setScrollFactor(0);
+        });
+        game.instructionText.setScrollFactor(0);
+        game.instructionText.setDepth(1);
+        regenerateInstructionText();
 
         // Create the player animations
         this.anims.create({
@@ -168,6 +217,28 @@
 
       }
 
+      function regenerateInstructionText() {
+        if (game.currentTaskI < game.tasks.tasks.length) {
+          game.instructionText.text = game.baseInstructionsStr+"\nGo to "+game.tasks.tasks[game.currentTaskI].semanticLabel;
+        } else {
+          game.instructionText.text = game.baseInstructionsStr+"\nCompleted tasks!";
+        }
+
+      }
+
+      function hasCompletedCurrentTask() {
+        if (game.currentTaskI >= game.tasks.tasks.length) {
+          return false;
+        }
+        var currentLocationKey = String([game.player.currentTile.x, game.player.currentTile.y]);
+        if (currentLocationKey in game.semanticLabels) {
+          var currentSemanticLabel = game.semanticLabels[currentLocationKey];
+          var goalSemanticLabel = game.tasks.tasks[game.currentTaskI].semanticLabel;
+          return currentSemanticLabel == goalSemanticLabel;
+        }
+        return false;
+      }
+
       function getGameConfig() {
         return {
           uuid:"{{uuid}}",
@@ -175,10 +246,6 @@
           start_time: game.start_time,
           playerMsPerStep: playerMsPerStep,
           robotMsPerStep: robotMsPerStep,
-          playerStartTileX: playerStartTileX,
-          playerStartTileY: playerStartTileY,
-          robotStartTileX: robotStartTileX,
-          robotStartTileY: robotStartTileY,
         };
       }
 
@@ -365,6 +432,10 @@
               if (game.player.movementTimer != null) {
                 renderPlayerMovementAnimation();
               } else {
+                if (hasCompletedCurrentTask()) {
+                  game.currentTaskI++;
+                  regenerateInstructionText();
+                }
                 var gameXY = tileToGameXY(game.player.currentTile);
                 game.player.x = gameXY.x;
                 game.player.y = gameXY.y;
@@ -407,6 +478,11 @@
 
           // If we have finished rendering the last player movement animation
           if (game.player.movementTimer == null) {
+            // Check if we have completed a task
+            if (hasCompletedCurrentTask()) {
+              game.currentTaskI++;
+              regenerateInstructionText();
+            }
             var newAction = false;
             var shouldLogData = false;
             if (game.cursors.left.isDown) {
@@ -488,7 +564,6 @@
           }
         }
       }
-
     </script>
 
   </body>
