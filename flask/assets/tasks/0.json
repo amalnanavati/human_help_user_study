@@ -1,33 +1,67 @@
 {
   "player_start_location": {
-    "x": 3,
-    "y": 1
+    "x": 5,
+    "y": 5
   },
-  "robot_start_location": {
-    "x": 9,
-    "y": 6
+  "robot_offscreen_location": {
+    "x": -1,
+    "y": -1
   },
   "tasks": [
     {
-      "semanticLabel": "Room 23"
+      "semanticLabel": "Room 23",
+      "timeLimit": 20
     },
     {
-      "semanticLabel": "Lounge"
+      "semanticLabel": "Lounge",
+      "timeLimit": 20
     },
     {
-      "semanticLabel": "Room 24"
+      "semanticLabel": "Room 24",
+      "timeLimit": 20
     },
     {
-      "semanticLabel": "Room 11"
+      "semanticLabel": "Room 11",
+      "timeLimit": 30
     },
     {
-      "semanticLabel": "Room 22"
+      "semanticLabel": "Room 22",
+      "timeLimit": 30
     },
     {
-      "semanticLabel": "Lounge"
+      "semanticLabel": "Lounge",
+      "timeLimit": 20
     },
     {
-      "semanticLabel": "Room 13"
+      "semanticLabel": "Room 13",
+      "timeLimit": 20
+    }
+  ],
+  "robotActions": [
+    {
+      "afterHumanTaskIndex": -1,
+      "humanDistanceProportionToNextGoal": 0.5,
+      "robotAction": {
+        "query": "amIHere",
+        "targetStr": "the Lounge",
+        "targetSemanticLabel": "Lounge"
+      }
+    },
+    {
+      "afterHumanTaskIndex": 0,
+      "humanDistanceProportionToNextGoal": 0.75,
+      "robotAction": {
+        "query": "walkPast"
+      }
+    },
+    {
+      "afterHumanTaskIndex": 2,
+      "humanDistanceProportionToNextGoal": 0.25,
+      "robotAction": {
+        "query": "leadMe",
+        "targetStr": "Room 24",
+        "targetSemanticLabel": "Room 24"
+      }
     }
   ]
 }
