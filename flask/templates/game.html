@@ -24,8 +24,15 @@
       const queryAskingDistance = 2; // tiles, in the l-infinity norm
       // const queryAnsweringDistance = 4; // tiles, in the l-infinity norm
       const moveTowardsHumanDistance = 6; // tiles, in the l-infinity norm
-      const numTimesToTryAskingForHelp = 3;
+      const numTimesToTryAskingForHelp = 1;
       const cameraPadding = 1; // the robot must spwn more than these units away from the camera bounds
+
+      const pointOfInterestString = " Chair ";
+      const highlightPointString = " Computer ";
+      const timeForDistractionTask = 10;
+
+      const robotColor = 0x00ffff;
+      const playerColor = 0xff0000;
 
       const robotState = {
         OFFSCREEN: 0,
@@ -34,6 +41,12 @@
         STATIONARY: 3,
         LEAVE_SCREEN: 4, // walks off the screen
         GO_TOWARDS_GOAL: 5, // goes towards the goal until its offscreen
+      }
+
+      const playerState = {
+        NAVIGATION_TASK: 0,
+        DISTRACTION_TASK: 1,
+        COMPLETED_TASKS: 2,
       }
 
       const load = {{load|default("false", false)}};
@@ -48,7 +61,15 @@
         scene: {
           preload: preload,
           create: create,
-          update: update
+          update: update,
+          extend: {
+            createDistractionTaskBar: createDistractionTaskBar,
+            drawDistractionTaskBarProgress: drawDistractionTaskBarProgress,
+            createRobotGoalRect: createRobotGoalRect,
+            setHelpBubbleToAmIHere: setHelpBubbleToAmIHere,
+            createTitleScreen: createTitleScreen,
+            renderPlayerMovementAnimation: renderPlayerMovementAnimation,
+          },
         },
         physics: {
           default: "arcade",
@@ -62,8 +83,9 @@
 
       function preload() {
         // Load the tiles and tile map (created in Tiled https://www.mapeditor.org/ )
-        this.load.image("tiles", "./assets/tiles64x64.png");
-        this.load.tilemapTiledJSON("map", "../assets/map.json");
+        this.load.image("tiles", "./assets/tiles2.png");
+        this.load.tilemapTiledJSON("map", "../assets/map2.json");
+        this.load.image("minimap", "./assets/map2.png");
 
         // Load the character
         this.load.spritesheet(
@@ -94,25 +116,70 @@
       function create() {
         // Create the map and its layers
         game.map = this.make.tilemap({ key: "map" });
-        game.tileset = game.map.addTilesetImage("tiles64x64", "tiles");
+        game.tileset = game.map.addTilesetImage("tiles2", "tiles");
         game.belowLayer = game.map.createStaticLayer("Below Player", game.tileset, 0, 0);
         game.worldLayer = game.map.createStaticLayer("World", game.tileset, 0, 0);
         // game.worldLayer.setCollisionByProperty({ collides: true });
-        game.aboveLayer = game.map.createStaticLayer("Above Player", game.tileset, 0, 0);
-        game.aboveLayer.setDepth(10);
+        // game.aboveLayer = game.map.createStaticLayer("Above Player", game.tileset, 0, 0);
+        // game.aboveLayer.setDepth(10);
         // TODO (amal): preprocess this and save it in an assets json file
+        game.roomLabels = {};
         game.xyToSemanticLabels = {};
-        for (i = 0; i < game.map.objects.length; i++) {
+        game.semanticLabelToRoomRectBounds = {};
+        for (var i = 0; i < game.map.objects.length; i++) {
           if (game.map.objects[i].name == "Objects") {
-            for (j = 0; j < game.map.objects[i].objects.length; j++) {
-              if (!game.map.objects[i].objects[j].rectangle) {
-                continue;
-              }
-              var rect = game.map.objects[i].objects[j];
-              for (tileX = Math.ceil(rect.x/tileSize); tileX < Math.floor((rect.x+rect.width)/tileSize); tileX++) {
-                for (tileY = Math.ceil(rect.y/tileSize); tileY < Math.floor((rect.y+rect.height)/tileSize); tileY++) {
-                  game.xyToSemanticLabels[String([tileX, tileY])] = rect.name;
+            for (var j = 0; j < game.map.objects[i].objects.length; j++) {
+              if (game.map.objects[i].objects[j].point) {
+                var point = game.map.objects[i].objects[j];
+                var wasLabel = false;
+
+                if (game.map.objects[i].objects[j].properties && game.map.objects[i].objects[j].properties.length > 0) {
+                  for (var k = 0; k < game.map.objects[i].objects[j].properties.length; k++) {
+                    var property = game.map.objects[i].objects[j].properties[k];
+                    if (property.name == "label" && property.value) {
+                      game.roomLabels[point.name] = this.add.text(
+                        Math.floor(point.x/tileSize)*tileSize + tileSize/2,
+                        Math.floor(point.y/tileSize)*tileSize + tileSize/2,
+                        point.name,
+                        {
+                          font: "32px monospace",
+                          fill: "#ececec",
+                          padding: { x: 0, y: 0 },
+                          align: "center",
+                        },
+                    ).setOrigin(0.5, 0.5);
+                    wasLabel = true;
+                    break;
+                    }
+                  }
                 }
+
+                if (!wasLabel) {
+                  var tileX = Math.floor(point.x/tileSize);
+                  var tileY = Math.floor(point.y/tileSize);
+                  var key = String([tileX, tileY]);
+                  if (!(key in game.xyToSemanticLabels)) {
+                    game.xyToSemanticLabels[String([tileX, tileY])] = new Set();
+                  }
+                  game.xyToSemanticLabels[String([tileX, tileY])].add(point.name);
+                }
+              } else { // If its not a point, it is a rectangle
+                var rect = game.map.objects[i].objects[j];
+                for (tileX = Math.ceil(rect.x/tileSize); tileX < Math.floor((rect.x+rect.width)/tileSize); tileX++) {
+                  for (tileY = Math.ceil(rect.y/tileSize); tileY < Math.floor((rect.y+rect.height)/tileSize); tileY++) {
+                    var key = String([tileX, tileY]);
+                    if (!(key in game.xyToSemanticLabels)) {
+                      game.xyToSemanticLabels[key] = new Set();
+                    }
+                    game.xyToSemanticLabels[key].add(rect.name);
+                  }
+                }
+                game.semanticLabelToRoomRectBounds[rect.name] = {
+                  x : rect.x,
+                  y : rect.y,
+                  width : rect.width,
+                  height : rect.height,
+                };
               }
             }
             break;
@@ -120,15 +187,18 @@
         }
         game.semanticLabelsToXY = {};
         for (xyStr in game.xyToSemanticLabels) {
-          var semanticLabel = game.xyToSemanticLabels[xyStr];
+          var semanticLabels = game.xyToSemanticLabels[xyStr];
           var nums = xyStr.split(",");
           var x = parseFloat(nums[0]);
           var y = parseFloat(nums[1]);
-          if (!(semanticLabel in game.semanticLabelsToXY)) {
-            game.semanticLabelsToXY[semanticLabel] = [];
-          }
-          game.semanticLabelsToXY[semanticLabel].push({x : x, y : y});
+          semanticLabels.forEach(function (semanticLabel) {
+            if (!(semanticLabel in game.semanticLabelsToXY)) {
+              game.semanticLabelsToXY[semanticLabel] = [];
+            }
+            game.semanticLabelsToXY[semanticLabel].push({x : x, y : y});
+          });
         }
+        console.log("semantic label maps", game.xyToSemanticLabels, game.semanticLabelsToXY);
 
         // Load the tasks for this Game ID
         game.tasks = this.cache.json.get('tasks');
@@ -146,8 +216,9 @@
         game.player.taskPlan = null;
         game.player.taskI = 0;
         game.player.previousTaskI = game.player.taskI;
-        initializeGamePlayerTimer(this);
         game.player.score = 0;
+        game.player.currentState = game.tasks.tasks.length > 0 ? playerState.NAVIGATION_TASK : playerState.COMPLETED_TASKS;
+        game.player.enableBody();
 
         // Add collisions between the player and world layer
         // this.physics.add.collider(game.player, game.worldLayer);
@@ -182,14 +253,16 @@
         game.robot.helpBubble = new SpeechBubble(this, 225, 300, 300, game.questions[game.questionI], [
           {
             text : "Yes",
+            rowI: 0,
             callbackFunction : () => console.log("Yes button clicked"),
           },
           {
             text : "No",
+            rowI: 1,
             callbackFunction : () => console.log("No button clicked"),
           },
         ]);
-        game.robot.helpBubble.setVisible(true);
+        game.robot.helpBubble.setVisible(false);
 
         // Create and configure the camera
         game.camera = this.cameras.main;
@@ -201,12 +274,12 @@
         game.compass.radius = 64*1.0
         game.compass.circle = this.add.graphics({ x: 0, y: 0 });
         game.compass.circle.fillStyle(0x000000, 0.5);
-        game.compass.circle.lineStyle(4, 0xffffff, 0.5);
+        game.compass.circle.lineStyle(4, 0xececec, 0.5);
         game.compass.circle.fillCircle(0, 0, game.compass.radius);
         game.compass.circle.setDepth(3);
 
         game.compass.playerArrow = this.add.graphics({ x: 0, y: 0 });
-        game.compass.playerArrow.lineStyle(4, 0xff0000, 0.5);
+        game.compass.playerArrow.lineStyle(4, playerColor, 0.5);
         game.compass.playerArrow.lineBetween(0, 0, game.compass.radius, 0);
         game.compass.playerArrow.setDepth(4);
         game.compass.playerGoalText = this.add.text(game.compass.radius, 0, "", {
@@ -218,17 +291,16 @@
         game.compass.playerGoalText.setDepth(4);
 
         game.compass.robotArrow = this.add.graphics({ x: 0, y: 0 });
-        game.compass.robotArrow.lineStyle(4, 0x0000ff, 0.5);
+        game.compass.robotArrow.lineStyle(4, robotColor, 0.5);
         game.compass.robotArrow.lineBetween(0, 0, game.compass.radius, 0);
         game.compass.robotArrow.setDepth(4);
         game.compass.robotGoalText = this.add.text(game.compass.radius, 0, "", {
           font: "16px monospace",
-          fill: "#0000ff",
+          fill: "#00ffff",
           padding: { x: 0, y: 0 },
           align: "center",
         });
         game.compass.robotGoalText.setDepth(4);
-
 
         // Configure the keyboard input
         game.cursors = this.input.keyboard.createCursorKeys();
@@ -303,30 +375,87 @@
           // }
         });
 
+        // Create the distraction task bar
+        this.createDistractionTaskBar();
+        setDistractionTaskBarVisible(false);
+
         // Create help text in the top-left corner
         game.baseInstructionsStr = "Arrow keys to move";
         game.instructionText = this.add.text(16, 16, "", {
           font: "18px monospace",
-          fill: "#ffffff",
+          fill: "#ececec",
           padding: { x: 20, y: 10 },
           backgroundColor: "#000000"
         });
         game.instructionText.setOrigin(0.0, 0.0); // top-left
         game.instructionText.setScrollFactor(0);
-        game.instructionText.setDepth(1);
-        regenerateInstructionText();
+        game.instructionText.setDepth(6);
+        // regenerateInstructionText();
 
         // Create score text in the top-right corner
         game.scoreText = this.add.text(game.config.width-16, 16, "", {
           font: "18px monospace",
-          fill: "#ffffff",
+          fill: "#ececec",
           padding: { x: 0, y: 0 },
           backgroundColor: "#000000"
         });
         game.scoreText.setOrigin(1.0, 0.0); // top-right
         game.scoreText.setScrollFactor(0);
-        game.scoreText.setDepth(1);
-        regenerateScoreText();
+        game.scoreText.setDepth(6);
+        // regenerateScoreText();
+
+        // Create the map in the bottom-right corner
+        game.minimap = this.physics.add.sprite(game.config.width/2, game.config.width/2, 'minimap');
+        game.minimap.setScale(0.075);
+        game.minimap.setOrigin(0.0, 0.0); // bottom-right
+        game.minimap.setDepth(6);
+        game.minimap.setAlpha(0.85);
+        var minimapOffset = game.config.width/100;
+        // game.minimap.cameraOffset.setTo(200, 500)
+        game.minimap.setPosition(minimapOffset + game.camera.scrollX, game.config.height-minimapOffset-game.minimap.displayHeight+game.camera.scrollY);
+        // game.minimap.fixedToCamera = true;
+        game.minimap.setScrollFactor(0.0, 0.0);
+        game.minimap.enableBody();
+
+        game.minimap.cameraBox = this.add.graphics({ x: 0, y: 0 });
+        game.minimap.cameraBox.fillStyle(0x898989, 0.5);
+        game.minimap.cameraBox.lineStyle(2, 0x000000, 0.5);
+        game.minimap.cameraBox.setScrollFactor(0.0, 0.0);
+        game.minimap.cameraBox.setDepth(6);
+        game.minimap.cameraBox.fillRect(0, 0, game.config.width*game.minimap.scale, game.config.height*game.minimap.scale);
+        game.minimap.cameraBox.strokeRect(0, 0, game.config.width*game.minimap.scale, game.config.height*game.minimap.scale);
+
+        game.minimap.playerDot = this.add.graphics({ x: 0, y: 0 });
+        game.minimap.playerDot.fillStyle(playerColor, 0.85);
+        game.minimap.playerDot.fillCircle(0, 0, 3);
+        game.minimap.playerDot.setDepth(6);
+        game.minimap.playerDot.setScrollFactor(0.0, 0.0);
+
+        game.minimap.playerGoal = this.add.graphics({ x: 0, y: 0 });
+        game.minimap.playerGoal.lineStyle(2, playerColor, 0.85);
+        var points = [];
+        for (var i = 0; i < 5; i++) {
+          points.push(new Phaser.Geom.Point(8*Math.cos(-Math.PI/2+Math.PI*2*((2*i)%5)/5), 8*Math.sin(-Math.PI/2+Math.PI*2*((2*i)%5)/5)));
+        }
+        game.minimap.playerGoal.strokePoints(points, true);
+        game.minimap.playerGoal.setDepth(6);
+        game.minimap.playerGoal.setScrollFactor(0.0, 0.0);
+        game.minimap.playerGoal.setVisible(true);
+
+        game.minimap.robotDot = this.add.graphics({ x: 0, y: 0 });
+        game.minimap.robotDot.fillStyle(robotColor, 0.85);
+        game.minimap.robotDot.fillCircle(0, 0, 3);
+        game.minimap.robotDot.setDepth(6);
+        game.minimap.robotDot.setScrollFactor(0.0, 0.0);
+
+        // Configure the highglighting box over the target computer
+        game.highlightBox = this.add.graphics({ x: 0, y: 0 });
+        game.highlightBox.lineStyle(4, playerColor, 0.5);
+        game.highlightBox.strokeRect(0, 0, tileSize, tileSize);
+        updateHighlightBox();
+
+        // Create the title screen
+        this.createTitleScreen();
 
         // Create the player animations
         this.anims.create({
@@ -367,17 +496,84 @@
         if (!load) {
           logData(logGameConfigEndpoint, getGameConfig());
           logData(logGameStateEndpoint, getGameState());
+          game.hasStarted = false;
         }
 
       }
 
+      function createTitleScreen() {
+        var offset = game.config.width/6;
+        game.titleScreen = this.add.graphics({ x: game.config.width/2, y: game.config.height/2 });
+        game.titleScreen.fillStyle(0xececec, 1.0);
+        game.titleScreen.lineStyle(4, 0x000000, 1.0);
+        game.titleScreen.fillRect(-game.config.width/2, -game.config.height/2, game.config.width, game.config.height); // White background
+        // game.titleScreen.strokeRoundedRect(-w/2, -h/2, w, h, 16);
+        // game.titleScreen.fillRoundedRect(-w/2, -h/2, w, h, 16);
+        game.titleScreen.setDepth(6);
+
+        game.titleScreen.title = this.add.text(
+          game.config.width/2,
+          offset,
+          "Virus Attack!",
+          {
+            font: "32px monospace",
+            fill: "rgba(0, 0, 0, 1.0)",
+          },
+        ).setOrigin(0.5, 1.0);
+        game.titleScreen.title.setDepth(6);
+
+        game.titleScreen.description = this.add.text(
+          game.config.width/2,
+          game.config.height/2,
+          "A virus has infected your office's computers! You are an IT admin and must contain the virus before employees arrive. \n\nAs you do so, you may see the company's mail delivery robot. This robot is new, so it is still learning about the building. \n\nUse the arrow keys to move, and hold down Space to disinfect a computer. The instructions in the top-left will tell you which computer to go to.",
+          {
+            font: "24px monospace",
+            fill: "rgba(0, 0, 0, 1.0)",
+            wordWrap: {width: game.config.width-2*offset},
+          },
+        ).setOrigin(0.5, 0.5);
+        game.titleScreen.description.setDepth(6);
+
+        game.titleScreen.title.y = game.titleScreen.description.y - game.titleScreen.description.height/2 - game.titleScreen.title.height;
+
+        game.titleScreen.startButton = this.add.text(
+          game.config.width/2,
+          game.titleScreen.description.y + game.titleScreen.description.height/2 + game.titleScreen.title.height,
+          "Start",
+          {
+            font: "32px monospace",
+            fill: "rgba(0, 0, 0, 1.0)",
+            backgroundColor: "rgba(255, 0, 0, 1.0)"
+          },
+        ).setOrigin(0.5, 0.0);
+        game.titleScreen.startButton.setInteractive();
+        var scene = this;
+        game.titleScreen.startButton.on('pointerdown', function() {
+          game.titleScreen.startButton.destroy();
+          game.titleScreen.description.destroy();
+          game.titleScreen.title.destroy();
+          game.titleScreen.destroy();
+          initializeGamePlayerTimer(scene);
+          game.hasStarted = true;
+        });
+        game.titleScreen.startButton.setDepth(6);
+      }
+
+      function setHelpBubbleVisible(visible) {
+        // console.log("setHelpBubbleVisible", visible);
+        game.robot.helpBubble.setVisible(visible);
+        game.minimap.robotGoal.setVisible(visible);
+      }
+
       function regenerateInstructionText() {
         game.instructionText.text = game.baseInstructionsStr;
-        if (game.player.taskI < game.tasks.tasks.length) {
-          game.instructionText.text += "\nGo to "+game.tasks.tasks[game.player.taskI].semanticLabel;
+        if (game.player.currentState == playerState.NAVIGATION_TASK) {
+          game.instructionText.text += "\nGo to "+game.tasks.tasks[game.player.taskI].str;
           var remainingSecs = Math.round((game.player.timer.delay - game.player.timer.getProgress()*game.player.timer.delay)/1000);
           game.instructionText.text += "\nWithin "+remainingSecs.toString()+" secs.";
-        } else {
+        } else if (game.player.currentState == playerState.DISTRACTION_TASK) {
+          game.instructionText.text += "\nGo to the highlighted computer and hold Space.";
+        } else if (game.player.currentState == playerState.COMPLETED_TASKS) {
           game.instructionText.text += "\nCompleted tasks!";
         }
       }
@@ -386,17 +582,85 @@
         game.scoreText.text = "Score: " + game.player.score.toString();
       }
 
-      function hasCompletedCurrentTask() {
+      function hasCompletedCurrentNavigationTask() {
         if (game.player.taskI >= game.tasks.tasks.length) {
           return false;
         }
+
         var currentLocationKey = String([game.player.currentTile.x, game.player.currentTile.y]);
         if (currentLocationKey in game.xyToSemanticLabels) {
-          var currentSemanticLabel = game.xyToSemanticLabels[currentLocationKey];
+          var currentSemanticLabels = game.xyToSemanticLabels[currentLocationKey];
           var goalSemanticLabel = game.tasks.tasks[game.player.taskI].semanticLabel;
-          return currentSemanticLabel == goalSemanticLabel;
+          return currentSemanticLabels.has(goalSemanticLabel);
         }
+
+        // return game.player.taskPlan != null && game.player.taskPlan.length <= 1;
+
+        // var currentLocationKey = String([game.player.currentTile.x, game.player.currentTile.y]);
+        // if (currentLocationKey in game.xyToSemanticLabels) {
+        //   var currentSemanticLabels = game.xyToSemanticLabels[currentLocationKey];
+        //   var goalSemanticLabel = game.tasks.tasks[game.player.taskI].semanticLabel+pointOfInterestString;
+        //   var retval = false;
+        //   currentSemanticLabels.forEach(function(currentSemanticLabel) {
+        //     retval = retval || (currentSemanticLabel == goalSemanticLabel);
+        //   });
+        //   return retval;
+        // }
+
         return false;
+      }
+
+      function createDistractionTaskBar() {
+        var w = game.config.width*4/5;
+        var h = game.config.height/7;
+        var x = -w/2;
+        var y = -h/2;
+        game.distractionTaskBar = this.add.graphics({ x: game.config.width/2, y: game.config.height/2 });
+        game.distractionTaskBar.width = w;
+        game.distractionTaskBar.height = h;
+        game.distractionTaskBar.fillStyle(0xececec, 0.9);
+        game.distractionTaskBar.lineStyle(4, 0x000000, 0.9);
+        game.distractionTaskBar.strokeRoundedRect(x, y, w, h, 16);
+        game.distractionTaskBar.fillRoundedRect(x, y, w, h, 16);
+        game.distractionTaskBar.setDepth(6);
+        game.distractionTaskText = this.add.text(game.distractionTaskBar.x, w/40, "Clearing viruses. Please wait...", {
+          font: "18px monospace",
+          fill: "rgba(0, 0, 0, 0.9)",
+        }).setOrigin(0.5, 0.5);
+        game.distractionTaskText.setDepth(6);
+      }
+
+      function setDistractionTaskBarVisible(visible) {
+        game.distractionTaskBar.setVisible(visible);
+        game.distractionTaskText.setVisible(visible);
+        if (visible) {
+          game.distractionTaskBar.x = game.config.width/2+game.camera.scrollX;
+          game.distractionTaskBar.y = game.config.height/2+game.camera.scrollY;
+          game.distractionTaskText.x = game.config.width/2+game.camera.scrollX;
+          game.distractionTaskText.y = game.distractionTaskBar.y-game.distractionTaskBar.height/2 + game.distractionTaskBar.width/40 +game.distractionTaskText.height/2;
+        } else if (game.distractionTaskBar.progressBar != null) {
+          game.distractionTaskBar.progressBar.destroy();
+          game.distractionTaskBar.progressBar = null;
+        }
+      }
+
+      function drawDistractionTaskBarProgress() {
+        if (game.distractionTaskBar.progressBar != null) {
+          game.distractionTaskBar.progressBar.destroy();
+        }
+        var w = game.distractionTaskBar.width*38/40;
+        var h = game.distractionTaskBar.height/3;
+        var x = game.distractionTaskText.x-w/2;
+        var y = ((game.distractionTaskText.y + game.distractionTaskText.height/2)*2/3 + (game.distractionTaskBar.y + game.distractionTaskBar.height/2)*1/3);
+        game.distractionTaskBar.progressBar = this.add.graphics({ x: x, y: y });
+        game.distractionTaskBar.progressBar.fillStyle(0x898989, 0.9);
+        // game.distractionTaskBar.progressBar.fillRoundedRect(0, 0, w*game.distractionTaskTimer.getOverallProgress(), h, 4);
+        game.distractionTaskBar.progressBar.fillRoundedRect(0, 0, w*game.distractionTaskTimerSecs/timeForDistractionTask, h, 4);
+        game.distractionTaskBar.progressBar.setDepth(6);
+      }
+
+      function hasCompletedCurrentDistractionTask() {
+        return game.player.hasCompletedDistractionTask;
       }
 
       function getGameConfig() {
@@ -486,6 +750,52 @@
         return {x: originX, y: originY};
       }
 
+      function objectsOverlaps(obj0, obj1) {
+        var w0 = obj0.width*obj0.scale;
+        var h0 = obj0.height*obj0.scale;
+        var x0 = obj0.x-obj0.originX*w0+(1-obj0.scrollFactorX)*game.camera.scrollX;
+        var y0 = obj0.y-obj0.originY*h0+(1-obj0.scrollFactorY)*game.camera.scrollY;
+        var w1 = obj1.width*obj1.scale;
+        var h1 = obj1.height*obj1.scale;
+        var x1 = obj1.x-obj1.originX*w1+(1-obj1.scrollFactorX)*game.camera.scrollX;
+        var y1 = obj1.y-obj1.originY*h1+(1-obj1.scrollFactorY)*game.camera.scrollY;
+
+        var topLeft0 = (
+          x1 <= x0 && x0 <= x1 + w1 &&
+          y1 <= y0 && y0 <= y1 + h1
+        );
+        var topRight0 = (
+          x1 <= x0 + w0 && x0 + w0 <= x1 + w1 &&
+          y1 <= y0 && y0 <= y1 + h1
+        );
+        var bottomLeft0 = (
+          x1 <= x0 && x0 <= x1 + w1 &&
+          y1 <= y0 + h0 && y0 + h0 <= y1 + h1
+        );
+        var bottomRight0 = (
+          x1 <= x0 + w0 && x0 + w0 <= x1 + w1 &&
+          y1 <= y0 + h0 && y0 + h0 <= y1 + h1
+        );
+
+        var topLeft1 = (
+          x0 <= x1 && x1 <= x0 + w0 &&
+          y0 <= y1 && y1 <= y0 + h0
+        );
+        var topRight1 = (
+          x0 <= x1 + w1 && x1 + w1 <= x0 + w0 &&
+          y0 <= y1 && y1 <= y0 + h0
+        );
+        var bottomLeft1 = (
+          x0 <= x1 && x1 <= x0 + w0 &&
+          y0 <= y1 + h1 && y1 + h1 <= y0 + h0
+        );
+        var bottomRight1 = (
+          x0 <= x1 + w1 && x1 + w1 <= x0 + w0 &&
+          y0 <= y1 + h1 && y1 + h1 <= y0 + h0
+        );
+        return topLeft0 || topRight0 || bottomLeft0 || bottomRight0 || topLeft1 || topRight1 || bottomLeft1 || bottomRight1;
+      }
+
       function renderPlayerMovementAnimation() {
         var p = game.player.movementTimer == null ? 0 : game.player.movementTimer.getOverallProgress();
         var gameXY = tileToGameXY({
@@ -494,8 +804,45 @@
         });
         game.player.x = gameXY.x;
         game.player.y = gameXY.y;
+
         game.compass.circle.x = game.player.x;
         game.compass.circle.y = game.player.y;
+
+        game.minimap.playerDot.x = game.minimap.x + game.player.x*game.minimap.scale;
+        game.minimap.playerDot.y = game.minimap.y + game.player.y*game.minimap.scale;
+        game.minimap.cameraBox.x = game.minimap.x + game.camera.scrollX * game.minimap.scale;
+        game.minimap.cameraBox.y = game.minimap.y + game.camera.scrollY * game.minimap.scale;
+
+        if (objectsOverlaps(game.player, game.instructionText)) {
+          game.instructionText.setAlpha(0.25);
+        } else {
+          game.instructionText.setAlpha(1.0);
+        }
+        if (objectsOverlaps(game.player, game.scoreText)) {
+          game.scoreText.setAlpha(0.25);
+        } else {
+          game.scoreText.setAlpha(1.0);
+        }
+        if (objectsOverlaps(game.player, game.minimap)) {
+          game.minimap.setAlpha(0.25);
+          game.minimap.cameraBox.setAlpha(0.25);
+          game.minimap.playerDot.setAlpha(0.25);
+          game.minimap.playerGoal.setAlpha(0.25);
+          game.minimap.robotDot.setAlpha(0.25);
+          if (game.minimap.robotGoal != null) {
+            game.minimap.robotGoal.setAlpha(0.25);
+          }
+        } else {
+          game.minimap.setAlpha(1.0);
+          game.minimap.cameraBox.setAlpha(1.0);
+          game.minimap.playerDot.setAlpha(1.0);
+          game.minimap.playerGoal.setAlpha(1.0);
+          game.minimap.robotDot.setAlpha(1.0);
+          if (game.minimap.robotGoal != null) {
+            game.minimap.robotGoal.setAlpha(1.0);
+          }
+        }
+
         if (game.player.taskPlan == null || game.player.taskPlan.length == 0) {
           game.compass.playerArrow.setVisible(false);
           game.compass.playerGoalText.setVisible(false);
@@ -514,7 +861,8 @@
           game.compass.playerGoalText.x = game.compass.playerArrow.x + game.compass.radius*Math.cos(rotation);
           game.compass.playerGoalText.y = game.compass.playerArrow.y + game.compass.radius*Math.sin(rotation);
         }
-        if (game.robot.isBeingLed) {
+
+        if (game.robot.isBeingLed && game.robot.taskPlan != null && game.robot.taskPlan.length > 0) {
           game.compass.robotArrow.setVisible(true);
           var goal = game.robot.taskPlan[game.robot.taskPlan.length - 1];
           console.log("game.robot.taskPlan", game.robot.taskPlan, goal);
@@ -533,6 +881,7 @@
           game.compass.robotArrow.setVisible(false);
           game.compass.robotGoalText.setVisible(false);
         }
+
         if (game.player.movementTimer == null) {
           game.player.previousTile = game.player.currentTile;
         }
@@ -552,12 +901,21 @@
         });
         game.robot.x = gameXY.x;
         game.robot.y = gameXY.y;
+        if (!isOffCamera(game.robot.currentTile, 0) && game.robot.currentTile.x >= 0 && game.robot.currentTile.y >= 0) {
+          game.minimap.robotDot.setVisible(true);
+          game.minimap.robotDot.x = game.minimap.x + game.robot.x*game.minimap.scale;
+          game.minimap.robotDot.y = game.minimap.y + game.robot.y*game.minimap.scale;
+        } else {
+          game.minimap.robotDot.setVisible(false);
+        }
         game.robot.helpBubble.setPosition(game.robot.x + game.robot.width / 3, game.robot.y - game.robot.height/3);
         if (game.robot.movementTimer == null) {
           game.robot.previousTile = game.robot.currentTile;
         }
         if (game.robot.movementTimer != null && game.robot.movementTimer.getOverallProgress() == 1.0) {
-          game.robot.currentTile = game.robot.plan[0];
+          if (game.robot.plan != null && game.robot.plan.length > 0) {
+            game.robot.currentTile = game.robot.plan[0];
+          }
           game.robot.plan.splice(0,1);
           game.robot.movementTimer = null;
           // Log the game state
@@ -574,9 +932,11 @@
         var currLoc = game.player.currentTile;
         var goalLocs = game.semanticLabelsToXY[goal];
         var heuristicGoal = goalLocs[Math.floor(Math.random() * goalLocs.length)];
-        if (game.player.taskPlan != null) {
+        if (game.player.taskPlan != null && game.player.taskPlan.length > 0) {
           heuristicGoal = game.player.taskPlan[game.player.taskPlan.length - 1];
         }
+        // var goalLocs = game.semanticLabelsToXY[goal+pointOfInterestString];
+        // var heuristicGoal = goalLocs[0];
         game.player.elapsedDistanceSinceComputingTaskPlan = 0;
         game.player.taskPlan = generatePlan(currLoc, goalLocs, heuristicGoal, isValidTile)
         return game.player.taskPlan;
@@ -674,7 +1034,7 @@
 
             var key = String([tile.x, tile.y]);
             var isInHallway = (key in game.xyToSemanticLabels &&
-                               game.xyToSemanticLabels[key] == "Hallway");
+                               game.xyToSemanticLabels[key].has("Hallway"));
 
             var isInOppositeDirection = !(tileLeft && robotSpawnNearLeft) && !(tileRight && robotSpawnNearRight) && !(tileUp && robotSpawnNearUp) && !(tileDown && robotSpawnNearDown);
 
@@ -693,7 +1053,7 @@
           function goalConstraints(tile) {
             var key = String([tile.x, tile.y]);
             var isInHallway = (key in game.xyToSemanticLabels &&
-                               game.xyToSemanticLabels[key] == "Hallway");
+                               game.xyToSemanticLabels[key].has("Hallway"));
             return isOffCamera(tile) && isInHallway;
           }
           function pathConstraints(tile) {
@@ -712,7 +1072,7 @@
         function goalConstraints(tile) {
           var key = String([tile.x, tile.y]);
           var isInHallway = (key in game.xyToSemanticLabels &&
-                             game.xyToSemanticLabels[key] == "Hallway");
+                             game.xyToSemanticLabels[key].has("Hallway"));
           return isOffCamera(tile) && isInHallway;
         }
         function pathConstraints(tile) {
@@ -722,57 +1082,102 @@
         return closestPointWithinConstraints(game.robot.currentTile, goalConstraints, pathConstraints, 40*screenSizeX*screenSizeY);
       }
 
+      function createRobotGoalRect() {
+        game.minimap.robotGoal = this.add.graphics({ x: 0, y: 0 });
+        game.minimap.robotGoal.lineStyle(4, robotColor, 0.85);
+        game.minimap.robotGoal.setScrollFactor(0.0, 0.0);
+        game.minimap.robotGoal.setDepth(6);
+      }
+
       function setHelpBubbleToAmIHere() {
-        game.robot.helpBubble.setText("Excuse me. Am I at " + game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr + "?");
+        game.robot.helpBubble.setText("Excuse me. Am I in front of " + game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr + "(see map below)?");
         game.robot.helpBubble.setButtons([
           {
             text : "Yes",
+            rowI: 0,
             callbackFunction : function() {
               game.robot.helpBubble.setText("Thank you.");
               game.robot.helpBubble.setButtons([]);
               setRobotState(robotState.WALK_PAST_HUMAN);
               setRobotActionInProgress(false);
+              game.minimap.robotGoal.destroy();
             },
           },
           {
             text : "No",
+            rowI: 0,
             callbackFunction : function() {
               game.robot.helpBubble.setText("Thank you.");
               game.robot.helpBubble.setButtons([]);
               setRobotState(robotState.WALK_PAST_HUMAN);
               setRobotActionInProgress(false);
+              game.minimap.robotGoal.destroy();
+            },
+          },
+          {
+            text : "Don't Know",
+            rowI: 1,
+            callbackFunction : function() {
+              game.robot.helpBubble.setText("Thank you.");
+              game.robot.helpBubble.setButtons([]);
+              setRobotState(robotState.WALK_PAST_HUMAN);
+              setRobotActionInProgress(false);
+              game.minimap.robotGoal.destroy();
+            },
+          },
+          {
+            text : "Can't Help",
+            rowI: 1,
+            callbackFunction : function() {
+              game.robot.helpBubble.setText("That's okay.");
+              game.robot.helpBubble.setButtons([]);
+              setRobotState(robotState.WALK_PAST_HUMAN);
+              setRobotActionInProgress(false);
+              game.minimap.robotGoal.destroy();
             },
           },
         ]);
+        var robotGoalRect = game.semanticLabelToRoomRectBounds[game.tasks.robotActions[game.robot.currentActionI].robotAction.targetSemanticLabel];
+        this.createRobotGoalRect();
+        game.minimap.robotGoal.strokeRect(game.minimap.x+robotGoalRect.x*game.minimap.scale, game.minimap.y+robotGoalRect.y*game.minimap.scale, robotGoalRect.width*game.minimap.scale, robotGoalRect.height*game.minimap.scale);
       }
-      function setHelpBubbleToLeadMe(hasSaidYes) {
+
+      function setHelpBubbleToLeadMe(hasSaidYes, scene) {
         if (!hasSaidYes) {
           game.robot.helpBubble.setText("Excuse me. Can you lead me towards " + game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr + "?");
           game.robot.helpBubble.setButtons([
             {
               text : "Yes",
+              rowI: 0,
               callbackFunction : function() {
-                setHelpBubbleToLeadMe(true);
+                setHelpBubbleToLeadMe(true, scene);
                 game.robot.isBeingLed = true;
                 getCurrentPlanToRobotGoal();
                 setRobotState(robotState.APPROACH_HUMAN);
               },
             },
             {
-              text : "No",
+              text : "Can't Help",
+              rowI: 0,
               callbackFunction : function() {
                 game.robot.helpBubble.setText("That's okay.");
                 game.robot.helpBubble.setButtons([]);
                 setRobotState(robotState.WALK_PAST_HUMAN);
                 setRobotActionInProgress(false);
+                game.minimap.robotGoal.destroy();
               },
             },
           ]);
+          console.log("leadme", game.tasks.robotActions[game.robot.currentActionI].robotAction.targetSemanticLabel, game.semanticLabelToRoomRectBounds, game.semanticLabelToRoomRectBounds[game.tasks.robotActions[game.robot.currentActionI].robotAction.targetSemanticLabel]);
+          var robotGoalRect = game.semanticLabelToRoomRectBounds[game.tasks.robotActions[game.robot.currentActionI].robotAction.targetSemanticLabel];
+          scene.createRobotGoalRect();
+          game.minimap.robotGoal.strokeRect(game.minimap.x+robotGoalRect.x*game.minimap.scale, game.minimap.y+robotGoalRect.y*game.minimap.scale, robotGoalRect.width*game.minimap.scale, robotGoalRect.height*game.minimap.scale);
         } else {
           game.robot.helpBubble.setText("Thank you for leading me towards " + game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr + ". Tell me when I should stop following you.");
           game.robot.helpBubble.setButtons([
             {
               text : "Stop Following",
+              rowI: 0,
               callbackFunction : function() {
                 game.robot.helpBubble.setText("Thank you.");
                 game.robot.helpBubble.setButtons([]);
@@ -782,9 +1187,18 @@
                 // console.log("game.semanticLabelsToXY[game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr]", game.semanticLabelsToXY[game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr]);
                 var goalLocs = game.semanticLabelsToXY[game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr];
                 game.robot.goalTile = goalLocs[Math.floor(Math.random() * goalLocs.length)]
+                if (game.robot.movementTimer != null) {
+                  // If we're in the middle of a movement, set the currentTile to the tile it is going towards
+                  if (game.robot.plan != null && game.robot.plan.length > 0) {
+                    game.robot.currentTile = game.robot.plan[0];
+                  }
+                }
                 game.robot.plan = generatePlan(game.robot.currentTile, [game.robot.goalTile], game.robot.goalTile, isValidTile);
                 setRobotState(robotState.GO_TOWARDS_GOAL); // TODO (amal): might the user expect the robot to go into the target room, instead of just walking away?
                 setRobotActionInProgress(false);
+                console.log("about to destroy in stop following", game.minimap.robotGoal);
+                game.minimap.robotGoal.destroy();
+                console.log("destroyed in stop following", game.minimap.robotGoal);
               },
             },
           ]);
@@ -799,12 +1213,15 @@
         game.robot.currentState = state;
       }
 
-      function isOffCamera(tile) {
+      function isOffCamera(tile, padding) {
+        if (padding == null) {
+          padding = cameraPadding;
+        }
         var cameraBounds = getCameraBounds();
-        return (tile.x < cameraBounds.left - cameraPadding ||
-                tile.x >= cameraBounds.right + cameraPadding ||
-                tile.y < cameraBounds.up - cameraPadding ||
-                tile.y >= cameraBounds.down + cameraPadding);
+        return (tile.x < cameraBounds.left - padding ||
+                tile.x >= cameraBounds.right + padding ||
+                tile.y < cameraBounds.up - padding ||
+                tile.y >= cameraBounds.down + padding);
       }
 
       function setRobotActionInProgress(val) {
@@ -832,6 +1249,21 @@
         });
       }
 
+      function updateHighlightBox() {
+        if (game.player.taskI < game.tasks.tasks.length) {
+          game.highlightBox.setVisible(true);
+          var targetStr = game.tasks.tasks[game.player.taskI].semanticLabel + highlightPointString + game.tasks.tasks[game.player.taskI].target;
+          var targetTile = game.semanticLabelsToXY[targetStr][0];
+          game.highlightBox.x = targetTile.x*tileSize;
+          game.highlightBox.y = targetTile.y*tileSize;
+          game.minimap.playerGoal.x = game.minimap.x+(game.highlightBox.x+32)*game.minimap.scale;
+          game.minimap.playerGoal.y = game.minimap.y+(game.highlightBox.y+32)*game.minimap.scale;
+        } else {
+          game.highlightBox.setVisible(false);
+          game.minimap.playerGoal.setVisible(false);
+        }
+      }
+
       function update(time, delta) {
 
         if (load) {
@@ -855,9 +1287,9 @@
                 game.player.movementTimer = this.time.addEvent({delay: playerMsPerStep});
               }
 
-              renderPlayerMovementAnimation();
+              this.renderPlayerMovementAnimation();
               if (game.player.movementTimer == null) {
-                if (hasCompletedCurrentTask()) {
+                if (hasCompletedCurrentNavigationTask()) {
                   game.player.taskI++;
                   regenerateInstructionText();
                 }
@@ -895,298 +1327,365 @@
           }
         } else {
 
-          regenerateInstructionText();
-          regenerateScoreText();
+          if (game.hasStarted) {
+            regenerateInstructionText();
+            regenerateScoreText();
 
-          // If we are in the middle of rendering a player movement animation
-          var hadMovementTimer = game.player.movementTimer != null;
-          var completedMovement = false;
-          renderPlayerMovementAnimation();
-          completedMovement = hadMovementTimer && game.player.movementTimer == null;
+            // If we are in the middle of rendering a player movement animation
+            var hadMovementTimer = game.player.movementTimer != null;
+            var completedMovement = false;
+            this.renderPlayerMovementAnimation();
+            completedMovement = hadMovementTimer && game.player.movementTimer == null;
 
-          if (completedMovement) {
-            game.player.elapsedDistanceSinceComputingTaskPlan++;
-            game.robot.elapsedDistanceSinceComputingTaskPlan++;
-            // Check if we have completed a task
-            if (hasCompletedCurrentTask()) {
-              game.player.taskI++;
-              game.player.timer.destroy();
-              if (game.player.taskI < game.tasks.tasks.length) {
-                if (game.player.negativeScoreTimer != null) {
-                  game.scoreText.setFill("#ffffff");
-                  game.player.negativeScoreTimer.destroy();
-                  game.player.negativeScoreTimer = null;
+            if (completedMovement || !hadMovementTimer) {
+              game.player.elapsedDistanceSinceComputingTaskPlan++;
+              game.robot.elapsedDistanceSinceComputingTaskPlan++;
+              // Check if we have completed a navigation task
+              if (game.player.currentState == playerState.NAVIGATION_TASK && hasCompletedCurrentNavigationTask()) {
+                game.player.currentState = playerState.DISTRACTION_TASK;
+                game.distractionTaskTimerSecs = 0;
+                game.player.hasCompletedDistractionTask = false;
+                game.player.timer.destroy();
+                if (game.player.taskI < game.tasks.tasks.length) {
+                  if (game.player.negativeScoreTimer != null) {
+                    game.scoreText.setFill("#ececec");
+                    game.player.negativeScoreTimer.destroy();
+                    game.player.negativeScoreTimer = null;
+                  }
                 }
-                initializeGamePlayerTimer(this);
+                setRobotActionInProgress(false);
+                game.minimap.robotGoal.destroy();
+                if (game.robot.currentState != robotState.OFFSCREEN && game.robot.currentState != robotState.WALK_PAST_HUMAN) {
+                  setRobotState(robotState.WALK_PAST_HUMAN);
+                }
+              }
+
+              // If we are in the distraction task, display the distraction task timer
+              if (game.player.currentState == playerState.DISTRACTION_TASK && game.distractionTaskTimerSecs > 0 && !hasCompletedCurrentDistractionTask()) {
+                setDistractionTaskBarVisible(true);
+                this.drawDistractionTaskBarProgress();
+              }
+
+              // Check if we have completed a distraction task
+              if (game.player.currentState == playerState.DISTRACTION_TASK && hasCompletedCurrentDistractionTask()) {
+                game.player.taskI++;
+                updateHighlightBox();
+                if (game.player.taskI < game.tasks.tasks.length) {
+                  game.player.currentState = playerState.NAVIGATION_TASK;
+                  initializeGamePlayerTimer(this);
+                  getCurrentTaskPlan();
+                  game.player.currentTaskDistance = game.player.taskPlan.length;
+                } else {
+                  game.player.currentState = playerState.COMPLETED_TASKS;
+                }
+                game.player.score += 10;
+              }
+
+              // Update the task plans
+              if (game.player.taskPlan == null || game.player.taskPlan.length == 0 || game.player.elapsedDistanceSinceComputingTaskPlan >= Math.floor(game.player.taskPlan.length/5)) {
                 getCurrentTaskPlan();
-                game.player.currentTaskDistance = game.player.taskPlan.length;
               }
-              game.player.score += 10;
-              setRobotActionInProgress(false);
-              if (game.robot.currentState != robotState.OFFSCREEN && game.robot.currentState != robotState.WALK_PAST_HUMAN) {
-                setRobotState(robotState.WALK_PAST_HUMAN);
-              }
-            }
-
-            if (game.player.taskPlan == null || game.player.taskPlan.length == 0 || game.player.elapsedDistanceSinceComputingTaskPlan >= Math.floor(game.player.taskPlan.length/5)) {
-              getCurrentTaskPlan();
-            }
-            if (game.robot.isBeingLed) {
-              if (game.robot.taskPlan == null || game.robot.taskPlan.length == 0 || game.robot.elapsedDistanceSinceComputingTaskPlan >= Math.floor(game.robot.taskPlan.length/5)) {
-                getCurrentPlanToRobotGoal();
-              }
-            }
-
-            if (!game.robot.actionInProgress && game.robot.currentState == robotState.OFFSCREEN) {
-              if (game.robot.currentActionI < game.tasks.robotActions.length) {
-                var robotAction = game.tasks.robotActions[game.robot.currentActionI];
-                // Has the human completed the precondition task?
-                if (game.player.taskI == robotAction.afterHumanTaskIndex + 1) {
-                  var requiredDistanceToGoal = Math.ceil(game.player.currentTaskDistance*(1.0-robotAction.humanDistanceProportionToNextGoal));
-                  var oldTaskPlanDistanceFromRequiredDistance = game.player.taskPlan.length - requiredDistanceToGoal;
-                  if (game.player.elapsedDistanceSinceComputingTaskPlan >= Math.floor(oldTaskPlanDistanceFromRequiredDistance*0.5)) {
-                    getCurrentTaskPlan();
-                    var distanceProportionToNextGoal = 1.0 - game.player.taskPlan.length/game.player.currentTaskDistance;
-                    console.log("distanceProportionToNextGoal", distanceProportionToNextGoal, robotAction.humanDistanceProportionToNextGoal);
-                    // Has the human traversed enough distance to trigger the robot action?
-                    if (distanceProportionToNextGoal >= robotAction.humanDistanceProportionToNextGoal) {
-                      setRobotActionInProgress(true);
-
-                      var robotSpawnTile = getOffScreenTileInDirectionOfHumanMotion(false);
-                      console.log("robotSpawnTile", robotSpawnTile);
-                      setRobotState(robotState.STATIONARY);
-
-                      // Spawn the robot there
-                      game.robot.currentTile = robotSpawnTile;
-                      game.numTimesAskedForHelp = 0;
-
-                      // Change the helpBubbleText
-                      if (game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "amIHere") {
-                        setHelpBubbleToAmIHere();
-                      } else if (game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "leadMe") {
-                        setHelpBubbleToLeadMe(false);
-                      } /*else if (game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "walkPast") {
-                        game.robot.tileAtBeginningOfWalkPast = robotSpawnTile;
-                      }*/
-                    }
-                  }
+              if (game.robot.isBeingLed) {
+                if (game.robot.taskPlan == null || game.robot.taskPlan.length == 0 || game.robot.elapsedDistanceSinceComputingTaskPlan >= Math.floor(game.robot.taskPlan.length/5)) {
+                  getCurrentPlanToRobotGoal();
                 }
               }
-            }
-          }
 
-          // If we have finished rendering the last player movement animation
-          if (game.player.movementTimer == null) {
-            var newAction = false;
-            var shouldLogData = false;
-            if (game.cursors.left.isDown) {
-              game.player.nextTile = {
-                x : game.player.currentTile.x - 1,
-                y : game.player.currentTile.y,
-              };
-              game.player.anims.play('left', true);
-              newAction = isValidTile(game.player.nextTile, false, true);
-              shouldLogData = true;
-            } else if (game.cursors.right.isDown) {
-              game.player.nextTile = {
-                x : game.player.currentTile.x + 1,
-                y : game.player.currentTile.y,
-              };
-              game.player.anims.play('right', true);
-              newAction = isValidTile(game.player.nextTile, false, true);
-              shouldLogData = true;
-            } else if (game.cursors.up.isDown) {
-              game.player.nextTile = {
-                x : game.player.currentTile.x,
-                y : game.player.currentTile.y - 1,
-              };
-              game.player.anims.play('up', true);
-              newAction = isValidTile(game.player.nextTile, false, true);
-              shouldLogData = true;
-            } else if (game.cursors.down.isDown) {
-              game.player.nextTile = {
-                x : game.player.currentTile.x,
-                y : game.player.currentTile.y + 1,
-              };
-              game.player.anims.play('down', true);
-              newAction = isValidTile(game.player.nextTile, false, true);
-              shouldLogData = true;
-            } else {
-              if (game.player.anims.isPlaying) shouldLogData = true;
-              game.player.anims.stop();
-            }
+              // Initiate the robot action, if applicable
+              if (!game.robot.actionInProgress && game.robot.currentState == robotState.OFFSCREEN) {
+                if (game.robot.currentActionI < game.tasks.robotActions.length) {
+                  var robotAction = game.tasks.robotActions[game.robot.currentActionI];
+                  // Has the human completed the precondition task?
+                  if (game.player.taskI == robotAction.afterHumanTaskIndex + 1) {
+                    var requiredDistanceToGoal = Math.ceil(game.player.currentTaskDistance*(1.0-robotAction.humanDistanceProportionToNextGoal));
+                    var oldTaskPlanDistanceFromRequiredDistance = game.player.taskPlan.length - requiredDistanceToGoal;
+                    if (game.player.elapsedDistanceSinceComputingTaskPlan >= Math.floor(oldTaskPlanDistanceFromRequiredDistance*0.5)) {
+                      getCurrentTaskPlan();
+                      var distanceProportionToNextGoal = 1.0 - game.player.taskPlan.length/game.player.currentTaskDistance;
+                      console.log("distanceProportionToNextGoal", distanceProportionToNextGoal, robotAction.humanDistanceProportionToNextGoal);
+                      // Has the human traversed enough distance to trigger the robot action?
+                      if (distanceProportionToNextGoal >= robotAction.humanDistanceProportionToNextGoal) {
+                        setRobotActionInProgress(true);
 
-            if (newAction) {
-              game.player.movementTimer = this.time.addEvent({delay: playerMsPerStep});
-            }
-            // Log the game state
-            if (shouldLogData && !load) logData(logGameStateEndpoint, getGameState());
-          }
+                        var robotSpawnTile = getOffScreenTileInDirectionOfHumanMotion(false);
+                        console.log("robotSpawnTile", robotSpawnTile);
+                        setRobotState(robotState.STATIONARY);
 
-          // If we are in the middle of rendering a robot movement animation
-          renderRobotMovementAnimation();
+                        // Spawn the robot there
+                        game.robot.currentTile = robotSpawnTile;
+                        game.numTimesAskedForHelp = -1;
 
-          // If we have finished rendering the last robot movement animation
-          if (game.robot.movementTimer == null) {
-            if (game.robot.actionInProgress) {
-              if (game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "amIHere" ||
-                  game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "leadMe") {
-                if (game.numTimesAskedForHelp >= numTimesToTryAskingForHelp) {
-                  game.robot.helpBubble.setVisible(false);
-                  setRobotState(robotState.WALK_PAST_HUMAN);
-                  setRobotActionInProgress(false);
-                } else {
-
-                  if (!game.robot.isBeingLed) {
-                    // If the human is far enough from you to try moving towards
-                    // them again, do so
-                    if (distance(game.robot.currentTile, game.player.currentTile) >= moveTowardsHumanDistance) {
-                      game.robot.helpBubble.setVisible(false);
-                      if (game.robot.currentState == robotState.STATIONARY) {
-                        game.numTimesAskedForHelp += 1;
+                        // Change the helpBubbleText
+                        if (game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "amIHere") {
+                          this.setHelpBubbleToAmIHere();
+                        } else if (game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "leadMe") {
+                          setHelpBubbleToLeadMe(false, this);
+                        } /*else if (game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "walkPast") {
+                          game.robot.tileAtBeginningOfWalkPast = robotSpawnTile;
+                        }*/
                       }
-                      setRobotState(robotState.APPROACH_HUMAN);
-                    }
-
-                    // If the human is too far away from you to answer the query,
-                    // make the query invisible.
-                    // if (distance(game.robot.currentTile, game.player.currentTile) >= queryAnsweringDistance) {
-                    //     game.robot.helpBubble.setVisible(false);
-                    // }
-
-                    // When you are close enough to the human, display the query
-                    // and stop moving
-                    if (distance(game.robot.currentTile, game.player.currentTile) <= queryAskingDistance) {
-                      game.robot.helpBubble.setVisible(true);
-                      setRobotState(robotState.STATIONARY);
                     }
                   }
                 }
-              } else if (game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "walkPast") {
-                if (game.robot.currentState == robotState.OFFSCREEN) {
-                  setRobotActionInProgress(false);
-                } else {
+              }
+            }
+
+            // If we have finished rendering the last player movement animation
+            if (game.player.movementTimer == null) {
+              var newAction = false;
+              var shouldLogData = false;
+              if (game.cursors.left.isDown && !(game.player.currentState == playerState.DISTRACTION_TASK && game.distractionTaskTimerSecs > 0)) {
+                game.player.nextTile = {
+                  x : game.player.currentTile.x - 1,
+                  y : game.player.currentTile.y,
+                };
+                game.player.anims.play('left', true);
+                newAction = isValidTile(game.player.nextTile, false, true);
+                shouldLogData = true;
+              } else if (game.cursors.right.isDown && !(game.player.currentState == playerState.DISTRACTION_TASK && game.distractionTaskTimerSecs > 0)) {
+                game.player.nextTile = {
+                  x : game.player.currentTile.x + 1,
+                  y : game.player.currentTile.y,
+                };
+                game.player.anims.play('right', true);
+                newAction = isValidTile(game.player.nextTile, false, true);
+                shouldLogData = true;
+              } else if (game.cursors.up.isDown && !(game.player.currentState == playerState.DISTRACTION_TASK && game.distractionTaskTimerSecs > 0)) {
+                game.player.nextTile = {
+                  x : game.player.currentTile.x,
+                  y : game.player.currentTile.y - 1,
+                };
+                game.player.anims.play('up', true);
+                newAction = isValidTile(game.player.nextTile, false, true);
+                shouldLogData = true;
+              } else if (game.cursors.down.isDown && !(game.player.currentState == playerState.DISTRACTION_TASK && game.distractionTaskTimerSecs > 0)) {
+                game.player.nextTile = {
+                  x : game.player.currentTile.x,
+                  y : game.player.currentTile.y + 1,
+                };
+                game.player.anims.play('down', true);
+                newAction = isValidTile(game.player.nextTile, false, true);
+                shouldLogData = true;
+              } else {
+                if (game.player.anims.isPlaying) shouldLogData = true;
+                game.player.anims.stop();
+              }
+
+              // If the player is close enough to a Point of Interest to press space
+              if (game.cursors.space.isDown && game.player.currentState == playerState.DISTRACTION_TASK) {
+                if (game.player.currentState == playerState.DISTRACTION_TASK && game.player.taskI < game.tasks.tasks.length) {
+                  var currentLocationKey = String([game.player.currentTile.x, game.player.currentTile.y]);
+                  if (currentLocationKey in game.xyToSemanticLabels) {
+                    var currentSemanticLabels = game.xyToSemanticLabels[currentLocationKey];
+                    var goalSemanticLabel = game.tasks.tasks[game.player.taskI].semanticLabel + pointOfInterestString + game.tasks.tasks[game.player.taskI].target.toString();
+                    // If the player pressed the space bar, to initiate the distraction task
+                    if (currentSemanticLabels.has(goalSemanticLabel)) {
+
+                      // game.distractionTaskTimer = this.time.addEvent({
+                      //   delay: timeForDistractionTask*1000,
+                      //   callback: function() {
+                      //     game.player.hasCompletedDistractionTask = true;
+                      //     game.distractionTaskTimer = null;
+                      //     setDistractionTaskBarVisible(false);
+                      //   },
+                      // });
+
+                      if (game.lastTimeSpaceHeld != null) {
+                        var currentTime = Date.now();
+                        game.distractionTaskTimerSecs += (currentTime - game.lastTimeSpaceHeld)/1000;
+                        game.lastTimeSpaceHeld = currentTime;
+                      } else {
+                        game.lastTimeSpaceHeld = Date.now();
+                      }
+                      if (game.distractionTaskTimerSecs >= timeForDistractionTask) {
+                        game.player.hasCompletedDistractionTask = true;
+                        setDistractionTaskBarVisible(false);
+                      }
+
+                    }
+                  }
+                }
+              } else if (!game.cursors.space.isDown) {
+                game.lastTimeSpaceHeld = null;
+              }
+
+              if (newAction) {
+                game.player.movementTimer = this.time.addEvent({delay: playerMsPerStep});
+              }
+              // Log the game state
+              if (shouldLogData && !load) logData(logGameStateEndpoint, getGameState());
+            }
+
+            // If we are in the middle of rendering a robot movement animation
+            renderRobotMovementAnimation();
+
+            // If we have finished rendering the last robot movement animation
+            if (game.robot.movementTimer == null) {
+              if (game.robot.actionInProgress) {
+                if (game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "amIHere" ||
+                    game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "leadMe") {
+                  // console.log("numTimesToTryAskingForHelp", game.numTimesAskedForHelp, numTimesToTryAskingForHelp, distance(game.robot.currentTile, game.player.currentTile), game.robot.isBeingLed);
+                  if (game.numTimesAskedForHelp >= numTimesToTryAskingForHelp) {
+                    setHelpBubbleVisible(false);
+                    setRobotState(robotState.WALK_PAST_HUMAN);
+                    setRobotActionInProgress(false);
+                    console.log("human walked away about to destroy", game.minimap.robotGoal);
+                    game.minimap.robotGoal.destroy();
+                    console.log("human walked away destroyed", game.minimap.robotGoal);
+                  } else {
+
+                    if (!game.robot.isBeingLed) {
+                      // If the human is far enough from you to try moving towards
+                      // them again, do so
+                      if (distance(game.robot.currentTile, game.player.currentTile) >= moveTowardsHumanDistance) {
+                        setHelpBubbleVisible(false);
+                        if (game.robot.currentState == robotState.STATIONARY) {
+                          game.numTimesAskedForHelp += 1;
+                        }
+                        setRobotState(robotState.APPROACH_HUMAN);
+                      }
+
+                      // If the human is too far away from you to answer the query,
+                      // make the query invisible.
+                      // if (distance(game.robot.currentTile, game.player.currentTile) >= queryAnsweringDistance) {
+                      //     setHelpBubbleVisible(false);
+                      // }
+
+                      // When you are close enough to the human, display the query
+                      // and stop moving
+                      if (distance(game.robot.currentTile, game.player.currentTile) <= queryAskingDistance) {
+                        setHelpBubbleVisible(true);
+                        setRobotState(robotState.STATIONARY);
+                      }
+                    }
+                  }
+                } else if (game.tasks.robotActions[game.robot.currentActionI].robotAction.query == "walkPast") {
+                  if (game.robot.currentState == robotState.OFFSCREEN) {
+                    setRobotActionInProgress(false);
+                  } else {
+                    setRobotState(robotState.WALK_PAST_HUMAN);
+                  }
+                }
+              // Else if the robot is on screen but not doing a task
+            } /*else if ((game.robot.currentTile.x != game.tasks.robot_offscreen_location.x || game.robot.currentTile.y != game.tasks.robot_offscreen_location.y)) {
+                // Have the robot move off-screen
+                if (game.robot.currentState != robotState.OFFSCREEN) {
                   setRobotState(robotState.WALK_PAST_HUMAN);
                 }
-              }
-            // Else if the robot is on screen but not doing a task
-          } /*else if ((game.robot.currentTile.x != game.tasks.robot_offscreen_location.x || game.robot.currentTile.y != game.tasks.robot_offscreen_location.y)) {
-              // Have the robot move off-screen
-              if (game.robot.currentState != robotState.OFFSCREEN) {
-                setRobotState(robotState.WALK_PAST_HUMAN);
-              }
-            }*/
+              }*/
 
-            var robotStateToEvaluate = game.robot.currentState;
-            switch(robotStateToEvaluate) {
-              case robotState.OFFSCREEN:
-                game.robot.tileAtBeginningOfWalkPast = null;
-                game.robot.currentTile = {x : game.tasks.robot_offscreen_location.x, y : game.tasks.robot_offscreen_location.y};
-                game.robot.goalTile = game.robot.currentTile;
-                game.robot.plan = null;
-                break;
-              case robotState.APPROACH_HUMAN:
-                game.robot.tileAtBeginningOfWalkPast = null;
-                if (game.robot.plan == null || game.robot.plan.length == 0 || game.robot.goalTile == null || game.robot.goalTile.x != game.player.currentTile.x || game.robot.goalTile.y != game.player.currentTile.y) {
-                  game.robot.goalTile = game.player.currentTile;
-                  game.robot.plan = generatePlan(game.robot.currentTile, [game.robot.goalTile], game.robot.goalTile, isValidTile);
-                }
-                break;
-              case robotState.WALK_PAST_HUMAN:
-                console.log("game.robot.previousState", game.robot.previousState, "isOffCamera(game.robot.currentTile)", isOffCamera(game.robot.currentTile), "game.numTimesRobotOnScreen", game.numTimesRobotOnScreen);
-                // If we just transitioned to WALK_PAST, set numTimesRobotOnScreen to 0
-                if (game.robot.previousState != robotState.WALK_PAST_HUMAN) {
-                  game.numTimesRobotOnScreen = 0;
-                }
-                if (isOffCamera(game.robot.currentTile) && game.numTimesRobotOnScreen > 0) {
-                  game.robot.helpBubble.setVisible(false);
-                  // game.hasRobotStateChangedThisUpdate = false;
-                  setRobotState(robotState.OFFSCREEN);
-                } else {
-
-                  if (!isOffCamera(game.robot.currentTile)) {
-                    game.numTimesRobotOnScreen++;
+              var robotStateToEvaluate = game.robot.currentState;
+              switch(robotStateToEvaluate) {
+                case robotState.OFFSCREEN:
+                  game.robot.tileAtBeginningOfWalkPast = null;
+                  game.robot.currentTile = {x : game.tasks.robot_offscreen_location.x, y : game.tasks.robot_offscreen_location.y};
+                  game.robot.goalTile = game.robot.currentTile;
+                  game.robot.plan = null;
+                  break;
+                case robotState.APPROACH_HUMAN:
+                  game.robot.tileAtBeginningOfWalkPast = null;
+                  if (game.robot.plan == null || game.robot.plan.length == 0 || game.robot.goalTile == null || game.robot.goalTile.x != game.player.currentTile.x || game.robot.goalTile.y != game.player.currentTile.y) {
+                    game.robot.goalTile = game.player.currentTile;
+                    game.robot.plan = generatePlan(game.robot.currentTile, [game.robot.goalTile], game.robot.goalTile, isValidTile);
                   }
-
-                  if (game.robot.tileAtBeginningOfWalkPast == null) {
-                    game.robot.tileAtBeginningOfWalkPast = game.robot.currentTile;
+                  break;
+                case robotState.WALK_PAST_HUMAN:
+                  console.log("game.robot.previousState", game.robot.previousState, "isOffCamera(game.robot.currentTile)", isOffCamera(game.robot.currentTile), "game.numTimesRobotOnScreen", game.numTimesRobotOnScreen);
+                  // If we just transitioned to WALK_PAST, set numTimesRobotOnScreen to 0
+                  if (game.robot.previousState != robotState.WALK_PAST_HUMAN) {
+                    game.numTimesRobotOnScreen = 0;
                   }
+                  if (isOffCamera(game.robot.currentTile) && game.numTimesRobotOnScreen > 0) {
+                    setHelpBubbleVisible(false);
+                    // game.hasRobotStateChangedThisUpdate = false;
+                    setRobotState(robotState.OFFSCREEN);
+                  } else {
 
-                  if (game.robot.previousState != robotState.WALK_PAST_HUMAN || game.robot.plan == null || game.robot.plan.length == 0 || game.player.previousTaskI != game.player.taskI) {
+                    if (!isOffCamera(game.robot.currentTile)) {
+                      game.numTimesRobotOnScreen++;
+                    }
+
+                    if (game.robot.tileAtBeginningOfWalkPast == null) {
+                      game.robot.tileAtBeginningOfWalkPast = game.robot.currentTile;
+                    }
+
+                    if (game.robot.previousState != robotState.WALK_PAST_HUMAN || game.robot.plan == null || game.robot.plan.length == 0 || game.player.previousTaskI != game.player.taskI) {
+                      // Have the robot move off-screen
+                      var tile = getOffScreenTileInDirectionOfHumanMotion(true);
+                      if (tile == null) {
+                        tile = getOffScreenTile();
+                        if (tile == null) {
+                          game.robot.goalTile = game.robot.currentTile; // stop the robot
+                        } else {
+                          game.robot.goalTile = tile;
+                        }
+                      } else {
+                        game.robot.goalTile = tile;
+                      }
+                      game.robot.plan = generatePlan(game.robot.currentTile, [game.robot.goalTile], game.robot.goalTile, isValidTile);
+                    }
+                  }
+                  break;
+                case robotState.STATIONARY:
+                  game.robot.tileAtBeginningOfWalkPast = null;
+                  game.robot.goalTile = game.robot.currentTile;
+                  game.robot.plan = null;
+                  break;
+                case robotState.LEAVE_SCREEN:
+                  if (isOffCamera(game.robot.currentTile)) {
+                    setHelpBubbleVisible(false);
+                    // game.hasRobotStateChangedThisUpdate = false;
+                    setRobotState(robotState.OFFSCREEN);
+                  } else {
                     // Have the robot move off-screen
-                    var tile = getOffScreenTileInDirectionOfHumanMotion(true);
-                    if (tile == null) {
-                      tile = getOffScreenTile();
+                    if (game.robot.previousState != robotState.LEAVE_SCREEN || game.robot.plan == null || game.robot.plan.length == 0 || game.player.previousTaskI != game.player.taskI) {
+                      var tile = getOffScreenTile();
                       if (tile == null) {
                         game.robot.goalTile = game.robot.currentTile; // stop the robot
                       } else {
                         game.robot.goalTile = tile;
                       }
-                    } else {
-                      game.robot.goalTile = tile;
+                      game.robot.plan = generatePlan(game.robot.currentTile, [game.robot.goalTile], game.robot.goalTile, isValidTile);
                     }
+                  }
+                  break;
+                case robotState.GO_TOWARDS_GOAL:
+                  if (isOffCamera(game.robot.currentTile)) {
+                    setHelpBubbleVisible(false);
+                    // game.hasRobotStateChangedThisUpdate = false;
+                    setRobotState(robotState.OFFSCREEN);
+                  }
+                  break;
+                default:
+                  break;
+              }
+              game.robot.previousState = robotStateToEvaluate;
+
+            }
+
+            // If we have finished rendering the last robot movement animation
+            if (game.robot.movementTimer == null && game.robot.plan != null && game.robot.plan.length > 0) {
+              // If the robot's plan would collide with the human
+              if ((game.robot.plan[0].x == game.player.currentTile.x && game.robot.plan[0].y == game.player.currentTile.y) ||
+                  (game.robot.plan[0].x == game.player.nextTile.x && game.robot.plan[0].y == game.player.nextTile.y)) {
+                  // If the human is in the goal position, terminate the plan
+                  if (game.robot.plan.length == 1) {
+                    game.robot.plan = null;
+                  }
+                  // Else, replan
+                  else {
                     game.robot.plan = generatePlan(game.robot.currentTile, [game.robot.goalTile], game.robot.goalTile, isValidTile);
                   }
-                }
-                break;
-              case robotState.STATIONARY:
-                game.robot.tileAtBeginningOfWalkPast = null;
-                game.robot.goalTile = game.robot.currentTile;
-                game.robot.plan = null;
-                break;
-              case robotState.LEAVE_SCREEN:
-                if (isOffCamera(game.robot.currentTile)) {
-                  game.robot.helpBubble.setVisible(false);
-                  // game.hasRobotStateChangedThisUpdate = false;
-                  setRobotState(robotState.OFFSCREEN);
-                } else {
-                  // Have the robot move off-screen
-                  if (game.robot.previousState != robotState.LEAVE_SCREEN || game.robot.plan == null || game.robot.plan.length == 0 || game.player.previousTaskI != game.player.taskI) {
-                    var tile = getOffScreenTile();
-                    if (tile == null) {
-                      game.robot.goalTile = game.robot.currentTile; // stop the robot
-                    } else {
-                      game.robot.goalTile = tile;
-                    }
-                    game.robot.plan = generatePlan(game.robot.currentTile, [game.robot.goalTile], game.robot.goalTile, isValidTile);
-                  }
-                }
-                break;
-              case robotState.GO_TOWARDS_GOAL:
-                if (isOffCamera(game.robot.currentTile)) {
-                  game.robot.helpBubble.setVisible(false);
-                  // game.hasRobotStateChangedThisUpdate = false;
-                  setRobotState(robotState.OFFSCREEN);
-                }
-                break;
-              default:
-                break;
-            }
-            game.robot.previousState = robotStateToEvaluate;
 
-          }
-
-          // If we have finished rendering the last robot movement animation
-          if (game.robot.movementTimer == null && game.robot.plan != null && game.robot.plan.length > 0) {
-            // If the robot's plan would collide with the human
-            if ((game.robot.plan[0].x == game.player.currentTile.x && game.robot.plan[0].y == game.player.currentTile.y) ||
-                (game.robot.plan[0].x == game.player.nextTile.x && game.robot.plan[0].y == game.player.nextTile.y)) {
-                // If the human is in the goal position, terminate the plan
-                if (game.robot.plan.length == 1) {
-                  game.robot.plan = null;
-                }
-                // Else, replan
-                else {
-                  game.robot.plan = generatePlan(game.robot.currentTile, [game.robot.goalTile], game.robot.goalTile, isValidTile);
-                }
-
-            }
-            if (game.robot.plan != null) {
-              game.robot.movementTimer = this.time.addEvent({delay: robotMsPerStep});
-              // Log the game state
-              if (!load) logData(logGameStateEndpoint, getGameState());
+              }
+              if (game.robot.plan != null) {
+                game.robot.movementTimer = this.time.addEvent({delay: robotMsPerStep});
+                // Log the game state
+                if (!load) logData(logGameStateEndpoint, getGameState());
+              }
             }
           }
+
         }
         // if (!game.hasRobotStateChangedThisUpdate) {
         //   game.robot.previousState = game.robot.currentState;

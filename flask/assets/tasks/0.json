@@ -9,31 +9,39 @@
   },
   "tasks": [
     {
-      "semanticLabel": "Room 23",
+      "semanticLabel": "Room 4",
+      "str": "Room 4",
+      "target": 1,
       "timeLimit": 20
     },
     {
-      "semanticLabel": "Lounge",
+      "semanticLabel": "Room 12",
+      "str": "Room 12",
+      "target": 3,
       "timeLimit": 20
     },
     {
-      "semanticLabel": "Room 24",
-      "timeLimit": 20
-    },
-    {
-      "semanticLabel": "Room 11",
+      "semanticLabel": "Room 34",
+      "str": "Room 34",
+      "target": 1,
       "timeLimit": 30
     },
     {
-      "semanticLabel": "Room 22",
+      "semanticLabel": "Room 47",
+      "str": "Room 47",
+      "target": 1,
       "timeLimit": 30
     },
     {
-      "semanticLabel": "Lounge",
+      "semanticLabel": "Room 20",
+      "str": "Room 20",
+      "target": 2,
       "timeLimit": 20
     },
     {
-      "semanticLabel": "Room 13",
+      "semanticLabel": "Room 30",
+      "str": "Room 30",
+      "target": 4,
       "timeLimit": 20
     }
   ],
@@ -59,8 +67,8 @@
       "humanDistanceProportionToNextGoal": 0.25,
       "robotAction": {
         "query": "leadMe",
-        "targetStr": "Room 24",
-        "targetSemanticLabel": "Room 24"
+        "targetStr": "Room 8",
+        "targetSemanticLabel": "Room 8"
       }
     }
   ]

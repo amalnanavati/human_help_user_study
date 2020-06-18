@@ -16,7 +16,7 @@ class SpeechBubble {
   }
   getBubbleHeight() {
     var padding = this.getBubblePadding();
-    return padding + this._speech.getBounds().height + padding + (this._buttons.length > 0 ? this._buttons[0].height + padding : 0);
+    return padding + this._speech.getBounds().height + padding + (this.maxRowI != null ? (this._buttons[0].height + padding) * (this.maxRowI + 1) : 0);
   }
   getArrowHeight(bubbleHeight) {
     return bubbleHeight / 4;
@@ -72,13 +72,14 @@ class SpeechBubble {
     this._speech.y = this._bubble.y + bubblePadding;
 
     // The button position has also changed
-    var xOffset = 0;
-    for (i = 0; i < this._buttons.length; i++) {
-      var button = this._buttons[i];
-      button.x = this._speech.x + this._speech.width/2 - this.totalButtonWidth / 2 + xOffset;
-      button.y = this._speech.y + this._speech.height + bubblePadding;
-      xOffset = xOffset + button.width + bubblePadding;
-    }
+    // var xOffset = 0;
+    // for (var i = 0; i < this._buttons.length; i++) {
+    //   var button = this._buttons[i];
+    //   button.x = this._speech.x + this._speech.width/2 - this.totalButtonWidth / 2 + xOffset;
+    //   button.y = this._speech.y + this._speech.height + bubblePadding;
+    //   xOffset = xOffset + button.width + bubblePadding;
+    // }
+    this.placeButtons();
   }
   setText(text) {
     this._text = text;
@@ -93,13 +94,14 @@ class SpeechBubble {
     this._speech.y = this._bubble.y + bubblePadding;
 
     // The button position has also changed
-    var xOffset = 0;
-    for (i = 0; i < this._buttons.length; i++) {
-      var button = this._buttons[i];
-      button.x = this._speech.x + this._speech.width/2 - this.totalButtonWidth / 2 + xOffset;
-      button.y = this._speech.y + this._speech.height + bubblePadding;
-      xOffset = xOffset + button.width + bubblePadding;
-    }
+    // var xOffset = 0;
+    // for (var i = 0; i < this._buttons.length; i++) {
+    //   var button = this._buttons[i];
+    //   button.x = this._speech.x + this._speech.width/2 - this.totalButtonWidth / 2 + xOffset;
+    //   button.y = this._speech.y + this._speech.height + bubblePadding;
+    //   xOffset = xOffset + button.width + bubblePadding;
+    // }
+    this.placeButtons();
   }
   setPosition(x, y) {
     // x, y is at the bottom of the arrow
@@ -110,12 +112,61 @@ class SpeechBubble {
     this._bubble.x = x - this.getArrowXOffset();
     this._bubble.y = y - this.getHeight();
     this._speech.setPosition(this._bubble.x + (this._width / 2) - (b.width / 2), this._bubble.y + bubblePadding);
-    var xOffset = 0;
-    for (i = 0; i < this._buttons.length; i++) {
+    // var xOffset = 0;
+    // for (var i = 0; i < this._buttons.length; i++) {
+    //   var button = this._buttons[i];
+    //   button.x = this._speech.x + this._speech.width/2 - this.totalButtonWidth / 2 + xOffset;
+    //   button.y = this._speech.y + this._speech.height + bubblePadding;
+    //   xOffset = xOffset + button.width + bubblePadding;
+    // }
+    this.placeButtons();
+  }
+  placeButtons() {
+    var bubblePadding = this.getBubblePadding();
+
+    var xOffset = [];
+    for (var i = 0; i < this._buttons.length; i++) {
+      var rowI = this._buttonsData[i].rowI != null ? this._buttonsData[i].rowI : 0;
+      while (rowI >= xOffset.length) {
+        xOffset.push(0.0);
+      }
       var button = this._buttons[i];
-      button.x = this._speech.x + this._speech.width/2 - this.totalButtonWidth / 2 + xOffset;
-      button.y = this._speech.y + this._speech.height + bubblePadding;
-      xOffset = xOffset + button.width + bubblePadding;
+      button.x = this._speech.x + this._speech.width/2 - this.totalButtonWidth[rowI]/2 + xOffset[rowI];
+      button.y = this._speech.y + this._speech.height + bubblePadding*(rowI+1) + button.height*rowI;
+      // console.log("_speech", this._speech.x, this._speech.y, this._speech.width, this._speech.height);
+      // console.log("button", button.x, button.y, rowI, this.totalButtonWidth[rowI], xOffset[rowI]);
+      xOffset[rowI] = xOffset[rowI] + button.width + bubblePadding;
+    }
+  }
+  createButtons() {
+    var bubblePadding = this.getBubblePadding();
+
+    // Create the button(s)
+    this.maxRowI = null;
+    this._buttons = [];
+    this.totalButtonWidth = [];
+    this.buttonsPerRow = [];
+    for (var buttonData of this._buttonsData) {
+      var rowI = buttonData.rowI != null ? buttonData.rowI : 0;
+      if (this.maxRowI == null || rowI > this.maxRowI) {
+        this.maxRowI = rowI;
+      }
+      while (rowI >= this.totalButtonWidth.length) {
+        this.totalButtonWidth.push(0.0);
+        this.buttonsPerRow.push(0);
+      }
+      var button = this._scene.add.text(0, 0, buttonData.text, { fontFamily: 'Arial', fontSize: 20, color: '#000000', align: 'center', backgroundColor: 'rgba(255,0,0,0.5)'});
+      this.totalButtonWidth[rowI] = this.totalButtonWidth[rowI] + button.width;
+      this.buttonsPerRow[rowI] += 1;
+      button.setInteractive();
+      button.on('pointerdown', buttonData.callbackFunction);
+      button.setDepth(12);
+      this._buttons.push(button);
+    }
+    if (this.maxRowI != null) {
+      for (var rowI = 0; rowI <= this.maxRowI; rowI++) {
+        this.totalButtonWidth[rowI] = this.totalButtonWidth[rowI] + bubblePadding*(this.buttonsPerRow[rowI] - 1);
+      }
     }
   }
   setButtons(buttonsData) {
@@ -124,32 +175,18 @@ class SpeechBubble {
 
     var bubblePadding = this.getBubblePadding();
 
-    for (button of this._buttons) {
+    for (var button of this._buttons) {
       button.destroy();
     }
 
-    // Create the button(s)
-    this._buttons = [];
-    this.totalButtonWidth = 0.0;
-    for (var buttonData of this._buttonsData) {
-      var button = this._scene.add.text(0, 0, buttonData.text, { fontFamily: 'Arial', fontSize: 20, color: '#000000', align: 'center', backgroundColor: 'rgba(255,0,0,0.5)'});
-      this.totalButtonWidth = this.totalButtonWidth + button.width;
-      button.setInteractive();
-      button.on('pointerdown', buttonData.callbackFunction);
-      button.setDepth(12);
-      this._buttons.push(button);
-    }
-    this.totalButtonWidth = this.totalButtonWidth + bubblePadding*(this._buttons.length - 1);
+    var oldMaxRowI = this.maxRowI;
+    this.createButtons();
 
-    var xOffset = 0;
-    for (i = 0; i < this._buttons.length; i++) {
-      var button = this._buttons[i];
-      button.x = this._speech.x + this._speech.width/2 - this.totalButtonWidth / 2 + xOffset;
-      button.y = this._speech.y + this._speech.height + bubblePadding;
-      xOffset = xOffset + button.width + bubblePadding;
-    }
+    this.placeButtons();
 
-    if ((oldButtonsData.length > 0) ^ (buttonsData.length > 0)) {
+    console.log("setButtons", this.maxRowI, oldMaxRowI);
+
+    if (((oldButtonsData.length > 0) ^ (buttonsData.length > 0)) || this.maxRowI != oldMaxRowI) {
       // Adjust the height for the new text
       var newHeight = this.getHeight();
       this._bubble.scaleY = newHeight / this._originalHeight;
@@ -168,17 +205,7 @@ class SpeechBubble {
       this._speech.setDepth(11);
 
       // Create the button(s)
-      this._buttons = [];
-      this.totalButtonWidth = 0.0;
-      for (var buttonData of this._buttonsData) {
-        var button = this._scene.add.text(0, 0, buttonData.text, { fontFamily: 'Arial', fontSize: 20, color: '#000000', align: 'center', backgroundColor: 'rgba(255,0,0,0.5)'});
-        this.totalButtonWidth = this.totalButtonWidth + button.width;
-        button.setInteractive();
-        button.on('pointerdown', buttonData.callbackFunction);
-        button.setDepth(12);
-        this._buttons.push(button);
-      }
-      this.totalButtonWidth = this.totalButtonWidth + bubblePadding*(this._buttons.length - 1);
+      this.createButtons();
 
       var b = this._speech.getBounds();
 
@@ -193,13 +220,8 @@ class SpeechBubble {
       this._bubble.setDepth(10);
 
       this._speech.setPosition(this._bubble.x + (bubbleWidth / 2) - (b.width / 2), this._bubble.y + bubblePadding);
-      var xOffset = 0;
-      for (i = 0; i < this._buttons.length; i++) {
-        var button = this._buttons[i];
-        button.x = this._speech.x + this._speech.width/2 - this.totalButtonWidth / 2 + xOffset;
-        button.y = this._speech.y + this._speech.height + bubblePadding;
-        xOffset = xOffset + button.width + bubblePadding;
-      }
+
+      this.placeButtons();
 
       // //  Bubble shadow
       // this._bubble.fillStyle(0x222222, 0.5);
