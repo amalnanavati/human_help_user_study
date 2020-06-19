@@ -17,7 +17,10 @@
       const playerMsPerStep = 200;
       const robotMsPerStep = 350;
 
+      // Local Development
       const baseURL = "http://0.0.0.0:8194/";
+      // AWS EC2 Deployment
+      // const baseURL = "http://ec2-52-14-97-33.us-east-2.compute.amazonaws.com:8194/";
       const logGameConfigEndpoint = "log_game_config";
       const logGameStateEndpoint = "log_game_state";
 
@@ -25,7 +28,7 @@
       // const queryAnsweringDistance = 4; // tiles, in the l-infinity norm
       const moveTowardsHumanDistance = 6; // tiles, in the l-infinity norm
       const numTimesToTryAskingForHelp = 1;
-      const cameraPadding = 1; // the robot must spwn more than these units away from the camera bounds
+      const cameraPadding = 1; // the robot must spawn more than these units away from the camera bounds
 
       const pointOfInterestString = " Chair ";
       const highlightPointString = " Computer ";
@@ -33,6 +36,8 @@
 
       const robotColor = 0x00ffff;
       const playerColor = 0xff0000;
+
+      const scorePerTask = 10;
 
       const robotState = {
         OFFSCREEN: 0,
@@ -382,7 +387,7 @@
         // Create help text in the top-left corner
         game.baseInstructionsStr = "Arrow keys to move";
         game.instructionText = this.add.text(16, 16, "", {
-          font: "18px monospace",
+          font: "24px monospace",
           fill: "#ececec",
           padding: { x: 20, y: 10 },
           backgroundColor: "#000000"
@@ -394,9 +399,9 @@
 
         // Create score text in the top-right corner
         game.scoreText = this.add.text(game.config.width-16, 16, "", {
-          font: "18px monospace",
+          font: "24px monospace",
           fill: "#ececec",
-          padding: { x: 0, y: 0 },
+          padding: { x: 20, y: 10 },
           backgroundColor: "#000000"
         });
         game.scoreText.setOrigin(1.0, 0.0); // top-right
@@ -408,7 +413,7 @@
         game.minimap = this.physics.add.sprite(game.config.width/2, game.config.width/2, 'minimap');
         game.minimap.setScale(0.075);
         game.minimap.setOrigin(0.0, 0.0); // bottom-right
-        game.minimap.setDepth(6);
+        game.minimap.setDepth(15);
         game.minimap.setAlpha(0.85);
         var minimapOffset = game.config.width/100;
         // game.minimap.cameraOffset.setTo(200, 500)
@@ -421,14 +426,14 @@
         game.minimap.cameraBox.fillStyle(0x898989, 0.5);
         game.minimap.cameraBox.lineStyle(2, 0x000000, 0.5);
         game.minimap.cameraBox.setScrollFactor(0.0, 0.0);
-        game.minimap.cameraBox.setDepth(6);
+        game.minimap.cameraBox.setDepth(15);
         game.minimap.cameraBox.fillRect(0, 0, game.config.width*game.minimap.scale, game.config.height*game.minimap.scale);
         game.minimap.cameraBox.strokeRect(0, 0, game.config.width*game.minimap.scale, game.config.height*game.minimap.scale);
 
         game.minimap.playerDot = this.add.graphics({ x: 0, y: 0 });
         game.minimap.playerDot.fillStyle(playerColor, 0.85);
         game.minimap.playerDot.fillCircle(0, 0, 3);
-        game.minimap.playerDot.setDepth(6);
+        game.minimap.playerDot.setDepth(15);
         game.minimap.playerDot.setScrollFactor(0.0, 0.0);
 
         game.minimap.playerGoal = this.add.graphics({ x: 0, y: 0 });
@@ -438,14 +443,14 @@
           points.push(new Phaser.Geom.Point(8*Math.cos(-Math.PI/2+Math.PI*2*((2*i)%5)/5), 8*Math.sin(-Math.PI/2+Math.PI*2*((2*i)%5)/5)));
         }
         game.minimap.playerGoal.strokePoints(points, true);
-        game.minimap.playerGoal.setDepth(6);
+        game.minimap.playerGoal.setDepth(15);
         game.minimap.playerGoal.setScrollFactor(0.0, 0.0);
         game.minimap.playerGoal.setVisible(true);
 
         game.minimap.robotDot = this.add.graphics({ x: 0, y: 0 });
         game.minimap.robotDot.fillStyle(robotColor, 0.85);
         game.minimap.robotDot.fillCircle(0, 0, 3);
-        game.minimap.robotDot.setDepth(6);
+        game.minimap.robotDot.setDepth(15);
         game.minimap.robotDot.setScrollFactor(0.0, 0.0);
 
         // Configure the highglighting box over the target computer
@@ -456,6 +461,13 @@
 
         // Create the title screen
         this.createTitleScreen();
+
+        // Add red outline for when we run out of time
+        game.negativeScoreRedOutline = this.add.graphics({ x: 0, y: 0 });
+        game.negativeScoreRedOutline.lineStyle(tileSize, 0xff0000, 0.75);
+        game.negativeScoreRedOutline.strokeRect(0, 0, game.config.width, game.config.height);
+        game.negativeScoreRedOutline.setScrollFactor(0.0, 0.0);
+        game.negativeScoreRedOutline.setVisible(false);
 
         // Create the player animations
         this.anims.create({
@@ -482,7 +494,7 @@
             frameRate: 10,
             repeat: -1
         });
-        game.player.anims.play('down', true);
+        game.player.anims.play('left', true);
 
         // Render the player's bounding box
         // this.physics.world.createDebugGraphic();
@@ -496,20 +508,43 @@
         if (!load) {
           logData(logGameConfigEndpoint, getGameConfig());
           logData(logGameStateEndpoint, getGameState());
-          game.hasStarted = false;
+          game.isRunning = false;
         }
 
       }
 
+      function post_form(path, params, method='post') {
+
+        // The rest of this code assumes you are not using a library.
+        // It can be made less wordy if you use one.
+        const form = document.createElement('form');
+        form.method = method;
+        form.action = path;
+
+        for (const key in params) {
+          if (params.hasOwnProperty(key)) {
+            const hiddenField = document.createElement('input');
+            hiddenField.type = 'hidden';
+            hiddenField.name = key;
+            hiddenField.value = params[key];
+
+            form.appendChild(hiddenField);
+          }
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+      }
+
       function createTitleScreen() {
-        var offset = game.config.width/6;
+        var offset = game.config.width/20;
         game.titleScreen = this.add.graphics({ x: game.config.width/2, y: game.config.height/2 });
         game.titleScreen.fillStyle(0xececec, 1.0);
         game.titleScreen.lineStyle(4, 0x000000, 1.0);
         game.titleScreen.fillRect(-game.config.width/2, -game.config.height/2, game.config.width, game.config.height); // White background
         // game.titleScreen.strokeRoundedRect(-w/2, -h/2, w, h, 16);
         // game.titleScreen.fillRoundedRect(-w/2, -h/2, w, h, 16);
-        game.titleScreen.setDepth(6);
+        game.titleScreen.setDepth(16);
 
         game.titleScreen.title = this.add.text(
           game.config.width/2,
@@ -520,19 +555,19 @@
             fill: "rgba(0, 0, 0, 1.0)",
           },
         ).setOrigin(0.5, 1.0);
-        game.titleScreen.title.setDepth(6);
+        game.titleScreen.title.setDepth(16);
 
         game.titleScreen.description = this.add.text(
           game.config.width/2,
           game.config.height/2,
-          "A virus has infected your office's computers! You are an IT admin and must contain the virus before employees arrive. \n\nAs you do so, you may see the company's mail delivery robot. This robot is new, so it is still learning about the building. \n\nUse the arrow keys to move, and hold down Space to disinfect a computer. The instructions in the top-left will tell you which computer to go to.",
+          "A virus infected your office's computers last night! You are an IT admin and must contain the virus before employees arrive. \n\nAs you do so, you may see the company's mail delivery robot. This robot is new, so it is still learning about the building. \n\nInstructions:\n\t1) Use the arrow keys to move. \n\t2) Hold down Space to clean a computer. \n\t3) If the robot talks to you, you can ignore it or click the buttons to respond to it. \n\t4) The instructions in the top-left tell you where to go and when to go there. \n\t5) Every cleaned computer is 10 points, and every second late you arrive is -1 point. \n\t6) The map in the bottom-left shows you important locations.",
           {
             font: "24px monospace",
             fill: "rgba(0, 0, 0, 1.0)",
             wordWrap: {width: game.config.width-2*offset},
           },
         ).setOrigin(0.5, 0.5);
-        game.titleScreen.description.setDepth(6);
+        game.titleScreen.description.setDepth(16);
 
         game.titleScreen.title.y = game.titleScreen.description.y - game.titleScreen.description.height/2 - game.titleScreen.title.height;
 
@@ -554,27 +589,93 @@
           game.titleScreen.title.destroy();
           game.titleScreen.destroy();
           initializeGamePlayerTimer(scene);
-          game.hasStarted = true;
+          game.isRunning = true;
         });
-        game.titleScreen.startButton.setDepth(6);
+        game.titleScreen.startButton.setDepth(16);
+      }
+
+      function createEndingScreen(scene) {
+        var offset = game.config.width/20;
+        game.endingScreen = scene.add.graphics({ x: game.config.width/2, y: game.config.height/2 });
+        game.endingScreen.fillStyle(0xececec, 1.0);
+        game.endingScreen.lineStyle(4, 0x000000, 1.0);
+        game.endingScreen.fillRect(-game.config.width/2, -game.config.height/2, game.config.width, game.config.height); // White background
+        // game.endingScreen.strokeRoundedRect(-w/2, -h/2, w, h, 16);
+        // game.endingScreen.fillRoundedRect(-w/2, -h/2, w, h, 16);
+        game.endingScreen.setDepth(16);
+
+        game.endingScreen.title = scene.add.text(
+          game.config.width/2,
+          offset,
+          "Completed Tasks",
+          {
+            font: "32px monospace",
+            fill: "rgba(0, 0, 0, 1.0)",
+          },
+        ).setOrigin(0.5, 1.0);
+        game.endingScreen.title.setDepth(16);
+
+        game.endingScreen.description = scene.add.text(
+          game.config.width/2,
+          game.config.height/2,
+          "You have succesfully cleared all viruses. \n\nScore: "+game.player.score.toString()+" / "+(game.tasks.tasks.length*scorePerTask).toString(),
+          {
+            font: "24px monospace",
+            fill: "rgba(0, 0, 0, 1.0)",
+            wordWrap: {width: game.config.width-2*offset},
+          },
+        ).setOrigin(0.5, 0.5);
+        game.endingScreen.description.setDepth(16);
+
+        game.endingScreen.title.y = game.endingScreen.description.y - game.endingScreen.description.height/2 - game.endingScreen.title.height;
+
+        game.endingScreen.continueButton = scene.add.text(
+          game.config.width/2,
+          game.endingScreen.description.y + game.endingScreen.description.height/2 + game.endingScreen.title.height,
+          "Continue",
+          {
+            font: "32px monospace",
+            fill: "rgba(0, 0, 0, 1.0)",
+            backgroundColor: "rgba(255, 0, 0, 1.0)"
+          },
+        ).setOrigin(0.5, 0.0);
+        game.endingScreen.continueButton.setInteractive();
+        var scene = this;
+        game.endingScreen.continueButton.on('pointerdown', function() {
+          // game.endingScreen.continueButton.destroy();
+          // game.endingScreen.description.destroy();
+          // game.endingScreen.title.destroy();
+          // game.endingScreen.destroy();
+          post_form('/post_survey', {uuid: "{{ uuid }}"});
+        });
+        game.endingScreen.continueButton.setDepth(16);
+
+        game.endingScreen.setScrollFactor(0.0, 0.0);
+        game.endingScreen.title.setScrollFactor(0.0, 0.0);
+        game.endingScreen.description.setScrollFactor(0.0, 0.0);
+        game.endingScreen.continueButton.setScrollFactor(0.0, 0.0);
+
+        console.log("Created ending screen");
       }
 
       function setHelpBubbleVisible(visible) {
         // console.log("setHelpBubbleVisible", visible);
         game.robot.helpBubble.setVisible(visible);
-        game.minimap.robotGoal.setVisible(visible);
+        if (game.minimap.robotGoal) {
+          game.minimap.robotGoal.setVisible(visible);
+        }
       }
 
       function regenerateInstructionText() {
-        game.instructionText.text = game.baseInstructionsStr;
+        game.instructionText.text = "";//game.baseInstructionsStr;
         if (game.player.currentState == playerState.NAVIGATION_TASK) {
-          game.instructionText.text += "\nGo to "+game.tasks.tasks[game.player.taskI].str;
+          game.instructionText.text += "Goal: "+game.tasks.tasks[game.player.taskI].semanticLabel;
           var remainingSecs = Math.round((game.player.timer.delay - game.player.timer.getProgress()*game.player.timer.delay)/1000);
-          game.instructionText.text += "\nWithin "+remainingSecs.toString()+" secs.";
+          game.instructionText.text += "\nTime: "+remainingSecs.toString()+" secs";
         } else if (game.player.currentState == playerState.DISTRACTION_TASK) {
-          game.instructionText.text += "\nGo to the highlighted computer and hold Space.";
+          game.instructionText.text += "Hold Space at the red computer.";
         } else if (game.player.currentState == playerState.COMPLETED_TASKS) {
-          game.instructionText.text += "\nCompleted tasks!";
+          game.instructionText.text += "Completed tasks!";
         }
       }
 
@@ -623,7 +724,7 @@
         game.distractionTaskBar.strokeRoundedRect(x, y, w, h, 16);
         game.distractionTaskBar.fillRoundedRect(x, y, w, h, 16);
         game.distractionTaskBar.setDepth(6);
-        game.distractionTaskText = this.add.text(game.distractionTaskBar.x, w/40, "Clearing viruses. Please wait...", {
+        game.distractionTaskText = this.add.text(game.distractionTaskBar.x, w/40, "Clearing viruses. Continue holding the Space bar...", {
           font: "18px monospace",
           fill: "rgba(0, 0, 0, 0.9)",
         }).setOrigin(0.5, 0.5);
@@ -1086,11 +1187,11 @@
         game.minimap.robotGoal = this.add.graphics({ x: 0, y: 0 });
         game.minimap.robotGoal.lineStyle(4, robotColor, 0.85);
         game.minimap.robotGoal.setScrollFactor(0.0, 0.0);
-        game.minimap.robotGoal.setDepth(6);
+        game.minimap.robotGoal.setDepth(15);
       }
 
       function setHelpBubbleToAmIHere() {
-        game.robot.helpBubble.setText("Excuse me. Am I in front of " + game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr + "(see map below)?");
+        game.robot.helpBubble.setText("Excuse me. Am I in front of " + game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr + " (see map below)?");
         game.robot.helpBubble.setButtons([
           {
             text : "Yes",
@@ -1185,7 +1286,9 @@
                 game.robot.taskPlan = [];
                 // console.log("game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr", game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr);
                 // console.log("game.semanticLabelsToXY[game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr]", game.semanticLabelsToXY[game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr]);
-                var goalLocs = game.semanticLabelsToXY[game.tasks.robotActions[game.robot.currentActionI].robotAction.targetStr];
+                var goalSemanticLabel = game.tasks.robotActions[game.robot.currentActionI].robotAction.targetSemanticLabel + pointOfInterestString + "1";
+                var goalLocs = game.semanticLabelsToXY[goalSemanticLabel];
+                console.log("stop following", goalSemanticLabel, goalLocs, game.semanticLabelsToXY);
                 game.robot.goalTile = goalLocs[Math.floor(Math.random() * goalLocs.length)]
                 if (game.robot.movementTimer != null) {
                   // If we're in the middle of a movement, set the currentTile to the tile it is going towards
@@ -1238,11 +1341,17 @@
           loop: false,
           callback: function() {
             game.player.negativeScoreTimer = scene.time.addEvent({
-              delay: 1000, // 1 sec
+              delay: 500, // 0.5 sec
               loop: true,
               callback: function() {
-                game.scoreText.setFill("#ff0000");
-                game.player.score -= 1;
+                if (game.negativeScoreRedOutline.visible) {
+                  game.negativeScoreRedOutline.setVisible(false);
+                  game.scoreText.setFill("#ececec");
+                  game.player.score -= 1;
+                } else {
+                  game.negativeScoreRedOutline.setVisible(true);
+                  game.scoreText.setFill("#ff0000");
+                }
               },
             });
           },
@@ -1327,7 +1436,7 @@
           }
         } else {
 
-          if (game.hasStarted) {
+          if (game.isRunning) {
             regenerateInstructionText();
             regenerateScoreText();
 
@@ -1349,12 +1458,15 @@
                 if (game.player.taskI < game.tasks.tasks.length) {
                   if (game.player.negativeScoreTimer != null) {
                     game.scoreText.setFill("#ececec");
+                    game.negativeScoreRedOutline.setVisible(false);
                     game.player.negativeScoreTimer.destroy();
                     game.player.negativeScoreTimer = null;
                   }
                 }
                 setRobotActionInProgress(false);
-                game.minimap.robotGoal.destroy();
+                if (game.minimap.robotGoal) {
+                  game.minimap.robotGoal.destroy();
+                }
                 if (game.robot.currentState != robotState.OFFSCREEN && game.robot.currentState != robotState.WALK_PAST_HUMAN) {
                   setRobotState(robotState.WALK_PAST_HUMAN);
                 }
@@ -1370,6 +1482,7 @@
               if (game.player.currentState == playerState.DISTRACTION_TASK && hasCompletedCurrentDistractionTask()) {
                 game.player.taskI++;
                 updateHighlightBox();
+                game.player.score += scorePerTask;
                 if (game.player.taskI < game.tasks.tasks.length) {
                   game.player.currentState = playerState.NAVIGATION_TASK;
                   initializeGamePlayerTimer(this);
@@ -1377,8 +1490,15 @@
                   game.player.currentTaskDistance = game.player.taskPlan.length;
                 } else {
                   game.player.currentState = playerState.COMPLETED_TASKS;
+                  var scene = this;
+                  game.endGameDelayTimer = this.time.addEvent({
+                    delay: 2*1000,
+                    callback: function() {
+                      game.isRunning = false;
+                      createEndingScreen(scene);
+                    },
+                  });
                 }
-                game.player.score += 10;
               }
 
               // Update the task plans

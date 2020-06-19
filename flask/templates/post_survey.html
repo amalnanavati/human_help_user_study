@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Index</title>
+
+    <link rel="stylesheet" href = "{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+
+    <style>
+    p {
+      padding-left: 40px;
+    }
+    h4 {
+      padding-left: 30px;
+    }
+    h3
+    {
+      padding-left: 20px;
+    }
+    </style>
+
+    <script type="text/javascript">
+      function checkForm() {
+        var q1Checks = document.getElementsByName('q1');
+
+        var isQ1Filled = false;
+        for (var i = 0; i < q1Checks.length; i++) {
+          if (q1Checks[i].checked) {
+            isQ1Filled = true;
+            break;
+          }
+        }
+
+        if (!isQ1Filled) {
+          alert("Please complete Q1");
+          return false;
+        }
+
+        var q2Answer = document.getElementsByName('q2')[0].value;
+
+        if (q2Answer.trim() == "") {
+          alert("Please complete Q2");
+          return false;
+        }
+
+        return true;
+      }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <h1><center>Sample Post-Study Survey</center></h1><br>
+<p> Please answer the following questions about your experience. </p>
+<center>
+<form action="../submit_survey" method="post" onsubmit="return checkForm();" >
+  <br><br>
+  Q1: When the robot asked for help, I wanted to help it.
+  <br><br>
+  Strongly Disagree <input type="radio" name="q1" value="0" />
+  &nbsp;
+  <input type="radio" name="q1" value="1" />
+  &nbsp;
+  <input type="radio" name="q1" value="2" />
+  &nbsp;
+  <input type="radio" name="q1" value="3" />
+  &nbsp;
+  <input type="radio" name="q1" value="4" /> Strongly Agree
+
+  <br><br>
+  Q2: What factors influenced whether or not you helped the robot? Which factor was most important?
+  <br><br>
+
+  <textarea rows="5" cols="50" name="q2">
+  </textarea>
+  <br><br>
+
+ <input type="hidden" id="uuid" name="uuid" value="{{uuid}}">
+
+ <input type="submit" value="Submit">
+
+</form>
+<br><br><br><br>
+</body>
+</html>

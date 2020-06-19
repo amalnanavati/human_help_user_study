@@ -62,7 +62,7 @@ class FlaskExample:
 
             return render_template('game.html', uuid=uuid, gid=0)
 
-        # Called load_game_state
+        # Load and replay a saved game
         @app.route('/load_game_<uuid>_<gid>')
         def load_game(uuid, gid):
             dataToLoad = []
@@ -76,6 +76,23 @@ class FlaskExample:
                 dataToLoad.sort(key=lambda x : x['dtime'])
             return render_template('game.html', uuid=uuid, gid=gid, load="true", dataToLoad=dataToLoad)
 
+        # After the game is finished
+        @app.route('/post_survey', methods=['POST'])
+        def post_survey():
+            uuid = request.form['uuid']
+            return render_template('post_survey.html', uuid=uuid)
+
+        @app.route('/submit_survey', methods=['POST'])
+        def submit_survey():
+            print("request", request, request.form)
+            uuid = request.form['uuid']
+
+            fname = "outputs/{}/survey.json".format(uuid)
+            with open(fname, "w") as f:
+                json.dump(request.form, f)
+                print("Wrote to ", fname)
+
+            return "Thank you."
 
         # Called to log the game state
         @app.route('/log_game_state', methods=['POST'])
