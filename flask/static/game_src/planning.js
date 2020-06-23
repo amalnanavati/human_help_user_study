@@ -1,7 +1,23 @@
+// Return whether or not a tile is valid for the player/robot to be in.
+// includePlayer indicates whether we should treat the player as an obstacle,
+// and includeRobot indicates whether we should treat the robot as an
+// obstacle
+function isValidTile(tile, includePlayer, includeRobot) {
+  return (
+    tile.x >= 0 &&
+    tile.x < game.map.width &&
+    tile.y >= 0 &&
+    tile.y < game.map.height &&
+    (!includePlayer || !((tile.x == game.player.currentTile.x && tile.y == game.player.currentTile.y) || (tile.x == game.player.nextTile.x && tile.y == game.player.nextTile.y))) &&
+    (!includeRobot || game.robot.currentTile == null || !((tile.x == game.robot.currentTile.x && tile.y == game.robot.currentTile.y) || (game.robot.plan != null && game.robot.plan.length > 0 && tile.x == game.robot.plan[0].x && tile.y == game.robot.plan[0].y))) &&
+    game.worldLayer.getTileAt(tile.x, tile.y) == null
+  )
+}
+
 // Implements the A* algorithm to search for a path from start to one of
 // the goal tiles. It can take in multiple goals (in the form of an array),
 // but only one for the heurstic function.
-function generatePlan(startLoc, endLocs, heuristicEndLoc, isValidTile) {
+function generatePlan(startLoc, endLocs, heuristicEndLoc) {
   // Used so that each unique (x,y) pair has maximally one object in the
   // queues/sets.
   var xyToUniqueObject = {};
