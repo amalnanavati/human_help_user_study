@@ -141,6 +141,7 @@
 
               // Start the game
               getCurrentTaskPlan(scene);
+              scene.game.player.currentTaskDistance = scene.game.player.taskPlan.length;
               transitionToNewTask(scene);
               scene.game.isRunning = true;
               game.start_time = Date.now(); // ms

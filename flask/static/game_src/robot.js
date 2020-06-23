@@ -1,10 +1,13 @@
 const robotMsPerStep = 350;
 
 const robotColor = 0x00ffff;
+const robotColorStr = '#0077ff';
 
 const queryAskingDistance = 2; // tiles, in the l-infinity norm
 const moveTowardsHumanDistance = 6; // tiles, in the l-infinity norm
 const numTimesToTryAskingForHelp = 1;
+
+const robotToHumanDistance = 2;
 
 const robotState = {
   OFFSCREEN: 0,
@@ -176,7 +179,7 @@ function setHelpBubbleToAmIHere(scene) {
         scene.game.robot.helpBubble.setButtons([]);
         scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
         setRobotActionInProgress(scene, false);
-        scene.game.minimap.robotGoal.destroy();
+        destroyRobotGoalRect(scene);
       },
     },
     {
@@ -187,7 +190,7 @@ function setHelpBubbleToAmIHere(scene) {
         scene.game.robot.helpBubble.setButtons([]);
         scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
         setRobotActionInProgress(scene, false);
-        scene.game.minimap.robotGoal.destroy();
+        destroyRobotGoalRect(scene);
       },
     },
     {
@@ -198,7 +201,7 @@ function setHelpBubbleToAmIHere(scene) {
         scene.game.robot.helpBubble.setButtons([]);
         scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
         setRobotActionInProgress(scene, false);
-        scene.game.minimap.robotGoal.destroy();
+        destroyRobotGoalRect(scene);
       },
     },
     {
@@ -209,12 +212,13 @@ function setHelpBubbleToAmIHere(scene) {
         scene.game.robot.helpBubble.setButtons([]);
         scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
         setRobotActionInProgress(scene, false);
-        scene.game.minimap.robotGoal.destroy();
+        destroyRobotGoalRect(scene);
       },
     },
   ]);
-  var robotGoalRect = scene.game.semanticLabelToRoomRectBounds[scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel];
-  createRobotGoalRect(scene, robotGoalRect);
+  var robotGoalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel;
+  var robotGoalRect = scene.game.semanticLabelToRoomRectBounds[robotGoalSemanticLabel];
+  createRobotGoalRect(scene, robotGoalRect, robotGoalSemanticLabel);
 }
 
 function setHelpBubbleToLeadMe(scene, hasSaidYes) {
@@ -239,13 +243,14 @@ function setHelpBubbleToLeadMe(scene, hasSaidYes) {
           scene.game.robot.helpBubble.setButtons([]);
           scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
           setRobotActionInProgress(scene, false);
-          scene.game.minimap.robotGoal.destroy();
+          destroyRobotGoalRect(scene);
         },
       },
     ]);
     console.log("leadme", scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel, scene.game.semanticLabelToRoomRectBounds, scene.game.semanticLabelToRoomRectBounds[scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel]);
-    var robotGoalRect = scene.game.semanticLabelToRoomRectBounds[scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel];
-    createRobotGoalRect(scene, robotGoalRect);
+    var robotGoalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel;
+    var robotGoalRect = scene.game.semanticLabelToRoomRectBounds[robotGoalSemanticLabel];
+    createRobotGoalRect(scene, robotGoalRect, robotGoalSemanticLabel);
   } else {
     scene.game.robot.helpBubble.setText("Thank you for leading me towards " + scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetStr + ". Tell me when I should stop following you.");
     scene.game.robot.helpBubble.setButtons([
@@ -259,7 +264,6 @@ function setHelpBubbleToLeadMe(scene, hasSaidYes) {
           scene.game.robot.taskPlan = [];
           var goalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel + pointOfInterestString + "1";
           var goalLocs = scene.game.semanticLabelsToXY[goalSemanticLabel];
-          console.log("stop following", goalSemanticLabel, goalLocs, scene.game.semanticLabelsToXY);
           scene.game.robot.goalTile = goalLocs[Math.floor(Math.random() * goalLocs.length)]
           if (scene.game.robot.movementTimer != null) {
             // If we're in the middle of a movement, set the currentTile to the tile it is going towards
@@ -270,9 +274,7 @@ function setHelpBubbleToLeadMe(scene, hasSaidYes) {
           scene.game.robot.plan = generatePlan(scene.game.robot.currentTile, [scene.game.robot.goalTile], scene.game.robot.goalTile, isValidTile);
           scene.game.robot.currentState = robotState.GO_TOWARDS_GOAL; // TODO (amal): might the user expect the robot to go into the target room, instead of just walking away?
           setRobotActionInProgress(scene, false);
-          console.log("about to destroy in stop following", scene.game.minimap.robotGoal);
-          scene.game.minimap.robotGoal.destroy();
-          console.log("destroyed in stop following", scene.game.minimap.robotGoal);
+          destroyRobotGoalRect(scene);
         },
       },
     ]);
@@ -282,14 +284,18 @@ function setHelpBubbleToLeadMe(scene, hasSaidYes) {
 function initiateRobotActionIfApplicable(scene) {
   // Initiate the robot action, if applicable
   if (scene.game.robot.currentState == playerState.NAVIGATION_TASK) {
+    // console.log("player navigation");
     if (!scene.game.robot.actionInProgress && scene.game.robot.currentState == robotState.OFFSCREEN) {
+      // console.log("robot offscreen");
       if (scene.game.robot.currentActionI < scene.game.tasks.robotActions.length) {
+        // console.log("robot action length fine");
         var robotAction = scene.game.tasks.robotActions[scene.game.robot.currentActionI];
         // Has the human completed the precondition task?
         if (scene.game.player.taskI == robotAction.afterHumanTaskIndex + 1) {
           var requiredDistanceToGoal = Math.ceil(scene.game.player.currentTaskDistance*(1.0-robotAction.humanDistanceProportionToNextGoal));
           var oldTaskPlanDistanceFromRequiredDistance = scene.game.player.taskPlan.length - requiredDistanceToGoal;
           // Has the player traversed enough distance to justify recalculating the plan?
+          // console.log("after correct player task", scene.game.player.currentTaskDistance, requiredDistanceToGoal, scene.game.player.elapsedDistanceSinceComputingTaskPlan, oldTaskPlanDistanceFromRequiredDistance);
           if (scene.game.player.elapsedDistanceSinceComputingTaskPlan >= Math.floor(oldTaskPlanDistanceFromRequiredDistance*0.5)) {
             getCurrentTaskPlan(scene);
             var distanceProportionToNextGoal = 1.0 - scene.game.player.taskPlan.length/scene.game.player.currentTaskDistance;
@@ -359,7 +365,7 @@ function executeRobotAction(scene) {
       setHelpBubbleVisible(scene, false);
       scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
       setRobotActionInProgress(scene, false);
-      scene.game.minimap.robotGoal.destroy();
+      destroyRobotGoalRect(scene);
     } else {
 
       if (!scene.game.robot.isBeingLed) {
@@ -399,9 +405,7 @@ function executeRobotAction(scene) {
 function setHelpBubbleVisible(scene, visible) {
   // console.log("setHelpBubbleVisible", visible);
   scene.game.robot.helpBubble.setVisible(visible);
-  if (scene.game.minimap.robotGoal) {
-    scene.game.minimap.robotGoal.setVisible(visible);
-  }
+  setRobotGoalRectVisible(scene, visible);
 }
 
 function transitionRobotState(scene) {
@@ -415,9 +419,34 @@ function transitionRobotState(scene) {
       break;
     case robotState.APPROACH_HUMAN:
       scene.game.robot.tileAtBeginningOfWalkPast = null;
-      if (scene.game.robot.plan == null || scene.game.robot.plan.length == 0 || scene.game.robot.goalTile == null || scene.game.robot.goalTile.x != scene.game.player.currentTile.x || scene.game.robot.goalTile.y != scene.game.player.currentTile.y) {
+      if (scene.game.robot.plan == null || scene.game.robot.plan.length == 0 || scene.game.robot.goalTile == null || distance(scene.game.robot.goalTile, scene.game.player.currentTile) != robotToHumanDistance) {
         scene.game.robot.goalTile = scene.game.player.currentTile;
         scene.game.robot.plan = generatePlan(scene.game.robot.currentTile, [scene.game.robot.goalTile], scene.game.robot.goalTile);
+        // Have the robot stay 1 unit away from the human
+        if (scene.game.robot.plan != null && scene.game.robot.plan.length > robotToHumanDistance) {
+          scene.game.robot.goalTile = scene.game.robot.plan[scene.game.robot.plan.length - robotToHumanDistance - 1];
+          scene.game.robot.plan.splice(scene.game.robot.plan.length - robotToHumanDistance, robotToHumanDistance);
+        } else if (scene.game.robot.plan != null && scene.game.robot.plan.length == robotToHumanDistance) {
+          // The robot should stay stationary
+          scene.game.robot.goalTile = scene.game.robot.currentTile;
+          scene.game.robot.plan = null;
+        } else { // the robot is too close to the human
+          // Find a point that is a distance of robotToHumanDistance away from the human
+          function goalConstraints(tile) {
+            var awayFromHuman = distance(tile, scene.game.player.currentTile) >= robotToHumanDistance;
+            var notWall = game.worldLayer.getTileAt(tile.x, tile.y) == null;
+            return awayFromHuman && notWall;
+          }
+          function pathConstraints(tile) {
+            return true;
+          }
+
+          var goalTile =  closestPointWithinConstraints(scene.game.robot.currentTile, goalConstraints, pathConstraints, 20*screenSizeX*screenSizeY);
+          if (goalTile != null) {
+            scene.game.robot.goalTile = goalTile;
+            scene.game.robot.plan = generatePlan(scene.game.robot.currentTile, [scene.game.robot.goalTile], scene.game.robot.goalTile);
+          }
+        }
       }
       break;
     case robotState.WALK_PAST_HUMAN:
@@ -479,6 +508,28 @@ function transitionRobotState(scene) {
       }
       break;
     case robotState.GO_TOWARDS_GOAL:
+      if (scene.game.robot.goalTile != null && (scene.game.robot.plan == null || scene.game.robot.plan.length == 0 || distance(scene.game.robot.goalTile, scene.game.robot.plan[scene.game.robot.plan.length - 1]) != 0)) {
+        scene.game.robot.plan = generatePlan(scene.game.robot.currentTile, [scene.game.robot.goalTile], scene.game.robot.goalTile);
+        // Have the robot not get too close to the human
+        // console.log("GO_TOWARDS_GOAL", scene.game.robot.plan, distance(scene.game.robot.currentTile, scene.game.player.currentTile));
+        if ((scene.game.robot.plan == null || scene.game.robot.plan.length == 0) && distance(scene.game.robot.currentTile, scene.game.player.currentTile) <= robotToHumanDistance) {
+          // Find a point that is a distance of robotToHumanDistance away from the human
+          function goalConstraints(tile) {
+            var awayFromHuman = distance(tile, scene.game.player.currentTile) >= robotToHumanDistance;
+            var notWall = game.worldLayer.getTileAt(tile.x, tile.y) == null;
+            return awayFromHuman && notWall;
+          }
+          function pathConstraints(tile) {
+            return true;
+          }
+
+          var goalTile =  closestPointWithinConstraints(scene.game.robot.currentTile, goalConstraints, pathConstraints, 20*screenSizeX*screenSizeY);
+          // console.log("GO_TOWARDS_GOAL goalTile", goalTile);
+          if (goalTile != null) {
+            scene.game.robot.plan = generatePlan(scene.game.robot.currentTile, [goalTile], goalTile);
+          }
+        }
+      }
       if (isOffCamera(scene, scene.game.robot.currentTile)) {
         setHelpBubbleVisible(scene, false);
         // game.hasRobotStateChangedThisUpdate = false;
@@ -494,7 +545,7 @@ function transitionRobotState(scene) {
 function moveRobotAlongPlan(scene) {
   // If we have finished rendering the last robot movement animation
   if (scene.game.robot.movementTimer == null && scene.game.robot.plan != null && scene.game.robot.plan.length > 0) {
-    // If the robot's plan would collide with the human
+    // If the robot's next move would collide with the human
     if ((scene.game.robot.plan[0].x == scene.game.player.currentTile.x && scene.game.robot.plan[0].y == scene.game.player.currentTile.y) ||
         (scene.game.robot.plan[0].x == scene.game.player.nextTile.x && scene.game.robot.plan[0].y == scene.game.player.nextTile.y)) {
         // If the human is in the goal position, terminate the plan

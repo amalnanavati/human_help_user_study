@@ -75,23 +75,42 @@ function renderRobotOnMinimap(scene, isOnCamera) {
   }
 }
 
-function createRobotGoalRect(scene, robotGoalRect) {
+function createRobotGoalRect(scene, robotGoalRect, robotGoalSemanticLabel) {
   destroyRobotGoalRect(scene);
   scene.game.minimap.robotGoal = scene.add.graphics({ x: 0, y: 0 });
   scene.game.minimap.robotGoal.lineStyle(4, robotColor, 0.85);
   scene.game.minimap.robotGoal.setScrollFactor(0.0, 0.0);
   scene.game.minimap.robotGoal.setDepth(15);
-  scene.game.minimap.robotGoal.strokeRect(
-    scene.game.minimap.x+robotGoalRect.x*scene.game.minimap.scale,
-    scene.game.minimap.y+robotGoalRect.y*scene.game.minimap.scale,
-    robotGoalRect.width*scene.game.minimap.scale,
-    robotGoalRect.height*scene.game.minimap.scale,
-  );
+  var x = scene.game.minimap.x+robotGoalRect.x*scene.game.minimap.scale;
+  var y = scene.game.minimap.y+robotGoalRect.y*scene.game.minimap.scale;
+  var w = robotGoalRect.width*scene.game.minimap.scale;
+  var h = robotGoalRect.height*scene.game.minimap.scale;
+  scene.game.minimap.robotGoal.strokeRect(x, y, w, h);
+  var label = robotGoalSemanticLabel.includes("Room ") ? robotGoalSemanticLabel.slice(5, robotGoalSemanticLabel.length) : robotGoalSemanticLabel;
+  scene.game.minimap.robotGoal.label = scene.add.text(
+    x+w/2,
+    y+h/2,
+    label,
+    {
+      fontFamily: 'Arial',
+      fontSize: 18,
+      fill: robotColorStr,
+      align: 'center',
+    },
+  ).setDepth(15).setOrigin(0.5, 0.5).setScrollFactor(0.0, 0.0);
 }
 
 function destroyRobotGoalRect(scene) {
   if (scene.game.minimap.robotGoal != null) {
     scene.game.minimap.robotGoal.destroy();
+    scene.game.minimap.robotGoal.label.destroy();
+  }
+}
+
+function setRobotGoalRectVisible(scene, visible) {
+  if (scene.game.minimap.robotGoal != null) {
+    scene.game.minimap.robotGoal.setVisible(visible);
+    scene.game.minimap.robotGoal.label.setVisible(visible);
   }
 }
 

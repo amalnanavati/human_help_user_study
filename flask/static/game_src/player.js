@@ -4,7 +4,7 @@ const timeForDistractionTask = 10;
 
 const playerMsPerStep = 200;
 
-const playerColor = 0xff0000;
+const playerColor = 0xff0000
 
 const scorePerTask = 10;
 
@@ -153,9 +153,7 @@ function transitionPlayerState(scene) {
       }
     }
     setRobotActionInProgress(scene, false);
-    if (scene.game.minimap.robotGoal) {
-      scene.game.minimap.robotGoal.destroy();
-    }
+    destroyRobotGoalRect(scene);
     if (scene.game.robot.currentState != robotState.OFFSCREEN && scene.game.robot.currentState != robotState.WALK_PAST_HUMAN) {
       scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
     }
