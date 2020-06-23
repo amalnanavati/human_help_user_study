@@ -25,6 +25,12 @@
       const screenSizeX = 13;
       const screenSizeY = 11;
 
+      const gameModes = {
+        GAME: 0,
+        TUTORIAL: 1
+      };
+      const gameMode = gameModes.GAME; // gameModes.TUTORIAL;
+
       // Load game params
       const load = {{load|default("false", false)}};
       dataToLoad = {{dataToLoad|default([], false)|tojson}};
@@ -76,106 +82,132 @@
       }
 
       function create() {
-        this.game.isRunning = false;
-        // Create the title screen, and specify the function to run after the
-        // user clicks start
-        createTitleScreen(this, startGame);
+
+        switch (gameMode) {
+          case gameModes.GAME:
+            this.game.isRunning = false;
+            // Create the title screen, and specify the function to run after the
+            // user clicks start
+            createTitleScreen(this, startGame);
+            break;
+          case gameModes.TUTORIAL:
+            break;
+          default:
+            break;
+        }
+
       }
 
       function startGame(scene) {
-          // Create the map
-          createMap(scene);
+          switch (gameMode) {
+            case gameModes.GAME:
+              // Create the map
+              createMap(scene);
 
-          // Load the tasks for this game ID
-          scene.game.tasks = scene.cache.json.get('tasks');
+              // Load the tasks for this game ID
+              scene.game.tasks = scene.cache.json.get('tasks');
 
-          // Create the player and the robot
-          createPlayer(scene);
-          createRobot(scene);
+              // Create the player and the robot
+              createPlayer(scene);
+              createRobot(scene);
 
-          // Create the robot help bubble
-          createRobotHelpBubble(scene);
+              // Create the robot help bubble
+              createRobotHelpBubble(scene);
 
-          // Create and configure the camera to follow the player and not leave the map
-          createCamera(scene);
+              // Create and configure the camera to follow the player and not leave the map
+              createCamera(scene);
 
-          // Configure the keyboard input
-          scene.game.cursors = scene.input.keyboard.createCursorKeys();
+              // Configure the keyboard input
+              scene.game.cursors = scene.input.keyboard.createCursorKeys();
 
-          // Create the window that is shown during the distraction task
-          createDistractionTaskBar(scene);
-          setDistractionTaskBarVisible(scene, false);
+              // Create the window that is shown during the distraction task
+              createDistractionTaskBar(scene);
+              setDistractionTaskBarVisible(scene, false);
 
-          // Create the top-left instruction text
-          createInstructionText(scene);
+              // Create the top-left instruction text
+              createInstructionText(scene);
 
-          // Create the top-right score text
-          createScoreText(scene);
+              // Create the top-right score text
+              createScoreText(scene);
 
-          // Create the bottom-right minimap
-          createMinimap(scene);
+              // Create the bottom-right minimap
+              createMinimap(scene);
 
-          // Create the box that will highlight our goal location
-          createHighlightBox(scene);
+              // Create the box that will highlight our goal location
+              createHighlightBox(scene);
 
-          // Create the negative score red outline
-          createNegativeScoreOutline(scene);
+              // Create the negative score red outline
+              createNegativeScoreOutline(scene);
 
-          // Start the game
-          getCurrentTaskPlan(scene);
-          transitionToNewTask(scene);
-          scene.game.isRunning = true;
-          game.start_time = Date.now(); // ms
-          initializeGamePlayerTimer(scene);
+              // Start the game
+              getCurrentTaskPlan(scene);
+              transitionToNewTask(scene);
+              scene.game.isRunning = true;
+              game.start_time = Date.now(); // ms
+              initializeGamePlayerTimer(scene);
+              break;
+            case gameModes.TUTORIAL:
+              break;
+            default:
+              break;
+          }
       }
 
       function update(time, delta) {
-        if (this.game.isRunning) {
-          // Update the instruction and score text
-          regenerateInstructionText(this);
-          regenerateScoreText(this);
+        switch (gameMode) {
+          case gameModes.GAME:
+            if (this.game.isRunning) {
+              // Update the instruction and score text
+              regenerateInstructionText(this);
+              regenerateScoreText(this);
 
-          // Render the player movement
-          var wasInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
-          renderPlayerMovementAnimation(this);
-          var isInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
+              // Render the player movement
+              var wasInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
+              renderPlayerMovementAnimation(this);
+              var isInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
 
-          // If we just ended a movement
-          if (wasInMiddleOfPlayerMotion && !isInMiddleOfPlayerMotion) {
-            this.game.player.elapsedDistanceSinceComputingTaskPlan++;
-            this.game.robot.elapsedDistanceSinceComputingTaskPlan++;
-          }
+              // If we just ended a movement
+              if (wasInMiddleOfPlayerMotion && !isInMiddleOfPlayerMotion) {
+                this.game.player.elapsedDistanceSinceComputingTaskPlan++;
+                this.game.robot.elapsedDistanceSinceComputingTaskPlan++;
+              }
 
-          // Nothing can change if we were and still are rendering player movement
-          if (!(wasInMiddleOfPlayerMotion && isInMiddleOfPlayerMotion)) {
-            // Transition the player's state
-            transitionPlayerState(this);
+              // Nothing can change if we were and still are rendering player movement
+              if (!(wasInMiddleOfPlayerMotion && isInMiddleOfPlayerMotion)) {
+                // Transition the player's state
+                transitionPlayerState(this);
 
-            // Initiate the robot action if applicable
-            initiateRobotActionIfApplicable(this);
-          }
+                // Initiate the robot action if applicable
+                initiateRobotActionIfApplicable(this);
+              }
 
-          // If we are not in the middle of a player movement, then check key presses
-          if (!isInMiddleOfPlayerMotion) {
-            processPlayerKeyPresses(this);
-          }
+              // If we are not in the middle of a player movement, then check key presses
+              if (!isInMiddleOfPlayerMotion) {
+                processPlayerKeyPresses(this);
+              }
 
-          // Render the robot movement
-          renderRobotMovementAnimation(this);
-          var isInMiddleOfRobotMotion = this.game.robot.movementTimer != null;
+              // Render the robot movement
+              renderRobotMovementAnimation(this);
+              var isInMiddleOfRobotMotion = this.game.robot.movementTimer != null;
 
-          if (!isInMiddleOfRobotMotion) {
-            if (this.game.robot.actionInProgress) {
-              executeRobotAction(this);
+              if (!isInMiddleOfRobotMotion) {
+                if (this.game.robot.actionInProgress) {
+                  executeRobotAction(this);
+                }
+
+                // Transition the robot's state
+                transitionRobotState(this);
+
+                // Move the robot according to the plan
+                moveRobotAlongPlan(this);
+              }
+              game.player.previousTaskI = game.player.taskI;
             }
-
-            // Transition the robot's state
-            transitionRobotState(this);
-
-            // Move the robot according to the plan
-            moveRobotAlongPlan(this);
-          }
-          game.player.previousTaskI = game.player.taskI;
+            break;
+          case gameModes.TUTORIAL:
+            break;
+          default:
+            break;
         }
       }
 
