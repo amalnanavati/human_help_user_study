@@ -193,7 +193,7 @@ function setHelpBubbleToAmIHere(scene) {
         destroyRobotGoalRect(scene);
       },
     },
-    {
+    /*{
       text : "Don't Know",
       rowI: 1,
       callbackFunction : function() {
@@ -203,7 +203,7 @@ function setHelpBubbleToAmIHere(scene) {
         setRobotActionInProgress(scene, false);
         destroyRobotGoalRect(scene);
       },
-    },
+    },*/
     {
       text : "Can't Help",
       rowI: 1,
@@ -362,6 +362,7 @@ function executeRobotAction(scene) {
   if (scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query == "amIHere" ||
       scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query == "leadMe") {
     if (scene.game.numTimesAskedForHelp >= numTimesToTryAskingForHelp) {
+      console.log("human ignored the robot");
       setHelpBubbleVisible(scene, false);
       scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
       setRobotActionInProgress(scene, false);

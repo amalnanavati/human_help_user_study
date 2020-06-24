@@ -41,7 +41,7 @@ class TimeProgressBar {
   }
 
   destroyTimer() {
-    console.log("destroyTimer", this.coloredBarTimer);
+    // console.log("destroyTimer", this.coloredBarTimer);
     if (this.coloredBarTimer != null) {
       this.coloredBarTimer.destroy();
       this.coloredBarTimer = null;

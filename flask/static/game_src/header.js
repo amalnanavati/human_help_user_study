@@ -58,7 +58,10 @@ function updateHeader(scene) {
 
   // console.log("updateHeader", scene.game.timeProgressBar.timeProgressBar, scene.game.timeProgressBar.timeProgressBarStroke);
 
-  if (scene.game.player.timer != null) {
+  if (scene.game.player.currentState == playerState.COMPLETED_TASKS) {
+    scene.game.timeProgressBar.removeBar();
+    scene.game.timeProgressBar.setText("Congratulations!");
+  } else if (scene.game.player.timer != null) {
     scene.game.timeProgressBar.drawBar(scene.game.player.timer);
     scene.game.timeProgressBar.setText("Time: ");
   } else {

@@ -77,8 +77,10 @@ function initializeGamePlayerTimer(scene) {
     });
     scene.game.timeProgressBar.setText("Time: ");
   } else {
-    scene.game.player.timer .destroy();
-    scene.game.player.timer = null;
+    if (scene.game.player.timer != null) {
+      scene.game.player.timer.destroy();
+      scene.game.player.timer = null;
+    }
   }
 }
 
@@ -166,7 +168,18 @@ function transitionPlayerState(scene) {
       scene.game.timeProgressBar.destroyTimer();
     }
     if (scene.game.player.timer == null) {
-      // if ()
+      if (game.tasks.tasks[game.player.taskI].semanticLabel.includes("Restroom")) {
+        scene.game.distractionTaskText.text = "Using the restroom. Continue holding the Space bar...";
+      } else if (game.tasks.tasks[game.player.taskI].semanticLabel.includes("Lounge")) {
+        if (game.tasks.tasks[game.player.taskI].target == 1) { // coffee
+          scene.game.distractionTaskText.text = "Making coffee. Continue holding the Space bar...";
+        } else { // microwave
+          scene.game.distractionTaskText.text = "Heating food. Continue holding the Space bar...";
+        }
+      } else {
+        console.log("free time without restroom or lounge");
+        scene.game.distractionTaskText.text = "Continue holding the Space bar...";
+      }
     } else {
       scene.game.distractionTaskText.text = "Clearing viruses. Continue holding the Space bar...";
     }

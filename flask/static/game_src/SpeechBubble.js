@@ -1,5 +1,5 @@
 class SpeechBubble {
-  constructor(scene, width, x, y, text, buttonsData) {
+  constructor(scene, width, x, y, text, buttonsData, hasArrow) {
     // x, y is at the bottom of the arrow
     // buttonsData is a list of objects with "text" and "callbackFunction" attributes.
     this._scene = scene;
@@ -8,8 +8,13 @@ class SpeechBubble {
     this._y = y;
     this._text = text;
     this._buttonsData = buttonsData;
-    this.createSpeechBubble();
     this._visibility = true;
+    if (hasArrow == null) {
+      this._hasArrow = true;
+    } else {
+      this._hasArrow = false;
+    }
+    this.createSpeechBubble();
   }
   getVisibile() {
     return this._bubble.visible;
@@ -109,8 +114,13 @@ class SpeechBubble {
     this._x = x;
     this._y = y;
     var b = this._speech.getBounds();
-    this._bubble.x = x - this.getArrowXOffset();
-    this._bubble.y = y - this.getHeight();
+    if (this._hasArrow) {
+      this._bubble.x = x - this.getArrowXOffset();
+      this._bubble.y = y - this.getHeight();
+    } else {
+      this._bubble.x = x;
+      this._bubble.y = y
+    }
     this._speech.setPosition(this._bubble.x + (this._width / 2) - (b.width / 2), this._bubble.y + bubblePadding);
     // var xOffset = 0;
     // for (var i = 0; i < this._buttons.length; i++) {
@@ -160,7 +170,7 @@ class SpeechBubble {
         0,
         buttonData.text,
         {
-          font: '20px monospace', 
+          font: '20px monospace',
           fill: '#000000',
           align: 'center',
           backgroundColor: 'rgba(255,0,0,0.5)',
@@ -260,21 +270,23 @@ class SpeechBubble {
       this._bubble.fillRoundedRect(0, 0, bubbleWidth, bubbleHeight, 16);
 
       //  Calculate arrow coordinates
-      var point1X = this.getArrowXOffset();
-      var point1Y = bubbleHeight;
-      var point2X = point1X + this.getArrowWidth();
-      var point2Y = bubbleHeight;
-      var point3X = point1X;
-      var point3Y = bubbleHeight + arrowHeight;
+      if (this._hasArrow) {
+        var point1X = this.getArrowXOffset();
+        var point1Y = bubbleHeight;
+        var point2X = point1X + this.getArrowWidth();
+        var point2Y = bubbleHeight;
+        var point3X = point1X;
+        var point3Y = bubbleHeight + arrowHeight;
 
-      // //  Bubble arrow shadow
-      // this._bubble.lineStyle(4, 0x222222, 0.5);
-      // this._bubble.lineBetween(point2X - 1, point2Y + 6, point3X + 2, point3Y);
+        // //  Bubble arrow shadow
+        // this._bubble.lineStyle(4, 0x222222, 0.5);
+        // this._bubble.lineBetween(point2X - 1, point2Y + 6, point3X + 2, point3Y);
 
-      //  Bubble arrow fill
-      this._bubble.fillTriangle(point1X, point1Y, point2X, point2Y, point3X, point3Y);
-      this._bubble.lineStyle(2, 0x565656, 1);
-      this._bubble.lineBetween(point2X, point2Y, point3X, point3Y);
-      this._bubble.lineBetween(point1X, point1Y, point3X, point3Y);
+        //  Bubble arrow fill
+        this._bubble.fillTriangle(point1X, point1Y, point2X, point2Y, point3X, point3Y);
+        this._bubble.lineStyle(2, 0x565656, 1);
+        this._bubble.lineBetween(point2X, point2Y, point3X, point3Y);
+        this._bubble.lineBetween(point1X, point1Y, point3X, point3Y);
+      }
     }
 }

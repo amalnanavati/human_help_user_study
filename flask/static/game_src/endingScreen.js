@@ -47,7 +47,7 @@ function createEndingScreen(scene) {
     // scene.game.endingScreen.description.destroy();
     // scene.game.endingScreen.title.destroy();
     // scene.game.endingScreen.destroy();
-    post_form('/post_survey', {uuid: "{{ uuid }}"});
+    post_form('/post_survey', {uuid: uuid});
   });
   scene.game.endingScreen.continueButton.setDepth(16);
 

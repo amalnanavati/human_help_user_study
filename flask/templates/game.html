@@ -30,12 +30,18 @@
         GAME: 0,
         TUTORIAL: 1
       };
-      const gameMode = gameModes.GAME; // gameModes.TUTORIAL;
+      const gameMode = gameModes.GAME; // gameModes.TUTORIAL; // 
+
+      // Local Development
+      const baseURL = "http://0.0.0.0:8194/";
+      // AWS EC2 Deployment
+      // const baseURL = "http://ec2-52-14-97-33.us-east-2.compute.amazonaws.com:8194/";
 
       // Load game params
       const load = {{load|default("false", false)}};
       dataToLoad = {{dataToLoad|default([], false)|tojson}};
       lastLoadedData = null;
+      const uuid = "{{ uuid }}";
 
       const config = {
         type: Phaser.AUTO, // Which renderer to use
@@ -92,6 +98,27 @@
             createTitleScreen(this, startGame);
             break;
           case gameModes.TUTORIAL:
+            // Create sample textbox
+            var sampleText = "This is your character. Use the arrow keys to move them around.";
+            // For the Speech Bubble only, (x,y) is in the bottom-left corner.
+            // Generally in Phaser3 it is top-left (although it can be changed
+            // with the setOrigin() method)
+            var width = this.game.config.width/3;
+            var x = this.game.config.width/2;
+            var y = this.game.config.height/2;
+            this.game.tutorialTextBox = new SpeechBubble(
+              this, width, x, y, sampleText,
+              [
+                {
+                  text : "Next",
+                  rowI: 0,
+                  callbackFunction : function () {
+                    console.log("Next button clicked");
+                  },
+                },
+              ],
+              false,
+            );
             break;
           default:
             break;

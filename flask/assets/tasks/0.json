@@ -21,6 +21,12 @@
       "timeLimit": 20
     },
     {
+      "semanticLabel": "Lounge",
+      "str": "the Lounge",
+      "target": 2,
+      "timeLimit": -1
+    },
+    {
       "semanticLabel": "Room 34",
       "str": "Room 34",
       "target": 1,
@@ -31,6 +37,12 @@
       "str": "Room 47",
       "target": 1,
       "timeLimit": 30
+    },
+    {
+      "semanticLabel": "Restroom B",
+      "str": "Restroom B",
+      "target": 1,
+      "timeLimit": -1
     },
     {
       "semanticLabel": "Room 20",
@@ -76,7 +88,7 @@
       }
     },
     {
-      "afterHumanTaskIndex": 5,
+      "afterHumanTaskIndex": 4,
       "humanDistanceProportionToNextGoal": 0.25,
       "robotAction": {
         "query": "leadMe",
