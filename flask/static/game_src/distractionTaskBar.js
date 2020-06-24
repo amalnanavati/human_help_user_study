@@ -11,7 +11,7 @@ function createDistractionTaskBar(scene) {
   scene.game.distractionTaskBar.strokeRoundedRect(x, y, w, h, 16);
   scene.game.distractionTaskBar.fillRoundedRect(x, y, w, h, 16);
   scene.game.distractionTaskBar.setDepth(6);
-  scene.game.distractionTaskText = scene.add.text(scene.game.distractionTaskBar.x, w/40, "Clearing viruses. Continue holding the Space bar...", {
+  scene.game.distractionTaskText = scene.add.text(scene.game.distractionTaskBar.x, w/40, "", {
     font: "18px monospace",
     fill: "rgba(0, 0, 0, 0.9)",
   }).setOrigin(0.5, 0.5);

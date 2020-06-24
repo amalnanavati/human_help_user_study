@@ -92,8 +92,7 @@ function createRobotGoalRect(scene, robotGoalRect, robotGoalSemanticLabel) {
     y+h/2,
     label,
     {
-      fontFamily: 'Arial',
-      fontSize: 18,
+      font: '18px monospace',
       fill: robotColorStr,
       align: 'center',
     },

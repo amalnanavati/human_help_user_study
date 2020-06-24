@@ -15,10 +15,10 @@
       "timeLimit": 20
     },
     {
-      "semanticLabel": "Room 12",
-      "str": "Room 12",
-      "target": 3,
-      "timeLimit": 20
+      "semanticLabel": "Restroom A",
+      "str": "Restroom A",
+      "target": 1,
+      "timeLimit": -1
     }
   ],
   "robotActions": [

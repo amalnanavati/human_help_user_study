@@ -60,27 +60,26 @@ function createPlayer(scene) {
 }
 
 function initializeGamePlayerTimer(scene) {
-  scene.game.player.negativeScoreTimer = null;
-  scene.game.player.timer = scene.time.addEvent({
-    delay: scene.game.tasks.tasks[scene.game.player.taskI].timeLimit*1000,
-    loop: false,
-    callback: function() {
-      scene.game.player.negativeScoreTimer = scene.time.addEvent({
-        delay: 500, // 0.5 sec
-        loop: true,
-        callback: function() {
-          if (scene.game.negativeScoreRedOutline.visible) {
-            scene.game.negativeScoreRedOutline.setVisible(false);
-            scene.game.scoreText.setFill("#ececec");
-          } else {
-            scene.game.negativeScoreRedOutline.setVisible(true);
-            scene.game.scoreText.setFill("#ff0000");
-            scene.game.player.score -= 1;
-          }
-        },
-      });
-    },
-  });
+  if (scene.game.tasks.tasks[scene.game.player.taskI].timeLimit > 0) {
+    scene.game.player.negativeScoreTimer = null;
+    scene.game.player.timer = scene.time.addEvent({
+      delay: scene.game.tasks.tasks[scene.game.player.taskI].timeLimit*1000,
+      loop: false,
+      callback: function() {
+        scene.game.player.negativeScoreTimer = scene.time.addEvent({
+          delay: 1000,
+          loop: true,
+          callback: function() {
+              scene.game.player.score -= 1;
+          },
+        });
+      },
+    });
+    scene.game.timeProgressBar.setText("Time: ");
+  } else {
+    scene.game.player.timer .destroy();
+    scene.game.player.timer = null;
+  }
 }
 
 function getCurrentTaskPlan(scene) {
@@ -143,15 +142,8 @@ function transitionPlayerState(scene) {
     scene.game.player.currentState = playerState.DISTRACTION_TASK;
     scene.game.distractionTaskTimerSecs = 0;
     scene.game.player.hasCompletedDistractionTask = false;
-    scene.game.player.timer.destroy();
-    if (scene.game.player.taskI < scene.game.tasks.tasks.length) {
-      if (scene.game.player.negativeScoreTimer != null) {
-        scene.game.scoreText.setFill("#ececec");
-        scene.game.negativeScoreRedOutline.setVisible(false);
-        scene.game.player.negativeScoreTimer.destroy();
-        scene.game.player.negativeScoreTimer = null;
-      }
-    }
+
+    // }
     setRobotActionInProgress(scene, false);
     destroyRobotGoalRect(scene);
     if (scene.game.robot.currentState != robotState.OFFSCREEN && scene.game.robot.currentState != robotState.WALK_PAST_HUMAN) {
@@ -161,6 +153,23 @@ function transitionPlayerState(scene) {
 
   // If we are in the distraction task, display the distraction task timer
   if (scene.game.player.currentState == playerState.DISTRACTION_TASK && scene.game.distractionTaskTimerSecs > 0 && !hasCompletedCurrentDistractionTask(scene)) {
+    if (scene.game.player.timer != null && !scene.game.player.timer.paused) {
+      scene.game.player.timer.destroy();
+      scene.game.player.timer.paused = true;
+      // if (scene.game.player.taskI < scene.game.tasks.tasks.length) {
+      if (scene.game.player.negativeScoreTimer != null) {
+        // scene.game.scoreText.setFill("#ececec");
+        // scene.game.negativeScoreRedOutline.setVisible(false);
+        scene.game.player.negativeScoreTimer.destroy();
+        scene.game.player.negativeScoreTimer = null;
+      }
+      scene.game.timeProgressBar.destroyTimer();
+    }
+    if (scene.game.player.timer == null) {
+      // if ()
+    } else {
+      scene.game.distractionTaskText.text = "Clearing viruses. Continue holding the Space bar...";
+    }
     setDistractionTaskBarVisible(scene, true);
     drawDistractionTaskBarProgress(scene);
   }
@@ -220,6 +229,11 @@ function renderPlayerMovementAnimation(scene) {
     scene.game.scoreText.setAlpha(0.25);
   } else {
     scene.game.scoreText.setAlpha(1.0);
+  }
+  if (objectsOverlaps(scene.game.player, scene.game.timeProgressBar)) {
+    scene.game.timeProgressBar.setAlpha(0.25);
+  } else {
+    scene.game.timeProgressBar.setAlpha(1.0);
   }
   if (objectsOverlaps(scene.game.player, scene.game.minimap)) {
     setMinimapAlpha(scene, 0.25);

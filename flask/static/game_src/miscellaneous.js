@@ -1,10 +1,19 @@
 // Create the red outline around the screen when you run out of time
 function createNegativeScoreOutline(scene) {
   scene.game.negativeScoreRedOutline = scene.add.graphics({ x: 0, y: 0 });
-  scene.game.negativeScoreRedOutline.lineStyle(tileSize, 0xff0000, 0.75);
+  scene.game.negativeScoreRedOutline.lineStyle(tileSize, 0xff0000, 1.0);
   scene.game.negativeScoreRedOutline.strokeRect(0, 0, scene.game.config.width, scene.game.config.height);
   scene.game.negativeScoreRedOutline.setScrollFactor(0.0, 0.0);
   scene.game.negativeScoreRedOutline.setVisible(false);
+}
+
+function negativeScoreRedOutlineBlinker(scene, visible) {
+  scene.game.negativeScoreRedOutline.setVisible(visible);
+  if (!visible) {
+    // scene.game.scoreText.setFill("#ececec");
+  } else {
+    // scene.game.scoreText.setFill("#ff0000");
+  }
 }
 
 // Returns true if the two objects overlap

@@ -10,8 +10,9 @@
     <script src="{{ url_for('static', filename='game_src/player.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/robot.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/camera.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/TimeProgressBar.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/distractionTaskBar.js') }}"></script>
-    <script src="{{ url_for('static', filename='game_src/onScreenText.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/header.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/minimap.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/highlightBox.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/miscellaneous.js') }}"></script>
@@ -124,14 +125,11 @@
               createDistractionTaskBar(scene);
               setDistractionTaskBarVisible(scene, false);
 
-              // Create the top-left instruction text
-              createInstructionText(scene);
-
-              // Create the top-right score text
-              createScoreText(scene);
-
               // Create the bottom-right minimap
               createMinimap(scene);
+
+              // Create the header
+              createHeader(scene);
 
               // Create the box that will highlight our goal location
               createHighlightBox(scene);
@@ -158,9 +156,8 @@
         switch (gameMode) {
           case gameModes.GAME:
             if (this.game.isRunning) {
-              // Update the instruction and score text
-              regenerateInstructionText(this);
-              regenerateScoreText(this);
+              // Update the header
+              updateHeader(this);
 
               // Render the player movement
               var wasInMiddleOfPlayerMotion = this.game.player.movementTimer != null;

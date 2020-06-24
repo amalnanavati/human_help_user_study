@@ -155,7 +155,17 @@ class SpeechBubble {
         this.totalButtonWidth.push(0.0);
         this.buttonsPerRow.push(0);
       }
-      var button = this._scene.add.text(0, 0, buttonData.text, { fontFamily: 'Arial', fontSize: 20, fill: '#000000', align: 'center', backgroundColor: 'rgba(255,0,0,0.5)'});
+      var button = this._scene.add.text(
+        0,
+        0,
+        buttonData.text,
+        {
+          font: '20px monospace', 
+          fill: '#000000',
+          align: 'center',
+          backgroundColor: 'rgba(255,0,0,0.5)',
+        },
+      );
       this.totalButtonWidth[rowI] = this.totalButtonWidth[rowI] + button.width;
       this.buttonsPerRow[rowI] += 1;
       button.setInteractive();
@@ -201,7 +211,19 @@ class SpeechBubble {
   {
       // Create the bubble speech
       var bubblePadding = this.getBubblePadding();
-      this._speech = this._scene.add.text(0, 0, this._text, { fontFamily: 'Arial', fontSize: 20, fill: '#000000', align: 'center', wordWrap: { width: this.getSpeechWidth() } });
+      this._speech = this._scene.add.text(
+        0,
+        0,
+        this._text,
+        {
+          font: '20px monospace',
+          fill: '#000000',
+          align: 'center',
+          wordWrap: {
+            width: this.getSpeechWidth(),
+          },
+        },
+      );
       this._speech.setDepth(11);
 
       // Create the button(s)
