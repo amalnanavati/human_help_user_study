@@ -168,51 +168,117 @@ function getOffScreenTile(scene) {
   return closestPointWithinConstraints(scene.game.robot.currentTile, goalConstraints, pathConstraints, 40*screenSizeX*screenSizeY);
 }
 
+function logClick(scene, hitArea, x, y, button) {
+  if (!load) {
+    logData(logGameStateEndpoint, getGameState(scene, eventType.CLICK, {
+      buttonName : button.text,
+      x : button.x - button.width*button.originX + x,
+      y : button.y - button.height*button.originY + y,
+    }));
+  }
+}
+
+var helpRequestButtonCallbacks = {
+  "amIHere" : {
+    "Yes" : function(scene) {
+      scene.game.robot.helpBubble.setText("Thank you.");
+      scene.game.robot.helpBubble.setButtons([]);
+      scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+      setRobotActionInProgress(scene, false);
+      destroyRobotGoalRect(scene);
+    },
+    "No" : function(scene) {
+      scene.game.robot.helpBubble.setText("Thank you.");
+      scene.game.robot.helpBubble.setButtons([]);
+      scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+      setRobotActionInProgress(scene, false);
+      destroyRobotGoalRect(scene);
+    },
+    // "Don't Know" : function(scene) {
+    //   scene.game.robot.helpBubble.setText("Thank you.");
+    //   scene.game.robot.helpBubble.setButtons([]);
+    //   scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+    //   setRobotActionInProgress(scene, false);
+    //   destroyRobotGoalRect(scene);
+    // },
+    "Can't Help" : function(scene) {
+      scene.game.robot.helpBubble.setText("That's okay.");
+      scene.game.robot.helpBubble.setButtons([]);
+      scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+      setRobotActionInProgress(scene, false);
+      destroyRobotGoalRect(scene);
+    },
+  },
+  "leadMe" : {
+    "Yes" : function(scene) {
+      setHelpBubbleToLeadMe(scene, true);
+      scene.game.robot.isBeingLed = true;
+      getCurrentPlanToRobotGoal(scene);
+      scene.game.robot.currentState = robotState.APPROACH_HUMAN;
+    },
+    "Can't Help" : function(scene) {
+      scene.game.robot.helpBubble.setText("That's okay.");
+      scene.game.robot.helpBubble.setButtons([]);
+      scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+      setRobotActionInProgress(scene, false);
+      destroyRobotGoalRect(scene);
+    },
+    "Stop Following" : function(scene) {
+      scene.game.robot.helpBubble.setText("Thank you.");
+      scene.game.robot.helpBubble.setButtons([]);
+      scene.game.robot.isBeingLed = false;
+      scene.game.robot.taskPlan = [];
+      var goalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel + pointOfInterestString + "1";
+      var goalLocs = scene.game.semanticLabelsToXY[goalSemanticLabel];
+      scene.game.robot.goalTile = goalLocs[Math.floor(Math.random() * goalLocs.length)]
+      if (scene.game.robot.movementTimer != null) {
+        // If we're in the middle of a movement, set the currentTile to the tile it is going towards
+        if (scene.game.robot.plan != null && scene.game.robot.plan.length > 0) {
+          scene.game.robot.currentTile = scene.game.robot.plan[0];
+        }
+      }
+      scene.game.robot.plan = generatePlan(scene.game.robot.currentTile, [scene.game.robot.goalTile], scene.game.robot.goalTile, isValidTile);
+      scene.game.robot.currentState = robotState.GO_TOWARDS_GOAL; // TODO (amal): might the user expect the robot to go into the target room, instead of just walking away?
+      setRobotActionInProgress(scene, false);
+      destroyRobotGoalRect(scene);
+    },
+  },
+}
+
 function setHelpBubbleToAmIHere(scene) {
+  if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.SET_HELP_BUBBLE, {helpBubbleType: "amIHere"}));
   scene.game.robot.helpBubble.setText("Excuse me. Am I in front of " + scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetStr + " (see map below)?");
   scene.game.robot.helpBubble.setButtons([
     {
       text : "Yes",
       rowI: 0,
-      callbackFunction : function() {
-        scene.game.robot.helpBubble.setText("Thank you.");
-        scene.game.robot.helpBubble.setButtons([]);
-        scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
-        setRobotActionInProgress(scene, false);
-        destroyRobotGoalRect(scene);
+      callbackFunction : function(hitArea, x, y) {
+        logClick(scene, hitArea, x, y, this);
+        helpRequestButtonCallbacks["amIHere"][this.text](scene);
       },
     },
     {
       text : "No",
       rowI: 0,
-      callbackFunction : function() {
-        scene.game.robot.helpBubble.setText("Thank you.");
-        scene.game.robot.helpBubble.setButtons([]);
-        scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
-        setRobotActionInProgress(scene, false);
-        destroyRobotGoalRect(scene);
+      callbackFunction : function(hitArea, x, y) {
+        logClick(scene, hitArea, x, y, this);
+        helpRequestButtonCallbacks["amIHere"][this.text](scene);
       },
     },
     /*{
       text : "Don't Know",
       rowI: 1,
-      callbackFunction : function() {
-        scene.game.robot.helpBubble.setText("Thank you.");
-        scene.game.robot.helpBubble.setButtons([]);
-        scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
-        setRobotActionInProgress(scene, false);
-        destroyRobotGoalRect(scene);
+      callbackFunction : function(hitArea, x, y) {
+        logClick(scene, hitArea, x, y, this);
+        helpRequestButtonCallbacks["amIHere"][this.text](scene);
       },
     },*/
     {
       text : "Can't Help",
       rowI: 1,
-      callbackFunction : function() {
-        scene.game.robot.helpBubble.setText("That's okay.");
-        scene.game.robot.helpBubble.setButtons([]);
-        scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
-        setRobotActionInProgress(scene, false);
-        destroyRobotGoalRect(scene);
+      callbackFunction : function(hitArea, x, y) {
+        logClick(scene, hitArea, x, y, this);
+        helpRequestButtonCallbacks["amIHere"][this.text](scene);
       },
     },
   ]);
@@ -222,32 +288,28 @@ function setHelpBubbleToAmIHere(scene) {
 }
 
 function setHelpBubbleToLeadMe(scene, hasSaidYes) {
+  if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.SET_HELP_BUBBLE, {helpBubbleType: "leadMe", hasSaidYes: hasSaidYes}));
   if (!hasSaidYes) {
     scene.game.robot.helpBubble.setText("Excuse me. Can you lead me towards " + scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetStr + "?");
     scene.game.robot.helpBubble.setButtons([
       {
         text : "Yes",
         rowI: 0,
-        callbackFunction : function() {
-          setHelpBubbleToLeadMe(scene, true);
-          scene.game.robot.isBeingLed = true;
-          getCurrentPlanToRobotGoal(scene);
-          scene.game.robot.currentState = robotState.APPROACH_HUMAN;
+        callbackFunction : function(hitArea, x, y) {
+          logClick(scene, hitArea, x, y, this);
+          helpRequestButtonCallbacks["leadMe"][this.text](scene);
         },
       },
       {
         text : "Can't Help",
         rowI: 0,
-        callbackFunction : function() {
-          scene.game.robot.helpBubble.setText("That's okay.");
-          scene.game.robot.helpBubble.setButtons([]);
-          scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
-          setRobotActionInProgress(scene, false);
-          destroyRobotGoalRect(scene);
+        callbackFunction : function(hitArea, x, y) {
+          logClick(scene, hitArea, x, y, this);
+          helpRequestButtonCallbacks["leadMe"][this.text](scene);
         },
       },
     ]);
-    console.log("leadme", scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel, scene.game.semanticLabelToRoomRectBounds, scene.game.semanticLabelToRoomRectBounds[scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel]);
+    console.log("leadMe", scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel, scene.game.semanticLabelToRoomRectBounds, scene.game.semanticLabelToRoomRectBounds[scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel]);
     var robotGoalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel;
     var robotGoalRect = scene.game.semanticLabelToRoomRectBounds[robotGoalSemanticLabel];
     createRobotGoalRect(scene, robotGoalRect, robotGoalSemanticLabel);
@@ -257,24 +319,9 @@ function setHelpBubbleToLeadMe(scene, hasSaidYes) {
       {
         text : "Stop Following",
         rowI: 0,
-        callbackFunction : function() {
-          scene.game.robot.helpBubble.setText("Thank you.");
-          scene.game.robot.helpBubble.setButtons([]);
-          scene.game.robot.isBeingLed = false;
-          scene.game.robot.taskPlan = [];
-          var goalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel + pointOfInterestString + "1";
-          var goalLocs = scene.game.semanticLabelsToXY[goalSemanticLabel];
-          scene.game.robot.goalTile = goalLocs[Math.floor(Math.random() * goalLocs.length)]
-          if (scene.game.robot.movementTimer != null) {
-            // If we're in the middle of a movement, set the currentTile to the tile it is going towards
-            if (scene.game.robot.plan != null && scene.game.robot.plan.length > 0) {
-              scene.game.robot.currentTile = scene.game.robot.plan[0];
-            }
-          }
-          scene.game.robot.plan = generatePlan(scene.game.robot.currentTile, [scene.game.robot.goalTile], scene.game.robot.goalTile, isValidTile);
-          scene.game.robot.currentState = robotState.GO_TOWARDS_GOAL; // TODO (amal): might the user expect the robot to go into the target room, instead of just walking away?
-          setRobotActionInProgress(scene, false);
-          destroyRobotGoalRect(scene);
+        callbackFunction : function(hitArea, x, y) {
+          logClick(scene, hitArea, x, y, this);
+          helpRequestButtonCallbacks["leadMe"][this.text](scene);
         },
       },
     ]);
@@ -352,9 +399,11 @@ function renderRobotMovementAnimation(scene) {
       scene.game.robot.currentTile = scene.game.robot.plan[0];
     }
     scene.game.robot.plan.splice(0,1);
+    if (!load) {
+      // Log the game state
+      logData(logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
+    }
     scene.game.robot.movementTimer = null;
-    // Log the game state
-    // if (!load) logData(logGameStateEndpoint, getGameState());
   }
 }
 
@@ -541,6 +590,9 @@ function transitionRobotState(scene) {
       break;
   }
   scene.game.robot.previousState = robotStateToEvaluate;
+  if (scene.game.robot.currentState != scene.game.robot.previousState) {
+    if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.ROBOT_STATE_CHANGE));
+  }
 }
 
 function moveRobotAlongPlan(scene) {
@@ -562,7 +614,7 @@ function moveRobotAlongPlan(scene) {
     if (scene.game.robot.plan != null) {
       scene.game.robot.movementTimer = scene.time.addEvent({delay: robotMsPerStep});
       // Log the game state
-      // if (!load) logData(logGameStateEndpoint, getGameState());
+      if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
     }
   }
 }

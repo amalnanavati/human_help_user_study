@@ -20,6 +20,7 @@
     <script src="{{ url_for('static', filename='game_src/PriorityQueue.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/SpeechBubble.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/planning.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/logging.js') }}"></script>
     <script>
       // Screen size params
       const tileSize = 64;
@@ -30,7 +31,7 @@
         GAME: 0,
         TUTORIAL: 1
       };
-      const gameMode = gameModes.GAME; // gameModes.TUTORIAL; // 
+      const gameMode = gameModes.GAME; // gameModes.TUTORIAL; //
 
       // Local Development
       const baseURL = "http://0.0.0.0:8194/";
@@ -42,6 +43,7 @@
       dataToLoad = {{dataToLoad|default([], false)|tojson}};
       lastLoadedData = null;
       const uuid = "{{ uuid }}";
+      const gid = "{{ gid }}";
 
       const config = {
         type: Phaser.AUTO, // Which renderer to use
@@ -52,6 +54,10 @@
           preload: preload,
           create: create,
           update: update,
+        },
+        scale: {
+            mode: Phaser.Scale.FIT,
+            autoCenter: Phaser.Scale.CENTER_BOTH
         },
         physics: {
           default: "arcade",
@@ -171,6 +177,13 @@
               scene.game.isRunning = true;
               game.start_time = Date.now(); // ms
               initializeGamePlayerTimer(scene);
+
+              // Start logging
+              if (!load) {
+                logData(logGameConfigEndpoint, getGameConfig(scene));
+                logData(logGameStateEndpoint, getGameState(scene, eventType.INITIAL));
+              }
+
               break;
             case gameModes.TUTORIAL:
               break;
@@ -185,6 +198,11 @@
             if (this.game.isRunning) {
               // Update the header
               updateHeader(this);
+
+              if (load) {
+                loadUpdate(this);
+                break;
+              }
 
               // Render the player movement
               var wasInMiddleOfPlayerMotion = this.game.player.movementTimer != null;

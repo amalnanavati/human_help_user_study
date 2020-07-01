@@ -59,8 +59,7 @@ class TimeProgressBar {
     return this.coloredBarTimer != null;
   }
 
-  drawBar(timer) {
-    var progress = timer.getProgress();
+  drawBar(progress, delay) {
     this.progress = progress;
 
     if (this.coloredBar != null) {
@@ -101,7 +100,7 @@ class TimeProgressBar {
       }
     }
 
-    var remainingSecs = Math.round((timer.delay - timer.getProgress()*timer.delay)/1000);
+    var remainingSecs = Math.round((delay - progress*delay)/1000);
     this.remainingTimeText.text = remainingSecs.toString();
 
     // if (progress != 1.0) {

@@ -62,7 +62,7 @@ function updateHeader(scene) {
     scene.game.timeProgressBar.removeBar();
     scene.game.timeProgressBar.setText("Congratulations!");
   } else if (scene.game.player.timer != null) {
-    scene.game.timeProgressBar.drawBar(scene.game.player.timer);
+    scene.game.timeProgressBar.drawBar(scene.game.player.timer.getProgress(), scene.game.player.timer.delay);
     scene.game.timeProgressBar.setText("Time: ");
   } else {
     scene.game.timeProgressBar.removeBar();

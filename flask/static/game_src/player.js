@@ -70,7 +70,10 @@ function initializeGamePlayerTimer(scene) {
           delay: 1000,
           loop: true,
           callback: function() {
+            if (!load) {
               scene.game.player.score -= 1;
+              logData(logGameStateEndpoint, getGameState(scene, eventType.SCORE_CHANGE));
+            }
           },
         });
       },
@@ -138,12 +141,76 @@ function hasCompletedCurrentDistractionTask(scene) {
   return scene.game.player.hasCompletedDistractionTask;
 }
 
+function navigationTaskToDistractionTask(scene) {
+  scene.game.distractionTaskTimerSecs = 0;
+  scene.game.player.hasCompletedDistractionTask = false;
+}
+
+function inDistractionTask(scene) {
+  if (scene.game.player.timer != null && !scene.game.player.timer.paused) {
+    scene.game.player.timer.destroy();
+    scene.game.player.timer.paused = true;
+    // if (scene.game.player.taskI < scene.game.tasks.tasks.length) {
+    if (scene.game.player.negativeScoreTimer != null) {
+      // scene.game.scoreText.setFill("#ececec");
+      // scene.game.negativeScoreRedOutline.setVisible(false);
+      scene.game.player.negativeScoreTimer.destroy();
+      scene.game.player.negativeScoreTimer = null;
+    }
+    scene.game.timeProgressBar.destroyTimer();
+  }
+  if (scene.game.player.timer == null) {
+    if (game.tasks.tasks[game.player.taskI].semanticLabel.includes("Restroom")) {
+      scene.game.distractionTaskText.text = "Using the restroom. Continue holding the Space bar...";
+    } else if (game.tasks.tasks[game.player.taskI].semanticLabel.includes("Lounge")) {
+      if (game.tasks.tasks[game.player.taskI].target == 1) { // coffee
+        scene.game.distractionTaskText.text = "Making coffee. Continue holding the Space bar...";
+      } else { // microwave
+        scene.game.distractionTaskText.text = "Heating food. Continue holding the Space bar...";
+      }
+    } else {
+      console.log("Free time without restroom or lounge");
+      scene.game.distractionTaskText.text = "Continue holding the Space bar...";
+    }
+  } else {
+    scene.game.distractionTaskText.text = "Clearing viruses. Continue holding the Space bar...";
+  }
+  setDistractionTaskBarVisible(scene, true);
+  drawDistractionTaskBarProgress(scene);
+}
+
+function completedDistractionTask(scene) {
+  console.log("completed distraction task");
+  setDistractionTaskBarVisible(scene, false);
+  scene.game.player.taskI++;
+  transitionToNewTask(scene);
+  if (!load) {
+    scene.game.player.score += scorePerTask;
+    logData(logGameStateEndpoint, getGameState(scene, eventType.SCORE_CHANGE));
+  }
+  if (scene.game.player.taskI < scene.game.tasks.tasks.length) {
+    scene.game.player.currentState = playerState.NAVIGATION_TASK;
+    initializeGamePlayerTimer(scene);
+    getCurrentTaskPlan(scene);
+    scene.game.player.currentTaskDistance = scene.game.player.taskPlan.length;
+  } else {
+    scene.game.player.currentState = playerState.COMPLETED_TASKS;
+    scene.game.endGameDelayTimer = scene.time.addEvent({
+      delay: 2*1000,
+      callback: function() {
+        scene.game.isRunning = false;
+        createEndingScreen(scene);
+      },
+    });
+  }
+}
+
 function transitionPlayerState(scene) {
+  var playerStateAtBeginning = scene.game.player.currentState;
   // Check if we have completed a navigation task
   if (scene.game.player.currentState == playerState.NAVIGATION_TASK && hasCompletedCurrentNavigationTask(scene)) {
     scene.game.player.currentState = playerState.DISTRACTION_TASK;
-    scene.game.distractionTaskTimerSecs = 0;
-    scene.game.player.hasCompletedDistractionTask = false;
+    navigationTaskToDistractionTask(scene);
 
     // }
     setRobotActionInProgress(scene, false);
@@ -155,59 +222,12 @@ function transitionPlayerState(scene) {
 
   // If we are in the distraction task, display the distraction task timer
   if (scene.game.player.currentState == playerState.DISTRACTION_TASK && scene.game.distractionTaskTimerSecs > 0 && !hasCompletedCurrentDistractionTask(scene)) {
-    if (scene.game.player.timer != null && !scene.game.player.timer.paused) {
-      scene.game.player.timer.destroy();
-      scene.game.player.timer.paused = true;
-      // if (scene.game.player.taskI < scene.game.tasks.tasks.length) {
-      if (scene.game.player.negativeScoreTimer != null) {
-        // scene.game.scoreText.setFill("#ececec");
-        // scene.game.negativeScoreRedOutline.setVisible(false);
-        scene.game.player.negativeScoreTimer.destroy();
-        scene.game.player.negativeScoreTimer = null;
-      }
-      scene.game.timeProgressBar.destroyTimer();
-    }
-    if (scene.game.player.timer == null) {
-      if (game.tasks.tasks[game.player.taskI].semanticLabel.includes("Restroom")) {
-        scene.game.distractionTaskText.text = "Using the restroom. Continue holding the Space bar...";
-      } else if (game.tasks.tasks[game.player.taskI].semanticLabel.includes("Lounge")) {
-        if (game.tasks.tasks[game.player.taskI].target == 1) { // coffee
-          scene.game.distractionTaskText.text = "Making coffee. Continue holding the Space bar...";
-        } else { // microwave
-          scene.game.distractionTaskText.text = "Heating food. Continue holding the Space bar...";
-        }
-      } else {
-        console.log("free time without restroom or lounge");
-        scene.game.distractionTaskText.text = "Continue holding the Space bar...";
-      }
-    } else {
-      scene.game.distractionTaskText.text = "Clearing viruses. Continue holding the Space bar...";
-    }
-    setDistractionTaskBarVisible(scene, true);
-    drawDistractionTaskBarProgress(scene);
+    inDistractionTask(scene);
   }
 
   // Check if we have completed a distraction task
   if (scene.game.player.currentState == playerState.DISTRACTION_TASK && hasCompletedCurrentDistractionTask(scene)) {
-    console.log("completed distraction task");
-    scene.game.player.taskI++;
-    transitionToNewTask(scene);
-    scene.game.player.score += scorePerTask;
-    if (scene.game.player.taskI < scene.game.tasks.tasks.length) {
-      scene.game.player.currentState = playerState.NAVIGATION_TASK;
-      initializeGamePlayerTimer(scene);
-      getCurrentTaskPlan(scene);
-      scene.game.player.currentTaskDistance = scene.game.player.taskPlan.length;
-    } else {
-      scene.game.player.currentState = playerState.COMPLETED_TASKS;
-      scene.game.endGameDelayTimer = scene.time.addEvent({
-        delay: 2*1000,
-        callback: function() {
-          scene.game.isRunning = false;
-          createEndingScreen(scene);
-        },
-      });
-    }
+    completedDistractionTask(scene);
   }
 
   // Update the task plans (periodically, to increase efficiency)
@@ -218,6 +238,10 @@ function transitionPlayerState(scene) {
     if (scene.game.robot.taskPlan == null || scene.game.robot.taskPlan.length == 0 || scene.game.robot.elapsedDistanceSinceComputingTaskPlan >= Math.floor(scene.game.robot.taskPlan.length/5)) {
       getCurrentPlanToRobotGoal(scene);
     }
+  }
+
+  if (scene.game.player.currentState != playerStateAtBeginning) {
+    if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.PLAYER_STATE_CHANGE));
   }
 
 }
@@ -259,9 +283,11 @@ function renderPlayerMovementAnimation(scene) {
   }
   if (scene.game.player.movementTimer != null && scene.game.player.movementTimer.getOverallProgress() == 1.0) {
     scene.game.player.currentTile = scene.game.player.nextTile;
+    if (!load) {
+      // Log the game state
+      logData(logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
+    }
     scene.game.player.movementTimer = null;
-    // Log the game state
-    // if (!load) logData(logGameStateEndpoint, getGameState());
   }
 }
 
@@ -321,24 +347,30 @@ function processPlayerKeyPresses(scene) {
             scene.game.lastTimeSpaceHeld = currentTime;
           } else {
             scene.game.lastTimeSpaceHeld = Date.now();
+            if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.SPACEBAR_START));
           }
           if (scene.game.distractionTaskTimerSecs >= timeForDistractionTask) {
             scene.game.player.hasCompletedDistractionTask = true;
-            setDistractionTaskBarVisible(scene, false);
+            // Moved to transition
+            // setDistractionTaskBarVisible(scene, false);
           }
 
         }
       }
     }
   } else if (!scene.game.cursors.space.isDown) {
+    if (scene.game.lastTimeSpaceHeld != null) {
+      if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.SPACEBAR_END));
+    }
     scene.game.lastTimeSpaceHeld = null;
   }
 
   if (newAction) {
     scene.game.player.movementTimer = scene.time.addEvent({delay: playerMsPerStep});
+    if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
   }
   // Log the game state
-  // if (shouldLogData && !load) logData(logGameStateEndpoint, getGameState());
+  if (shouldLogData && !load) logData(logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
 }
 
 function transitionToNewTask(scene) {

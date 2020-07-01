@@ -42,12 +42,20 @@ function createTitleScreen(scene, callbackFunction) {
     },
   ).setOrigin(0.5, 0.0);
   scene.game.titleScreen.startButton.setInteractive();
-  scene.game.titleScreen.startButton.on('pointerdown', function() {
+  scene.game.titleScreen.startButton.on('pointerdown', function(hitArea, x, y) {
+    // if (!load) {
+    //   logData(logGameStateEndpoint, getGameState(scene, eventType.CLICK, {
+    //     buttonName : this.text,
+    //     x : this.x - this.width*this.originX + x,
+    //     y : this.xy - this.height*this.originY + y,
+    //   }));
+    // }
     scene.game.titleScreen.startButton.destroy();
     scene.game.titleScreen.description.destroy();
     scene.game.titleScreen.title.destroy();
     scene.game.titleScreen.destroy();
     callbackFunction(scene);
-  });
+  }, scene.game.titleScreen.startButton);
   scene.game.titleScreen.startButton.setDepth(16);
+  console.log("scene.game.titleScreen.startButton", scene.game.titleScreen.startButton);
 }

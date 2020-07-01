@@ -42,13 +42,21 @@ function createEndingScreen(scene) {
     },
   ).setOrigin(0.5, 0.0);
   scene.game.endingScreen.continueButton.setInteractive();
-  scene.game.endingScreen.continueButton.on('pointerdown', function() {
+  scene.game.endingScreen.continueButton.on('pointerdown', function(hitArea, x, y) {
+    // if (!load) {
+    //   logData(logGameStateEndpoint, getGameState(scene, eventType.CLICK, {
+    //     buttonName : this.text,
+    //     x : this.x - this.width*this.originX + x,
+    //     y : this.xy - this.height*this.originY + y,
+    //   }));
+    // }
+    
     // scene.game.endingScreen.continueButton.destroy();
     // scene.game.endingScreen.description.destroy();
     // scene.game.endingScreen.title.destroy();
     // scene.game.endingScreen.destroy();
     post_form('/post_survey', {uuid: uuid});
-  });
+  }, scene.game.endingScreen.continueButton);
   scene.game.endingScreen.continueButton.setDepth(16);
 
   scene.game.endingScreen.setScrollFactor(0.0, 0.0);

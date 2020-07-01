@@ -16,7 +16,7 @@ class SpeechBubble {
     }
     this.createSpeechBubble();
   }
-  getVisibile() {
+  getVisible() {
     return this._bubble.visible;
   }
   getBubbleHeight() {
@@ -179,7 +179,7 @@ class SpeechBubble {
       this.totalButtonWidth[rowI] = this.totalButtonWidth[rowI] + button.width;
       this.buttonsPerRow[rowI] += 1;
       button.setInteractive();
-      button.on('pointerdown', buttonData.callbackFunction);
+      button.on('pointerdown', buttonData.callbackFunction, button);
       button.setDepth(12);
       this._buttons.push(button);
     }

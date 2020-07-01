@@ -128,6 +128,7 @@ class FlaskExample:
                 dataJSON = json.dumps(request.json, separators=(',', ':'))
                 f.write(dataJSON+"\n")
                 print("Wrote to ", fname)
+                
             fname ="outputs/{}/{}_data.json".format(uuid, gid)
             with open(fname, "w") as f:
                 f.write("")
