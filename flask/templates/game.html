@@ -30,10 +30,11 @@
         GAME: 0,
         TUTORIAL: 1
       };
-      const gameMode = gameModes.GAME; // gameModes.TUTORIAL; // 
+      const gameMode = gameModes.TUTORIAL; //gameModes.GAME;//
+      //create tutorial step const or something like this.game.
 
       // Local Development
-      const baseURL = "http://0.0.0.0:8194/";
+      const baseURL = "http://0.0.0.0:8194/"; //TODO might have to change to 127...
       // AWS EC2 Deployment
       // const baseURL = "http://ec2-52-14-97-33.us-east-2.compute.amazonaws.com:8194/";
 
@@ -63,6 +64,10 @@
 
       const game = new Phaser.Game(config);
 
+
+      let canMove = true;
+
+
       // Load the assets that will be used in this game
       function preload() {
         // Load the tiles and tile map (created in Tiled https://www.mapeditor.org/ )
@@ -85,6 +90,7 @@
         );
 
         // Load the tasks for this game ID
+        console.log("{{gid}}");
         this.load.json('tasks', 'assets/tasks/{{gid}}.json');
       }
 
@@ -99,6 +105,7 @@
             break;
           case gameModes.TUTORIAL:
             // Create sample textbox
+            this.game.isRunning = false;
             var sampleText = "This is your character. Use the arrow keys to move them around.";
             // For the Speech Bubble only, (x,y) is in the bottom-left corner.
             // Generally in Phaser3 it is top-left (although it can be changed
@@ -106,6 +113,7 @@
             var width = this.game.config.width/3;
             var x = this.game.config.width/2;
             var y = this.game.config.height/2;
+            createTitleScreen(this, startGame);
             this.game.tutorialTextBox = new SpeechBubble(
               this, width, x, y, sampleText,
               [
@@ -114,11 +122,14 @@
                   rowI: 0,
                   callbackFunction : function () {
                     console.log("Next button clicked");
+                    alert("hi");
+                    //loadStep1(this)
                   },
                 },
               ],
               false,
             );
+            //this.game.tutorialTextBox.setVisible(false);
             break;
           default:
             break;
@@ -126,7 +137,40 @@
 
       }
 
-      function startGame(scene) {
+      /*var graphics;
+
+      function create ()
+      {
+        graphics = this.add.graphics();
+
+        var color = 0xffff00;
+        var thickness = 4;
+        var alpha = 1;
+
+        graphics.lineStyle(thickness, color, alpha);
+
+        var a = new Phaser.Geom.Point(400, 300);
+        var radius = 128;
+
+        graphics.strokeCircle(a.x, a.y, radius);
+      }*/
+
+      function loadStep1(scene){
+        //create();
+        scene.time.addEvent({
+          delay: 10000, // ms
+          loop: false,
+          callback: function() {
+            canMove = false;
+          },
+        });
+      }
+
+      function loadStep2(scene) {
+        console.log("in progress");
+      }
+
+        function startGame(scene) {
           switch (gameMode) {
             case gameModes.GAME:
               // Create the map
@@ -173,6 +217,48 @@
               initializeGamePlayerTimer(scene);
               break;
             case gameModes.TUTORIAL:
+
+              // Create the map
+              // Create the map
+              createMap(scene);
+
+              // Load the tasks for this game ID
+              scene.game.tasks = scene.cache.json.get('tasks');
+
+              // Create the player and the robot
+              createPlayer(scene);
+              createRobot(scene);
+
+              // Create the robot help bubble
+              createRobotHelpBubble(scene);
+
+              // Create and configure the camera to follow the player and not leave the map
+              createCamera(scene);
+
+              // Configure the keyboard input
+              scene.game.cursors = scene.input.keyboard.createCursorKeys();
+
+              // Create the window that is shown during the distraction task
+
+              // Create the bottom-right minimap
+              createMinimap(scene);
+
+              // Create the header
+              createHeader(scene);
+
+              // Create the box that will highlight our goal location
+              //createHighlightBox(scene);
+
+              // Create the negative score red outline
+              //createNegativeScoreOutline(scene);
+
+              // Start the game
+              //getCurrentTaskPlan(scene);
+              //scene.game.player.currentTaskDistance = scene.game.player.taskPlan.length;
+              //transitionToNewTask(scene);
+              scene.game.isRunning = true;
+              game.start_time = Date.now(); // ms
+              initializeGamePlayerTimer(scene);
               break;
             default:
               break;
@@ -230,6 +316,34 @@
             }
             break;
           case gameModes.TUTORIAL:
+            if (this.game.isRunning) {
+              // Render the player movement
+              var wasInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
+              renderPlayerMovementAnimation(this);
+              var isInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
+
+              console.log(canMove);
+              // If we just ended a movement
+              if (wasInMiddleOfPlayerMotion && !isInMiddleOfPlayerMotion && canMove) {
+                this.game.player.elapsedDistanceSinceComputingTaskPlan++;
+                this.game.robot.elapsedDistanceSinceComputingTaskPlan++;
+              }
+
+              // Nothing can change if we were and still are rendering player movement
+              if (!(wasInMiddleOfPlayerMotion && isInMiddleOfPlayerMotion && canMove)) {
+                // Transition the player's state
+                transitionPlayerState(this);
+
+                // Initiate the robot action if applicable
+                initiateRobotActionIfApplicable(this);
+              }
+
+              // If we are not in the middle of a player movement, then check key presses
+              if (!isInMiddleOfPlayerMotion && canMove) {
+                processPlayerKeyPresses(this);
+                loadStep1(this); //TODO where do I put this
+              }
+            }
             break;
           default:
             break;
