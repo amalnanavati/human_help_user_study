@@ -33,9 +33,7 @@ class FlaskExample:
         # Called when the consent form is submitted
         @app.route('/consent', methods=['POST'])
         def consent():
-            agree = request.form['agree']
-            if (agree != "agree"): # should not reach here due to javascript logic at the consent form
-                return "Please go back and agree to the consent form to proceed"
+            # agree = req ase go back and agree to the consent form to proceed"
 
             uuid = request.form['uuid']
 
@@ -128,7 +126,7 @@ class FlaskExample:
                 dataJSON = json.dumps(request.json, separators=(',', ':'))
                 f.write(dataJSON+"\n")
                 print("Wrote to ", fname)
-                
+
             fname ="outputs/{}/{}_data.json".format(uuid, gid)
             with open(fname, "w") as f:
                 f.write("")
