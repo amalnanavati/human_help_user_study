@@ -137,11 +137,10 @@
 
       }
 
-      /*var graphics;
+      var graphics;
 
-      function create ()
-      {
-        graphics = this.add.graphics();
+      function loadStep1(scene){
+        graphics = scene.add.graphics({x:0, y:0});
 
         var color = 0xffff00;
         var thickness = 4;
@@ -153,10 +152,7 @@
         var radius = 128;
 
         graphics.strokeCircle(a.x, a.y, radius);
-      }*/
 
-      function loadStep1(scene){
-        //create();
         scene.time.addEvent({
           delay: 10000, // ms
           loop: false,
