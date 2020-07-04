@@ -25,12 +25,6 @@
       "str": "Restroom A",
       "target": 1,
       "timeLimit": -1
-    },
-    {
-      "semanticLabel": "Lounge",
-      "str": "the Lounge",
-      "target": 2,
-      "timeLimit": -1
     }
   ],
   "robotActions": [

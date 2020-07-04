@@ -50,12 +50,12 @@ function createEndingScreen(scene) {
     //     y : this.xy - this.height*this.originY + y,
     //   }));
     // }
-    
+
     // scene.game.endingScreen.continueButton.destroy();
     // scene.game.endingScreen.description.destroy();
     // scene.game.endingScreen.title.destroy();
     // scene.game.endingScreen.destroy();
-    post_form('/post_survey', {uuid: uuid});
+    post_form('/survey', {uuid: uuid, gid: gid});
   }, scene.game.endingScreen.continueButton);
   scene.game.endingScreen.continueButton.setDepth(16);
 

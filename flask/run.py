@@ -2,12 +2,24 @@
 
 import os
 import json
-
-from flask import Flask, render_template, send_file, request
-
+import pickle
+import random
+import string
+import time
+from flask import Flask, render_template, send_file, request, redirect
 from flask_cors import CORS
+
+numGIDs = 5
+completedGIDsFilename = "outputs/completedGIDs.json"
+
+completionCodesFilename = "outputs/completionCodes.pkl"
+
 app = Flask(__name__)
 CORS(app, resources={r"*": {"origins": "*"}})
+
+def get_random_alphaNumeric_string(stringLength=10):
+    lettersAndDigits = string.ascii_letters + string.digits
+    return ''.join((random.choice(lettersAndDigits) for i in range(stringLength)))
 
 class FlaskExample:
 
@@ -25,40 +37,137 @@ class FlaskExample:
                     {'status': 'failed', 'msg': 'cannot find the file'})
             return send_file(target_filepath)
 
+        @app.route('/')
+        def root():
+            """
+            Assign this user a new unique user ID
+            """
+            # Get all pre-assigned user IDs as ints
+            base_dir = "/Users/amaln/Documents/PRL/human_help_user_study/"
+            uuids = []
+            for uuid in os.listdir(base_dir+"flask/outputs"):
+                try:
+                    uuids.append(int(uuid))
+                except:
+                    continue
+            uuids.sort()
+
+            # Get the lowest free user ID
+            uuidToAssign = 100 # the UUIDs below this cannot be automatically assigned
+            for uuid in uuids:
+                if uuid == uuidToAssign:
+                    uuidToAssign += 1
+            print("Got new user, assigned UUID {}".format(uuidToAssign))
+
+            return redirect('./consent/{}'.format(uuidToAssign))
+
         # The landing page for user with uid
-        @app.route('/index/<uuid>')
-        def index(uuid):
-            return render_template('index.html', uuid=uuid)
+        @app.route('/consent/<uuid>')
+        def consent(uuid):
+            print("Showing the consent form to UUID {}".format(uuid))
 
-        # Called when the consent form is submitted
-        @app.route('/consent', methods=['POST'])
-        def consent():
-            # agree = req ase go back and agree to the consent form to proceed"
-
-            uuid = request.form['uuid']
-
-            # The demographic questionairre
-            return render_template('demography.html', uuid=uuid)
-
-        # Called when the demography questionairre is submitted
-        # TODO: make this make another post request for game so game has a proper URL
-        @app.route('/demography', methods=['POST'])
-        def demography():
-            # age = request.form['age']
-            # gender = request.form['gender']
-            data = dict(request.form)
-
-            uuid = request.form['uuid']
             dirname = "outputs/{}".format(uuid)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
 
-            fname ="outputs/{}/demography.json".format(uuid)
+            # Save the startTime
+            timestamp = time.time()
+            fname = "outputs/{}/startTime.txt".format(uuid)
             with open(fname, "w") as f:
-                json.dump(data, f)
-                print("Wrote to ", fname)
+                f.write(str(timestamp))
 
-            return render_template('game.html', uuid=uuid, gid=0)
+            return render_template('consent.html', uuid=uuid)
+
+        # Called when the consent form is submitted
+        @app.route('/tutorial', methods=['POST'])
+        def tutorial():
+            uuid = request.form['uuid']
+
+            print("Showing the tutorial to UUID {}".format(uuid))
+
+            # Render the tutorial
+            return render_template('game.html', uuid=uuid, gid=0, tutorial="true")
+
+        # Called when the tutorial is completed
+        @app.route('/game', methods=['POST'])
+        def game():
+            global completedGameIDs
+
+            uuid = request.form['uuid']
+
+            # Assign the user a game ID
+            # gidWithMinNumUsers = None
+            # minNumUsers = None
+            # for gid in completedGameIDs:
+            #     numUsers = len(completedGameIDs[gid])
+            #     if minNumUsers is None or numUsers < minNumUsers:
+            #         minNumUsers = numUsers
+            #         gidWithMinNumUsers = gid
+
+            gidWithMinNumUsers = 0
+
+            # Render the tutorial
+            return render_template('game.html', uuid=uuid, gid=gidWithMinNumUsers)
+
+        # Called when the game is completed
+        @app.route('/survey', methods=['POST'])
+        def survey():
+            uuid = request.form['uuid']
+            gid = request.form['gid']
+
+            return render_template('survey.html', uuid=uuid, gid=gid)
+
+        # Called when the survey is submitted
+        @app.route('/completionCode', methods=['POST'])
+        def completionCode():
+            global completedGameIDs
+
+            uuid = request.form['uuid']
+            gid = request.form['gid']
+
+            # Generate and save completion code
+            completionCode = None
+            while completionCode is None or completionCode in completionCodes:
+                completionCode = get_random_alphaNumeric_string()
+            fname = "outputs/{}/completionCode.txt".format(uuid)
+            with open(fname, "w") as f:
+                f.write(completionCode)
+            completionCodes.add(completionCode)
+            with open(completionCodesFilename, "wb") as f:
+                pickle.dump(completionCodes, f)
+
+            # Update and save the completedGameIDs
+            completedGameIDs[gid].append(uuid)
+            with open(completedGIDsFilename, "w") as f:
+                json.dump(completedGameIDs, f)
+
+            # Save the endTime
+            timestamp = time.time()
+            fname = "outputs/{}/endTime.txt".format(uuid)
+            with open(fname, "w") as f:
+                f.write(str(timestamp))
+
+            return render_template('completionCode.html', completionCode=completionCode)
+
+        # # Called when the demography questionairre is submitted
+        # # TODO: make this make another post request for game so game has a proper URL
+        # @app.route('/demography', methods=['POST'])
+        # def demography():
+        #     # age = request.form['age']
+        #     # gender = request.form['gender']
+        #     data = dict(request.form)
+        #
+        #     uuid = request.form['uuid']
+        #     dirname = "outputs/{}".format(uuid)
+        #     if not os.path.exists(dirname):
+        #         os.makedirs(dirname)
+        #
+        #     fname ="outputs/{}/demography.json".format(uuid)
+        #     with open(fname, "w") as f:
+        #         json.dump(data, f)
+        #         print("Wrote to ", fname)
+        #
+        #     return render_template('game.html', uuid=uuid, gid=0)
 
         # Load and replay a saved game
         @app.route('/load_game_<uuid>_<gid>')
@@ -74,33 +183,11 @@ class FlaskExample:
                 dataToLoad.sort(key=lambda x : x['dtime'])
             return render_template('game.html', uuid=uuid, gid=gid, load="true", dataToLoad=dataToLoad)
 
-        # After the game is finished
-        @app.route('/post_survey', methods=['POST'])
-        def post_survey():
-            uuid = request.form['uuid']
-            return render_template('post_survey.html', uuid=uuid)
-
-        @app.route('/submit_survey', methods=['POST'])
-        def submit_survey():
-            print("request", request, request.form)
-            uuid = request.form['uuid']
-
-            fname = "outputs/{}/survey.json".format(uuid)
-            with open(fname, "w") as f:
-                json.dump(request.form, f)
-                print("Wrote to ", fname)
-
-            return "Thank you."
-
         # Called to log the game state
         @app.route('/log_game_state', methods=['POST'])
         def log_game_state():
             uuid = request.json['uuid']
             gid = request.json['gid']
-
-            dirname = "outputs/{}".format(uuid)
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
 
             fname ="outputs/{}/{}_data.json".format(uuid, gid)
             with open(fname, "a") as f:
@@ -150,6 +237,18 @@ class FlaskExample:
 
 
 if __name__ == '__main__':
+
+    if os.path.isfile(completedGIDsFilename):
+        with open(completedGIDsFilename, "r") as f:
+            completedGameIDs = json.load(f)
+    else:
+        completedGameIDs = {str(gid) : [] for gid in range(numGIDs)}
+
+    if os.path.isfile(completionCodesFilename):
+        with open(completionCodesFilename, "rb") as f:
+            completionCodes = pickle.load(f)
+    else:
+        completionCodes = set()
 
     server = FlaskExample()
 

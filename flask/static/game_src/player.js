@@ -168,8 +168,14 @@ function inDistractionTask(scene) {
       } else { // microwave
         scene.game.distractionTaskText.text = "Heating food. Continue holding the Space bar...";
       }
+    } else if (game.tasks.tasks[game.player.taskI].semanticLabel.includes("Game")) {
+      if (game.tasks.tasks[game.player.taskI].target % 2 == 1) { // tetris
+        scene.game.distractionTaskText.text = "Playing Tetris. Continue holding the Space bar...";
+      } else { // Pacman
+        scene.game.distractionTaskText.text = "Playing Pacman. Continue holding the Space bar...";
+      }
     } else {
-      console.log("Free time without restroom or lounge");
+      console.log("Free time without restroom or lounge or game room");
       scene.game.distractionTaskText.text = "Continue holding the Space bar...";
     }
   } else {

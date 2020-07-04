@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Completion Code</title>
+
+    <link rel="stylesheet" href = "{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+
+    <style>
+    p {
+      padding-left: 40px;
+    }
+    h4 {
+      /* padding-left: 30px; */
+      text-align: center
+    }
+    h3
+    {
+      padding-left: 20px;
+    }
+    body {
+    	max-width: 900px;
+    	margin: 0 auto !important;
+    	float: none !important;
+    }
+    </style>
+
+  </head>
+
+  <body>
+
+    <h1><center>Thank You!</center></h1><br>
+    <br>
+
+    <p>You have completed all activities. Copy the completion code below, and paste it back into the Amazon Mechanical Turk window.</p>
+
+    <h4>Completion Code: {{completionCode}}</h4>
+
+    <br><br><br><br>
+
+  </body>
+</html>

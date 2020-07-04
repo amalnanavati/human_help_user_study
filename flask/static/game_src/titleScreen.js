@@ -9,7 +9,7 @@ function createTitleScreen(scene, callbackFunction) {
   scene.game.titleScreen.title = scene.add.text(
     scene.game.config.width/2,
     offset,
-    "Virus Attack!",
+    tutorial ? "Tutorial" : "Office Game",
     {
       font: "32px monospace",
       fill: "rgba(0, 0, 0, 1.0)",
@@ -20,7 +20,7 @@ function createTitleScreen(scene, callbackFunction) {
   scene.game.titleScreen.description = scene.add.text(
     scene.game.config.width/2,
     scene.game.config.height/2,
-    "A virus infected your office's computers last night! You are an IT admin and must contain the virus before employees arrive. \n\nAs you do so, you may see the company's mail delivery robot. This robot is new, so it is still learning about the building. \n\nInstructions:\n\t1) Use the arrow keys to move. \n\t2) Hold down Space to clean a computer. \n\t3) If the robot talks to you, you can ignore it or click the buttons to respond to it. \n\t4) The instructions in the top-left tell you where to go and when to go there. \n\t5) Every cleaned computer is 10 points, and every second late you arrive is -1 point. \n\t6) The map in the bottom-left shows you important locations.",
+    tutorial ? "This will be a tutorial. For now, it just continues." : "You are an IT admin at this company, and must perform routine computer maintainence tasks before employees arrive for the day. \n\nAs you do so, you may see the company's mail delivery robot. This robot is new, so it is still learning about the building. \n\nInstructions:\n\t1) Use the arrow keys to move. \n\t2) Hold down Space to clean a computer. \n\t3) If the robot talks to you, you can ignore it or click the buttons to respond to it. \n\t4) The instructions in the top-left tell you where to go and when to go there. \n\t5) Every cleaned computer is 10 points, and every second late you arrive is -1 point. \n\t6) The map in the bottom-left shows you important locations.",
     {
       font: "24px monospace",
       fill: "rgba(0, 0, 0, 1.0)",
