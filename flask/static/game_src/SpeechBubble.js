@@ -4,7 +4,7 @@ class SpeechBubble {
     // buttonsData is a list of objects with "text" and "callbackFunction" attributes.
     this._scene = scene;
     this._width = width;
-    this._x = y;
+    this._x = x;
     this._y = y;
     this._text = text;
     this._buttonsData = buttonsData;
@@ -41,6 +41,13 @@ class SpeechBubble {
   }
   getSpeechWidth() {
     return this._width - (this.getBubblePadding() * 2);
+  }
+  setScrollFactor(x, y) {
+    this._bubble.setScrollFactor(x, y);
+    this._speech.setScrollFactor(x, y);
+    for (var button of this._buttons) {
+      button.setScrollFactor(x, y);
+    }
   }
   setVisible(visible) {
     this._bubble.visible = visible;
@@ -109,6 +116,7 @@ class SpeechBubble {
     this.placeButtons();
   }
   setPosition(x, y) {
+    // console.log("setPosition", x, y);
     // x, y is at the bottom of the arrow
     var bubblePadding = this.getBubblePadding();
     this._x = x;
@@ -248,7 +256,7 @@ class SpeechBubble {
       this._originalWidth = bubbleWidth;
       this._originalHeight = bubbleHeight + arrowHeight;
 
-      this._bubble = this._scene.add.graphics({ x: this._x, y: this._y - bubbleHeight - arrowHeight });
+      this._bubble = this._scene.add.graphics({ x: this._x, y: this._y - bubbleHeight - (this._hasArrow ? arrowHeight : 0) });
       this._bubble.setDepth(10);
 
       this._speech.setPosition(this._bubble.x + (bubbleWidth / 2) - (b.width / 2), this._bubble.y + bubblePadding);

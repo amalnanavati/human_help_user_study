@@ -36,15 +36,14 @@ function createHeader(scene) {
 }
 
 function updateHeader(scene) {
-  scene.game.instructionText.text = "";//scene.game.baseInstructionsStr;
   if (scene.game.player.currentState == playerState.NAVIGATION_TASK || scene.game.player.currentState == playerState.DISTRACTION_TASK) {
-    scene.game.instructionText.text += "Goal: "+scene.game.tasks.tasks[scene.game.player.taskI].semanticLabel;
+    if (scene.game.player.taskI < scene.game.tasks.tasks.length) scene.game.instructionText.text = "Goal: "+scene.game.tasks.tasks[scene.game.player.taskI].semanticLabel;
     // var remainingSecs = Math.round((scene.game.player.timer.delay - scene.game.player.timer.getProgress()*scene.game.player.timer.delay)/1000);
     // scene.game.instructionText.text += "\nTime: "+remainingSecs.toString()+" secs";
   } /*else if (scene.game.player.currentState == playerState.DISTRACTION_TASK) {
     scene.game.instructionText.text += "Hold Space at the red computer.";
   }*/ else if (scene.game.player.currentState == playerState.COMPLETED_TASKS) {
-    scene.game.instructionText.text += "Completed tasks!";
+    scene.game.instructionText.text = "Completed tasks!";
   }
 
   scene.game.scoreText.text = "Score: " + scene.game.player.score.toString();
@@ -61,8 +60,12 @@ function updateHeader(scene) {
   if (scene.game.player.currentState == playerState.COMPLETED_TASKS) {
     scene.game.timeProgressBar.removeBar();
     scene.game.timeProgressBar.setText("Congratulations!");
-  } else if (scene.game.player.timer != null) {
-    scene.game.timeProgressBar.drawBar(scene.game.player.timer.getProgress(), scene.game.player.timer.delay);
+  } else if (scene.game.player.timer != null || (tutorial && scene.game.tutorialStep == 6)) {
+    if (scene.game.player.timer == null && tutorial && scene.game.tutorialStep == 6) {
+      scene.game.timeProgressBar.drawBar(0.0, scene.game.tasks.tasks[scene.game.player.taskI].timeLimit);
+    } else {
+      scene.game.timeProgressBar.drawBar(scene.game.player.timer.getProgress(), scene.game.player.timer.delay);
+    }
     scene.game.timeProgressBar.setText("Time: ");
   } else {
     scene.game.timeProgressBar.removeBar();

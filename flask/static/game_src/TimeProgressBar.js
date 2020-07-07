@@ -116,7 +116,7 @@ class TimeProgressBar {
       this.remainingTimeText.x = this.text.x + this.text.width;
     }
     // }
-    this.coloredBar.setScrollFactor(0.0, 0.0).setDepth(10);
+    this.coloredBar.setScrollFactor(0.0, 0.0).setDepth(7);
 
   }
 
@@ -161,13 +161,13 @@ class TimeProgressBar {
     var roundedRectVal = this.getRoundedRectVal();
 
     this.timeProgressBar = this.scene.add.graphics({ x : this.x, y : this.y});
-    this.timeProgressBar.setDepth(10);
+    this.timeProgressBar.setDepth(7);
     this.timeProgressBar.fillStyle(0x000000, 1);
     this.timeProgressBar.fillRoundedRect(0, 0, this.width, this.height, roundedRectVal);
     this.timeProgressBar.setScrollFactor(0.0, 0.0);
 
     this.timeProgressBarStroke = this.scene.add.graphics({ x : this.x, y : this.y});
-    this.timeProgressBarStroke.setDepth(12);
+    this.timeProgressBarStroke.setDepth(9);
     this.timeProgressBarStroke.lineStyle(2, 0xffffff, 1);
     this.timeProgressBarStroke.strokeRoundedRect(0, 0, this.width, this.height, roundedRectVal);
     this.timeProgressBarStroke.setScrollFactor(0.0, 0.0);
@@ -187,7 +187,7 @@ class TimeProgressBar {
         fill: '#ffffff',
         padding: {x : 5, y : 0},
       },
-    ).setOrigin(0.0, 0.5).setScrollFactor(0.0, 0.0).setDepth(11);
+    ).setOrigin(0.0, 0.5).setScrollFactor(0.0, 0.0).setDepth(8);
 
     this.remainingTimeText = this.scene.add.text(
       offset,
@@ -197,6 +197,6 @@ class TimeProgressBar {
         font: fontSize.toString()+"px monospace",
         fill: '#ffffff',
       },
-    ).setOrigin(1.0, 0.5).setScrollFactor(0.0, 0.0).setDepth(11);
+    ).setOrigin(1.0, 0.5).setScrollFactor(0.0, 0.0).setDepth(8);
   }
 }

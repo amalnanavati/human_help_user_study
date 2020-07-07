@@ -14,9 +14,11 @@
     <script src="{{ url_for('static', filename='game_src/distractionTaskBar.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/header.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/minimap.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/compass.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/highlightBox.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/miscellaneous.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/endingScreen.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/tutorial.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/PriorityQueue.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/SpeechBubble.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/planning.js') }}"></script>
@@ -93,7 +95,11 @@
         );
 
         // Load the tasks for this game ID
-        this.load.json('tasks', 'assets/tasks/{{gid}}.json');
+        if (tutorial) {
+          this.load.json('tasks', 'assets/tasks/tutorial.json');
+        } else {
+          this.load.json('tasks', 'assets/tasks/{{gid}}.json');
+        }
       }
 
       function create() {
@@ -106,30 +112,10 @@
             createTitleScreen(this, startGame);
             break;
           case gameModes.TUTORIAL:
-            createTitleScreen(this, function() {
+            this.game.isRunning = false;
+            createTitleScreen(this, loadStep1/*function() {
               post_form('/game', {uuid: uuid});
-            });
-            // // Create sample textbox
-            // var sampleText = "This is your character. Use the arrow keys to move them around.";
-            // // For the Speech Bubble only, (x,y) is in the bottom-left corner.
-            // // Generally in Phaser3 it is top-left (although it can be changed
-            // // with the setOrigin() method)
-            // var width = this.game.config.width/3;
-            // var x = this.game.config.width/2;
-            // var y = this.game.config.height/2;
-            // this.game.tutorialTextBox = new SpeechBubble(
-            //   this, width, x, y, sampleText,
-            //   [
-            //     {
-            //       text : "Next",
-            //       rowI: 0,
-            //       callbackFunction : function () {
-            //         console.log("Next button clicked");
-            //       },
-            //     },
-            //   ],
-            //   false,
-            // );
+            }*/);
             break;
           default:
             break;
@@ -163,14 +149,17 @@
               createDistractionTaskBar(scene);
               setDistractionTaskBarVisible(scene, false);
 
+              // Create the box that will highlight our goal location
+              createHighlightBox(scene);
+
               // Create the bottom-right minimap
-              createMinimap(scene);
+              // createMinimap(scene);
+
+              // Create the compass
+              createCompass(scene);
 
               // Create the header
               createHeader(scene);
-
-              // Create the box that will highlight our goal location
-              createHighlightBox(scene);
 
               // Create the negative score red outline
               createNegativeScoreOutline(scene);
@@ -180,15 +169,14 @@
               scene.game.player.currentTaskDistance = scene.game.player.taskPlan.length;
               transitionToNewTask(scene);
               scene.game.isRunning = true;
-              game.start_time = Date.now(); // ms
+              scene.game.start_time = Date.now(); // ms
               initializeGamePlayerTimer(scene);
 
               // Start logging
               if (!load) {
-                logData(logGameConfigEndpoint, getGameConfig(scene));
-                logData(logGameStateEndpoint, getGameState(scene, eventType.INITIAL));
+                logData(tutorial ? logTutorialConfigEndpoint : logGameConfigEndpoint, getGameConfig(scene));
+                logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.INITIAL));
               }
-
               break;
             case gameModes.TUTORIAL:
               break;
@@ -198,15 +186,20 @@
       }
 
       function update(time, delta) {
-        switch (gameMode) {
-          case gameModes.GAME:
+        // switch (gameMode) {
+        //   case gameModes.GAME:
             if (this.game.isRunning) {
+              if (tutorial) {
+                tutorialUpdate(this);
+              }
               // Update the header
-              updateHeader(this);
+              if (this.game.instructionText) {
+                updateHeader(this);
+              }
 
               if (load) {
                 loadUpdate(this);
-                break;
+                return;
               }
 
               // Render the player movement
@@ -217,7 +210,14 @@
               // If we just ended a movement
               if (wasInMiddleOfPlayerMotion && !isInMiddleOfPlayerMotion) {
                 this.game.player.elapsedDistanceSinceComputingTaskPlan++;
-                this.game.robot.elapsedDistanceSinceComputingTaskPlan++;
+                if (this.game.robot) {
+                  this.game.robot.elapsedDistanceSinceComputingTaskPlan++;
+                }
+              }
+
+              // Update the player compass
+              if (this.game.compass) {
+                updateCompass(this);
               }
 
               // Nothing can change if we were and still are rendering player movement
@@ -226,7 +226,9 @@
                 transitionPlayerState(this);
 
                 // Initiate the robot action if applicable
-                initiateRobotActionIfApplicable(this);
+                if (this.game.robot) {
+                  initiateRobotActionIfApplicable(this);
+                }
               }
 
               // If we are not in the middle of a player movement, then check key presses
@@ -235,28 +237,30 @@
               }
 
               // Render the robot movement
-              renderRobotMovementAnimation(this);
-              var isInMiddleOfRobotMotion = this.game.robot.movementTimer != null;
+              if (this.game.robot) {
+                renderRobotMovementAnimation(this);
+                var isInMiddleOfRobotMotion = this.game.robot.movementTimer != null;
 
-              if (!isInMiddleOfRobotMotion) {
-                if (this.game.robot.actionInProgress) {
-                  executeRobotAction(this);
+                if (!isInMiddleOfRobotMotion) {
+                  if (this.game.robot.actionInProgress) {
+                    executeRobotAction(this);
+                  }
+
+                  // Transition the robot's state
+                  transitionRobotState(this);
+
+                  // Move the robot according to the plan
+                  moveRobotAlongPlan(this);
                 }
-
-                // Transition the robot's state
-                transitionRobotState(this);
-
-                // Move the robot according to the plan
-                moveRobotAlongPlan(this);
               }
               game.player.previousTaskI = game.player.taskI;
             }
-            break;
-          case gameModes.TUTORIAL:
-            break;
-          default:
-            break;
-        }
+        //     break;
+        //   case gameModes.TUTORIAL:
+        //     break;
+        //   default:
+        //     break;
+        // }
       }
 
     </script>

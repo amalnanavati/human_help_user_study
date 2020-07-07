@@ -32,7 +32,10 @@ function createMap(scene) {
             for (var k = 0; k < scene.game.map.objects[i].objects[j].properties.length; k++) {
               var property = scene.game.map.objects[i].objects[j].properties[k];
               if (property.name == "label" && property.value) {
-                scene.game.roomLabels[point.name] = scene.add.text(
+                if (!(point.name in scene.game.roomLabels)) {
+                  scene.game.roomLabels[point.name] = [];
+                }
+                scene.game.roomLabels[point.name].push(scene.add.text(
                   Math.floor(point.x/tileSize)*tileSize + tileSize/2,
                   Math.floor(point.y/tileSize)*tileSize + tileSize/2,
                   point.name,
@@ -42,7 +45,7 @@ function createMap(scene) {
                     padding: { x: 0, y: 0 },
                     align: "center",
                   },
-              ).setOrigin(0.5, 0.5);
+              ).setOrigin(0.5, 0.5));
               wasLabel = true;
               break;
               }

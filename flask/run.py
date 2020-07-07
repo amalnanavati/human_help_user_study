@@ -186,10 +186,20 @@ class FlaskExample:
         # Called to log the game state
         @app.route('/log_game_state', methods=['POST'])
         def log_game_state():
+            return log_state(request, tutorial=False)
+
+        @app.route('/log_tutorial_state', methods=['POST'])
+        def log_tutorial_state():
+            return log_state(request, tutorial=True)
+
+        def log_state(request, tutorial):
             uuid = request.json['uuid']
             gid = request.json['gid']
 
-            fname ="outputs/{}/{}_data.json".format(uuid, gid)
+            if tutorial:
+                fname ="outputs/{}/{}_tutorial_data.json".format(uuid, gid)
+            else:
+                fname ="outputs/{}/{}_data.json".format(uuid, gid)
             with open(fname, "a") as f:
                 dataJSON = json.dumps(request.json, separators=(',', ':'))
                 f.write(dataJSON+"\n")
@@ -201,6 +211,13 @@ class FlaskExample:
         # Called to log the game config
         @app.route('/log_game_config', methods=['POST'])
         def log_game_config():
+            return log_config(request, tutorial=False)
+
+        @app.route('/log_tutorial_config', methods=['POST'])
+        def log_tutorial_config():
+            return log_config(request, tutorial=True)
+
+        def log_config(request, tutorial):
             uuid = request.json['uuid']
             gid = request.json['gid']
 
@@ -208,13 +225,19 @@ class FlaskExample:
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
 
-            fname ="outputs/{}/{}_config.json".format(uuid, gid)
+            if tutorial:
+                fname = "outputs/{}/{}_tutorial_config.json".format(uuid, gid)
+            else:
+                fname = "outputs/{}/{}_config.json".format(uuid, gid)
             with open(fname, "w") as f:
                 dataJSON = json.dumps(request.json, separators=(',', ':'))
                 f.write(dataJSON+"\n")
                 print("Wrote to ", fname)
 
-            fname ="outputs/{}/{}_data.json".format(uuid, gid)
+            if tutorial:
+                fname ="outputs/{}/{}_tutorial_data.json".format(uuid, gid)
+            else:
+                fname ="outputs/{}/{}_data.json".format(uuid, gid)
             with open(fname, "w") as f:
                 f.write("")
                 print("Wrote to ", fname)

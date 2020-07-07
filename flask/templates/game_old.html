@@ -506,8 +506,8 @@
 
         // Log the game configuration and initial state
         if (!load) {
-          logData(logGameConfigEndpoint, getGameConfig());
-          logData(logGameStateEndpoint, getGameState());
+          logData(tutorial ? logTutorialConfigEndpoint : logGameConfigEndpoint, getGameConfig());
+          logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState());
           game.isRunning = false;
         }
 
@@ -990,7 +990,7 @@
           game.player.currentTile = game.player.nextTile;
           game.player.movementTimer = null;
           // Log the game state
-          if (!load) logData(logGameStateEndpoint, getGameState());
+          if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState());
         }
       }
 
@@ -1020,7 +1020,7 @@
           game.robot.plan.splice(0,1);
           game.robot.movementTimer = null;
           // Log the game state
-          if (!load) logData(logGameStateEndpoint, getGameState());
+          if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState());
         }
       }
 
@@ -1633,7 +1633,7 @@
                 game.player.movementTimer = this.time.addEvent({delay: playerMsPerStep});
               }
               // Log the game state
-              if (shouldLogData && !load) logData(logGameStateEndpoint, getGameState());
+              if (shouldLogData && !load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState());
             }
 
             // If we are in the middle of rendering a robot movement animation
@@ -1801,7 +1801,7 @@
               if (game.robot.plan != null) {
                 game.robot.movementTimer = this.time.addEvent({delay: robotMsPerStep});
                 // Log the game state
-                if (!load) logData(logGameStateEndpoint, getGameState());
+                if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState());
               }
             }
           }

@@ -9,7 +9,7 @@ function createEndingScreen(scene) {
   scene.game.endingScreen.title = scene.add.text(
     scene.game.config.width/2,
     offset,
-    "Completed Tasks",
+    tutorial ? "Completed Tutorial" : "Completed Tasks",
     {
       font: "32px monospace",
       fill: "rgba(0, 0, 0, 1.0)",
@@ -20,7 +20,7 @@ function createEndingScreen(scene) {
   scene.game.endingScreen.description = scene.add.text(
     scene.game.config.width/2,
     scene.game.config.height/2,
-    "You have succesfully cleared all viruses. \n\nScore: "+scene.game.player.score.toString()+" / "+(scene.game.tasks.tasks.length*scorePerTask).toString(),
+    tutorial ? "Congratulations, you have succesfully completed the tutorial! Continue to the actual game." : "You have succesfully cleared all viruses. \n\nScore: "+scene.game.player.score.toString()+" / "+(scene.game.tasks.tasks.length*scorePerTask).toString(),
     {
       font: "24px monospace",
       fill: "rgba(0, 0, 0, 1.0)",
@@ -44,7 +44,7 @@ function createEndingScreen(scene) {
   scene.game.endingScreen.continueButton.setInteractive();
   scene.game.endingScreen.continueButton.on('pointerdown', function(hitArea, x, y) {
     // if (!load) {
-    //   logData(logGameStateEndpoint, getGameState(scene, eventType.CLICK, {
+    //   logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.CLICK, {
     //     buttonName : this.text,
     //     x : this.x - this.width*this.originX + x,
     //     y : this.xy - this.height*this.originY + y,
@@ -55,7 +55,11 @@ function createEndingScreen(scene) {
     // scene.game.endingScreen.description.destroy();
     // scene.game.endingScreen.title.destroy();
     // scene.game.endingScreen.destroy();
-    post_form('/survey', {uuid: uuid, gid: gid});
+    if (tutorial) {
+      post_form('/game', {uuid: uuid});
+    } else {
+      post_form('/survey', {uuid: uuid, gid: gid});
+    }
   }, scene.game.endingScreen.continueButton);
   scene.game.endingScreen.continueButton.setDepth(16);
 

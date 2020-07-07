@@ -1,6 +1,6 @@
 const robotMsPerStep = 350;
 
-const robotColor = 0x00ffff;
+const robotColor = 0x0077ff;//0x00ffff;
 const robotColorStr = '#0077ff';
 
 const queryAskingDistance = 2; // tiles, in the l-infinity norm
@@ -170,7 +170,7 @@ function getOffScreenTile(scene) {
 
 function logClick(scene, hitArea, x, y, button) {
   if (!load) {
-    logData(logGameStateEndpoint, getGameState(scene, eventType.CLICK, {
+    logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.CLICK, {
       buttonName : button.text,
       x : button.x - button.width*button.originX + x,
       y : button.y - button.height*button.originY + y,
@@ -185,28 +185,28 @@ var helpRequestButtonCallbacks = {
       scene.game.robot.helpBubble.setButtons([]);
       scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
       setRobotActionInProgress(scene, false);
-      destroyRobotGoalRect(scene);
+      if (scene.game.minimap) destroyRobotGoalRect(scene);
     },
     "No" : function(scene) {
       scene.game.robot.helpBubble.setText("Thank you.");
       scene.game.robot.helpBubble.setButtons([]);
       scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
       setRobotActionInProgress(scene, false);
-      destroyRobotGoalRect(scene);
+      if (scene.game.minimap) destroyRobotGoalRect(scene);
     },
     // "Don't Know" : function(scene) {
     //   scene.game.robot.helpBubble.setText("Thank you.");
     //   scene.game.robot.helpBubble.setButtons([]);
     //   scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
     //   setRobotActionInProgress(scene, false);
-    //   destroyRobotGoalRect(scene);
+    //   if (scene.game.minimap) destroyRobotGoalRect(scene);
     // },
     "Can't Help" : function(scene) {
       scene.game.robot.helpBubble.setText("That's okay.");
       scene.game.robot.helpBubble.setButtons([]);
       scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
       setRobotActionInProgress(scene, false);
-      destroyRobotGoalRect(scene);
+      if (scene.game.minimap) destroyRobotGoalRect(scene);
     },
   },
   "leadMe" : {
@@ -221,7 +221,7 @@ var helpRequestButtonCallbacks = {
       scene.game.robot.helpBubble.setButtons([]);
       scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
       setRobotActionInProgress(scene, false);
-      destroyRobotGoalRect(scene);
+      if (scene.game.minimap) destroyRobotGoalRect(scene);
     },
     "Stop Following" : function(scene) {
       scene.game.robot.helpBubble.setText("Thank you.");
@@ -240,13 +240,13 @@ var helpRequestButtonCallbacks = {
       scene.game.robot.plan = generatePlan(scene.game.robot.currentTile, [scene.game.robot.goalTile], scene.game.robot.goalTile, isValidTile);
       scene.game.robot.currentState = robotState.GO_TOWARDS_GOAL; // TODO (amal): might the user expect the robot to go into the target room, instead of just walking away?
       setRobotActionInProgress(scene, false);
-      destroyRobotGoalRect(scene);
+      if (scene.game.minimap) destroyRobotGoalRect(scene);
     },
   },
 }
 
 function setHelpBubbleToAmIHere(scene) {
-  if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.SET_HELP_BUBBLE, {helpBubbleType: "amIHere"}));
+  if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.SET_HELP_BUBBLE, {helpBubbleType: "amIHere"}));
   scene.game.robot.helpBubble.setText("Excuse me. Am I in front of " + scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetStr + " (see map below)?");
   scene.game.robot.helpBubble.setButtons([
     {
@@ -282,13 +282,15 @@ function setHelpBubbleToAmIHere(scene) {
       },
     },
   ]);
-  var robotGoalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel;
-  var robotGoalRect = scene.game.semanticLabelToRoomRectBounds[robotGoalSemanticLabel];
-  createRobotGoalRect(scene, robotGoalRect, robotGoalSemanticLabel);
+  if (scene.game.minimap) {
+    var robotGoalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel;
+    var robotGoalRect = scene.game.semanticLabelToRoomRectBounds[robotGoalSemanticLabel];
+    if (scene.game.minimap) createRobotGoalRect(scene, robotGoalRect, robotGoalSemanticLabel);
+  }
 }
 
 function setHelpBubbleToLeadMe(scene, hasSaidYes) {
-  if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.SET_HELP_BUBBLE, {helpBubbleType: "leadMe", hasSaidYes: hasSaidYes}));
+  if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.SET_HELP_BUBBLE, {helpBubbleType: "leadMe", hasSaidYes: hasSaidYes}));
   if (!hasSaidYes) {
     scene.game.robot.helpBubble.setText("Excuse me. Can you lead me towards " + scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetStr + "?");
     scene.game.robot.helpBubble.setButtons([
@@ -310,9 +312,11 @@ function setHelpBubbleToLeadMe(scene, hasSaidYes) {
       },
     ]);
     console.log("leadMe", scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel, scene.game.semanticLabelToRoomRectBounds, scene.game.semanticLabelToRoomRectBounds[scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel]);
-    var robotGoalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel;
-    var robotGoalRect = scene.game.semanticLabelToRoomRectBounds[robotGoalSemanticLabel];
-    createRobotGoalRect(scene, robotGoalRect, robotGoalSemanticLabel);
+    if (scene.game.minimap) {
+      var robotGoalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel;
+      var robotGoalRect = scene.game.semanticLabelToRoomRectBounds[robotGoalSemanticLabel];
+      createRobotGoalRect(scene, robotGoalRect, robotGoalSemanticLabel);
+    }
   } else {
     scene.game.robot.helpBubble.setText("Thank you for leading me towards " + scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetStr + ". Tell me when I should stop following you.");
     scene.game.robot.helpBubble.setButtons([
@@ -383,12 +387,14 @@ function renderRobotMovementAnimation(scene) {
   });
   scene.game.robot.x = gameXY.x;
   scene.game.robot.y = gameXY.y;
-  if (!isOffCamera(scene, scene.game.robot.currentTile, 0) && scene.game.robot.currentTile.x >= 0 && scene.game.robot.currentTile.y >= 0) {
-    scene.game.minimap.robotDot.setVisible(true);
-    scene.game.minimap.robotDot.x = scene.game.minimap.x + scene.game.robot.x*scene.game.minimap.scale;
-    scene.game.minimap.robotDot.y = scene.game.minimap.y + scene.game.robot.y*scene.game.minimap.scale;
-  } else {
-    scene.game.minimap.robotDot.setVisible(false);
+  if (scene.game.minimap) {
+    if (!isOffCamera(scene, scene.game.robot.currentTile, 0) && scene.game.robot.currentTile.x >= 0 && scene.game.robot.currentTile.y >= 0) {
+      scene.game.minimap.robotDot.setVisible(true);
+      scene.game.minimap.robotDot.x = scene.game.minimap.x + scene.game.robot.x*scene.game.minimap.scale;
+      scene.game.minimap.robotDot.y = scene.game.minimap.y + scene.game.robot.y*scene.game.minimap.scale;
+    } else {
+      scene.game.minimap.robotDot.setVisible(false);
+    }
   }
   scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height/3);
   if (scene.game.robot.movementTimer == null) {
@@ -401,7 +407,7 @@ function renderRobotMovementAnimation(scene) {
     scene.game.robot.plan.splice(0,1);
     if (!load) {
       // Log the game state
-      logData(logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
+      logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
     }
     scene.game.robot.movementTimer = null;
   }
@@ -415,7 +421,7 @@ function executeRobotAction(scene) {
       setHelpBubbleVisible(scene, false);
       scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
       setRobotActionInProgress(scene, false);
-      destroyRobotGoalRect(scene);
+      if (scene.game.minimap) destroyRobotGoalRect(scene);
     } else {
 
       if (!scene.game.robot.isBeingLed) {
@@ -455,7 +461,7 @@ function executeRobotAction(scene) {
 function setHelpBubbleVisible(scene, visible) {
   // console.log("setHelpBubbleVisible", visible);
   scene.game.robot.helpBubble.setVisible(visible);
-  setRobotGoalRectVisible(scene, visible);
+  if (scene.game.minimap) setRobotGoalRectVisible(scene, visible);
 }
 
 function transitionRobotState(scene) {
@@ -591,7 +597,7 @@ function transitionRobotState(scene) {
   }
   scene.game.robot.previousState = robotStateToEvaluate;
   if (scene.game.robot.currentState != scene.game.robot.previousState) {
-    if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.ROBOT_STATE_CHANGE));
+    if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.ROBOT_STATE_CHANGE));
   }
 }
 
@@ -614,7 +620,7 @@ function moveRobotAlongPlan(scene) {
     if (scene.game.robot.plan != null) {
       scene.game.robot.movementTimer = scene.time.addEvent({delay: robotMsPerStep});
       // Log the game state
-      if (!load) logData(logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
+      if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
     }
   }
 }

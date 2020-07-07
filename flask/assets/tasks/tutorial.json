@@ -1,0 +1,123 @@
+{
+  "player_start_location": {
+    "x": 4,
+    "y": 4
+  },
+  "robot_offscreen_location": {
+    "x": -1,
+    "y": -1
+  },
+  "tasks": [
+    {
+      "semanticLabel": "Room 43",
+      "str": "Room 43",
+      "target": 1,
+      "timeLimit": -1
+    },
+    {
+      "semanticLabel": "Room 5",
+      "str": "Room 5",
+      "target": 8,
+      "timeLimit": -1
+    },
+    {
+      "semanticLabel": "Room 22",
+      "str": "Room 22",
+      "target": 2,
+      "timeLimit": -1
+    },
+    {
+      "semanticLabel": "Room 4",
+      "str": "Room 4",
+      "target": 1,
+      "timeLimit": 30
+    },
+    {
+      "semanticLabel": "Room 30",
+      "str": "Room 30",
+      "target": 2,
+      "timeLimit": 5
+    },
+    {
+      "semanticLabel": "Game Room",
+      "str": "Game Room",
+      "target": 3,
+      "timeLimit": -1
+    },
+    {
+      "semanticLabel": "Room 8",
+      "str": "Room 8",
+      "target": 3,
+      "timeLimit": 30
+    },
+    {
+      "semanticLabel": "Room 20",
+      "str": "Room 20",
+      "target": 2,
+      "timeLimit": 20
+    },
+    {
+      "semanticLabel": "Room 47",
+      "str": "Room 47",
+      "target": 1,
+      "timeLimit": 30
+    },
+    {
+      "semanticLabel": "Room 6",
+      "str": "Room 6",
+      "target": 1,
+      "timeLimit": 20
+    },
+    {
+      "semanticLabel": "Lounge",
+      "str": "Lounge",
+      "target": 1,
+      "timeLimit": -1
+    }
+  ],
+  "robotActions": [
+    {
+      "afterHumanTaskIndex": 5,
+      "humanDistanceProportionToNextGoal": 0.5,
+      "robotAction": {
+        "query": "walkPast"
+      }
+    },
+    {
+      "afterHumanTaskIndex": 6,
+      "humanDistanceProportionToNextGoal": 0.7,
+      "robotAction": {
+        "query": "leadMe",
+        "targetStr": "Room 3",
+        "targetSemanticLabel": "Room 3"
+      }
+    },
+    {
+      "afterHumanTaskIndex": 7,
+      "humanDistanceProportionToNextGoal": 0.5,
+      "robotAction": {
+        "query": "leadMe",
+        "targetStr": "Room 30",
+        "targetSemanticLabel": "Room 30"
+      }
+    },
+    {
+      "afterHumanTaskIndex": 8,
+      "humanDistanceProportionToNextGoal": 0.75,
+      "robotAction": {
+        "query": "leadMe",
+        "targetStr": "Room 45",
+        "targetSemanticLabel": "Room 45"
+      }
+    },
+    {
+      "afterHumanTaskIndex": 9,
+      "humanDistanceProportionToNextGoal": 0.5,
+      "robotAction": {
+        "query": "leadMe",
+        "targetStr": "Room 33",
+        "targetSemanticLabel": "Room 33"
+      }
+    }
+  ]
+}

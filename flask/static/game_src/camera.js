@@ -34,3 +34,18 @@ function isOffCamera(scene, tile, padding) {
           tile.y < cameraBounds.up - padding ||
           tile.y >= cameraBounds.down + padding);
 }
+
+function isOnCamera(scene, x, y, padding) {
+  if (padding == null) {
+    padding = cameraPadding;
+  }
+  var tile = {
+    x : Math.floor(x / tileSize),
+    y : Math.floor(y / tileSize),
+  };
+  var cameraBounds = getCameraBounds(scene);
+  return (tile.x >= cameraBounds.left - padding &&
+          tile.x < cameraBounds.right + padding &&
+          tile.y >= cameraBounds.up - padding &&
+          tile.y < cameraBounds.down + padding);
+}

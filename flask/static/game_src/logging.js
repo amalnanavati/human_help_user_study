@@ -8,10 +8,14 @@ const eventType = {
   ROBOT_STATE_CHANGE : 6,
   SET_HELP_BUBBLE : 7,
   SCORE_CHANGE : 8,
+  TUTORIAL_NEXT_BUTTON_PRESSED : 9,
+  TUTORIAL_LOAD_STATE : 10,
 }
 
 const logGameConfigEndpoint = "log_game_config";
 const logGameStateEndpoint = "log_game_state";
+const logTutorialConfigEndpoint = "log_tutorial_config";
+const logTutorialStateEndpoint = "log_tutorial_state";
 
 function getGameConfig(scene) {
   return {
@@ -40,23 +44,25 @@ function getGameState(scene, eventType, additionalData) {
       // timerDelay: (scene.game.player.timer == null) ? null : scene.game.player.timer.delay,
       score: scene.game.player.score,
     },
-    robot: {
+    // Animation information
+    player_anim_is_playing: scene.game.player.anims.isPlaying,
+    player_anim_key: scene.game.player.anims.getCurrentKey(),
+    robot_anim_key: null,
+    active_player_movement_timer: scene.game.player.movementTimer != null,
+    // Distraction Task Information
+    distractionTaskTimerSecs: scene.game.distractionTaskTimerSecs,
+  };
+  if (scene.game.robot) {
+    retval.robot = {
       currentTile: scene.game.robot.currentTile,
       plan: scene.game.robot.plan,
       currentState: scene.game.robot.currentState,
       previousState: scene.game.robot.previousState,
       helpBubbleVisible: scene.game.robot.helpBubble.getVisible(),
       currentActionI: scene.game.robot.currentActionI,
-    },
-    // Animation information
-    player_anim_is_playing: scene.game.player.anims.isPlaying,
-    player_anim_key: scene.game.player.anims.getCurrentKey(),
-    robot_anim_key: null,
-    active_player_movement_timer: scene.game.player.movementTimer != null,
-    active_robot_movement_timer: scene.game.robot.movementTimer != null,
-    // Distraction Task Information
-    distractionTaskTimerSecs: scene.game.distractionTaskTimerSecs,
-  };
+    };
+    retval.active_robot_movement_timer = scene.game.robot.movementTimer != null;
+  }
   for (dataKey in additionalData) {
     retval[dataKey] = additionalData[dataKey];
   }
