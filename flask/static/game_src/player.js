@@ -294,6 +294,12 @@ function renderPlayerMovementAnimation(scene) {
     }
   }
 
+  if (objectsOverlaps(scene.game.player, scene.game.helpButton)) {
+    scene.game.helpButton.setAlpha(0.25);
+  } else {
+    scene.game.helpButton.setAlpha(1.0);
+  }
+
   if (scene.game.instructionText) {
     if (objectsOverlaps(scene.game.player, scene.game.instructionText)) {
       scene.game.instructionText.setAlpha(0.25);

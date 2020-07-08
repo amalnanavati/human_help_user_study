@@ -1,10 +1,11 @@
+var headerOffset = 16;
+var headerFontSize = 26;
+
 function createHeader(scene) {
-  var offset = 16;
-  var fontSize = 26;
-  scene.game.instructionText = scene.add.text(offset, /*tileSize+*/tileSize/2, "Arrow keys to move", {
-    font: fontSize.toString()+"px monospace",
+  scene.game.instructionText = scene.add.text(headerOffset, /*tileSize+*/tileSize/2, "Arrow keys to move", {
+    font: headerFontSize.toString()+"px monospace",
     fill: "#ffffff",//"#ececec",
-    // padding: { x: offset, y: offset },
+    // padding: { x: headerOffset, y: headerOffset },
     backgroundColor: "#000000",
     // wordWrap: {
     //   width: maxWidth,
@@ -14,10 +15,10 @@ function createHeader(scene) {
   scene.game.instructionText.setScrollFactor(0);
   scene.game.instructionText.setDepth(6);
 
-  scene.game.scoreText = scene.add.text(scene.game.config.width-offset, /*tileSize+*/tileSize/2, "Score: 0", {
-    font: fontSize.toString()+"px monospace",
+  scene.game.scoreText = scene.add.text(scene.game.config.width-headerOffset, /*tileSize+*/tileSize/2, "Score: 0", {
+    font: headerFontSize.toString()+"px monospace",
     fill: "#ececec",
-    // padding: { x: offset, y: offset },
+    // padding: { x: headerOffset, y: headerOffset },
     backgroundColor: "#000000",
     // wordWrap: {
     //   width: maxWidth,
@@ -27,10 +28,10 @@ function createHeader(scene) {
   scene.game.scoreText.setScrollFactor(0);
   scene.game.scoreText.setDepth(6);
 
-  var x = scene.game.instructionText.x + scene.game.instructionText.width + 2*offset;
+  var x = scene.game.instructionText.x + scene.game.instructionText.width + 2*headerOffset;
   var height = tileSize*2/3;
   var y = (tileSize-height)/2;
-  var width = scene.game.scoreText.x - scene.game.scoreText.width - 2*offset - x;
+  var width = scene.game.scoreText.x - scene.game.scoreText.width - 2*headerOffset - x;
   // console.log("createHeader", x, y, width, height);
   scene.game.timeProgressBar = new TimeProgressBar(scene, x, y, width, height, negativeScoreRedOutlineBlinker);
 }
@@ -48,10 +49,10 @@ function updateHeader(scene) {
 
   scene.game.scoreText.text = "Score: " + scene.game.player.score.toString();
 
-  var offset = 16;
+  var headerOffset = 16;
 
-  var x = scene.game.instructionText.x + scene.game.instructionText.width + 2*offset;
-  var width = scene.game.scoreText.x - scene.game.scoreText.width - 2*offset - x;
+  var x = scene.game.instructionText.x + scene.game.instructionText.width + 2*headerOffset;
+  var width = scene.game.scoreText.x - scene.game.scoreText.width - 2*headerOffset - x;
   scene.game.timeProgressBar.setX(x);
   scene.game.timeProgressBar.setWidth(width);
 
@@ -62,7 +63,7 @@ function updateHeader(scene) {
     scene.game.timeProgressBar.setText("Congratulations!");
   } else if (scene.game.player.timer != null || (tutorial && scene.game.tutorialStep == 6)) {
     if (scene.game.player.timer == null && tutorial && scene.game.tutorialStep == 6) {
-      scene.game.timeProgressBar.drawBar(0.0, scene.game.tasks.tasks[scene.game.player.taskI].timeLimit);
+      scene.game.timeProgressBar.drawBar(0.0, scene.game.tasks.tasks[scene.game.player.taskI].timeLimit*1000);
     } else {
       scene.game.timeProgressBar.drawBar(scene.game.player.timer.getProgress(), scene.game.player.timer.delay);
     }

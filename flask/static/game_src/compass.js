@@ -17,7 +17,7 @@ function createCompass(scene) {
     fill: playerColorStr,
     padding: { x: 0, y: 0 },
     align: "center",
-    backgroundColor: "#ececec",
+    backgroundColor: "rgba(236, 236, 236, 0.75)",
   });
   scene.game.compass.playerGoalText.setDepth(4);
 

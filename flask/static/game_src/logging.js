@@ -51,6 +51,8 @@ function getGameState(scene, eventType, additionalData) {
     active_player_movement_timer: scene.game.player.movementTimer != null,
     // Distraction Task Information
     distractionTaskTimerSecs: scene.game.distractionTaskTimerSecs,
+    // Tutorial Data
+    tutorialStep: scene.game.tutorialStep,
   };
   if (scene.game.robot) {
     retval.robot = {

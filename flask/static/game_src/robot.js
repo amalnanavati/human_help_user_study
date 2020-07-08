@@ -1,10 +1,10 @@
 const robotMsPerStep = 350;
 
-const robotColor = 0x0077ff;//0x00ffff;
+const robotColor = 0x00ffff;
 const robotColorStr = '#0077ff';
 
-const queryAskingDistance = 2; // tiles, in the l-infinity norm
-const moveTowardsHumanDistance = 6; // tiles, in the l-infinity norm
+const queryAskingDistance = 3; // tiles, in the l-infinity norm
+const moveTowardsHumanDistance = 7; // tiles, in the l-infinity norm
 const numTimesToTryAskingForHelp = 1;
 
 const robotToHumanDistance = 2;

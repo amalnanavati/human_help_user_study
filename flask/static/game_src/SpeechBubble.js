@@ -42,6 +42,13 @@ class SpeechBubble {
   getSpeechWidth() {
     return this._width - (this.getBubblePadding() * 2);
   }
+  setDepth(depth) {
+    this._bubble.setDepth(depth);
+    this._speech.setDepth(depth+1);
+    for (var button of this._buttons) {
+      button.setDepth(depth+2);
+    }
+  }
   setScrollFactor(x, y) {
     this._bubble.setScrollFactor(x, y);
     this._speech.setScrollFactor(x, y);
@@ -127,7 +134,7 @@ class SpeechBubble {
       this._bubble.y = y - this.getHeight();
     } else {
       this._bubble.x = x;
-      this._bubble.y = y
+      this._bubble.y = y - this.getBubbleHeight();
     }
     this._speech.setPosition(this._bubble.x + (this._width / 2) - (b.width / 2), this._bubble.y + bubblePadding);
     // var xOffset = 0;

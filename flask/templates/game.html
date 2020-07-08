@@ -13,6 +13,7 @@
     <script src="{{ url_for('static', filename='game_src/TimeProgressBar.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/distractionTaskBar.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/header.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/helpButton.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/minimap.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/compass.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/highlightBox.js') }}"></script>
@@ -113,9 +114,9 @@
             break;
           case gameModes.TUTORIAL:
             this.game.isRunning = false;
-            createTitleScreen(this, loadStep1/*function() {
-              post_form('/game', {uuid: uuid});
-            }*/);
+            createTitleScreen(this, function(sceneLocal) {
+              loadStep(sceneLocal, 1);
+            });
             break;
           default:
             break;
@@ -141,6 +142,9 @@
 
               // Create and configure the camera to follow the player and not leave the map
               createCamera(scene);
+
+              // Create the help button
+              createHelpButton(scene);
 
               // Configure the keyboard input
               scene.game.cursors = scene.input.keyboard.createCursorKeys();
