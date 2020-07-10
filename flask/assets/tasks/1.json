@@ -189,7 +189,9 @@
             "afterHumanTaskIndex": 1,
             "humanDistanceProportionToNextGoal": 0.5,
             "robotAction": {
-                "query": "walkPast"
+                "query": "leadMe",
+                "targetStr": "Room 22",
+                "targetSemanticLabel": "Room 22"
             }
         },
         {
@@ -226,7 +228,9 @@
             "afterHumanTaskIndex": 8,
             "humanDistanceProportionToNextGoal": 0.5,
             "robotAction": {
-                "query": "walkPast"
+                "query": "leadMe",
+                "targetStr": "Room 11",
+                "targetSemanticLabel": "Room 11"
             }
         },
         {
@@ -263,7 +267,9 @@
             "afterHumanTaskIndex": 15,
             "humanDistanceProportionToNextGoal": 0.5,
             "robotAction": {
-                "query": "walkPast"
+                "query": "leadMe",
+                "targetStr": "Room 1",
+                "targetSemanticLabel": "Room 1"
             }
         },
         {
@@ -300,7 +306,9 @@
             "afterHumanTaskIndex": 22,
             "humanDistanceProportionToNextGoal": 0.5,
             "robotAction": {
-                "query": "walkPast"
+                "query": "leadMe",
+                "targetStr": "Room 31",
+                "targetSemanticLabel": "Room 31"
             }
         },
         {

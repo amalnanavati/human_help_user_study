@@ -34,6 +34,34 @@ function createRobot(scene) {
   scene.game.robot.taskPlan = [];
   scene.game.robot.currentActionI = 0;
   scene.game.robot.actionInProgress = false;
+
+  // Create the player animations
+  scene.anims.create({
+      key: 'robotDown',
+      frames: scene.anims.generateFrameNumbers('robot', {start: 0, end: 3}),
+      frameRate: 5,
+      repeat: -1
+  });
+  scene.anims.create({
+      key: 'robotUp',
+      frames: scene.anims.generateFrameNumbers('robot', {start: 4, end: 7}),
+      frameRate: 5,
+      repeat: -1
+  });
+  scene.anims.create({
+      key: 'robotLeft',
+      frames: scene.anims.generateFrameNumbers('robot', {start: 8, end: 11}),
+      frameRate: 5,
+      repeat: -1
+  });
+  scene.anims.create({
+      key: 'robotRight',
+      frames: scene.anims.generateFrameNumbers('robot', {start: 12, end: 15}),
+      frameRate: 5,
+      repeat: -1
+  });
+  scene.game.robot.anims.play('robotDown', true);
+  scene.game.robot.anims.stop();
 }
 
 function createRobotHelpBubble(scene) {
@@ -416,6 +444,7 @@ function renderRobotMovementAnimation(scene) {
 function executeRobotAction(scene) {
   if (scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query == "amIHere" ||
       scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query == "leadMe") {
+    // console.log("executeRobotAction", scene.game.robot.isBeingLed, scene.game.robot.movementTimer, scene.game.robot.actionInProgress);
     if (scene.game.numTimesAskedForHelp >= numTimesToTryAskingForHelp) {
       console.log("human ignored the robot");
       setHelpBubbleVisible(scene, false);
@@ -427,7 +456,7 @@ function executeRobotAction(scene) {
       if (!scene.game.robot.isBeingLed) {
         // If the human is far enough from you to try moving towards
         // them again, do so
-        if (distance(scene.game.robot.currentTile, scene.game.player.currentTile) >= moveTowardsHumanDistance) {
+        if (scene.game.numTimesAskedForHelp == -1 || distance(scene.game.robot.currentTile, scene.game.player.currentTile) >= moveTowardsHumanDistance) {
           setHelpBubbleVisible(scene, false);
           if (scene.game.robot.currentState == robotState.STATIONARY) {
             scene.game.numTimesAskedForHelp += 1;
@@ -542,6 +571,7 @@ function transitionRobotState(scene) {
       }
       break;
     case robotState.STATIONARY:
+      scene.game.robot.anims.stop();
       scene.game.robot.tileAtBeginningOfWalkPast = null;
       scene.game.robot.goalTile = scene.game.robot.currentTile;
       scene.game.robot.plan = null;
@@ -618,9 +648,33 @@ function moveRobotAlongPlan(scene) {
 
     }
     if (scene.game.robot.plan != null) {
+      // Set the animation
+      if (scene.game.robot.plan.length > 0) {
+        var dx = scene.game.robot.plan[0].x - scene.game.robot.currentTile.x;
+        if (dx == -1) {
+          scene.game.robot.anims.play('robotLeft', true);
+        } else if (dx == 1) {
+          scene.game.robot.anims.play('robotRight', true);
+        } else {
+          var dy = scene.game.robot.plan[0].y - scene.game.robot.currentTile.y;
+          if (dy == -1) {
+            scene.game.robot.anims.play('robotUp', true);
+          } else if (dy == 1) {
+            scene.game.robot.anims.play('robotDown', true);
+          } else {
+            console.log("Robot movement uncompatible dx, dy", dx, dy);
+            scene.game.robot.anims.stop();
+          }
+        }
+      } else {
+        scene.game.robot.anims.stop();
+      }
+      // Start the movement timer
       scene.game.robot.movementTimer = scene.time.addEvent({delay: robotMsPerStep});
       // Log the game state
       if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
+    } else {
+      scene.game.robot.anims.stop();
     }
   }
 }

@@ -20,6 +20,7 @@ function createMap(scene) {
   // TODO (amal): preprocess this and save it in an assets json file
   scene.game.roomLabels = {};
   scene.game.xyToSemanticLabels = {};
+  scene.game.nonLabelPointSemanticLabelsToXY = {};
   scene.game.semanticLabelToRoomRectBounds = {};
   for (var i = 0; i < scene.game.map.objects.length; i++) {
     if (scene.game.map.objects[i].name == "Objects") {
@@ -60,6 +61,10 @@ function createMap(scene) {
               scene.game.xyToSemanticLabels[String([tileX, tileY])] = new Set();
             }
             scene.game.xyToSemanticLabels[String([tileX, tileY])].add(point.name);
+            scene.game.nonLabelPointSemanticLabelsToXY[point.name] = {
+              x : tileX,
+              y : tileY,
+            };
           }
         } else { // If its not a point, it is a rectangle
           var rect = scene.game.map.objects[i].objects[j];

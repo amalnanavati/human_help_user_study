@@ -8,7 +8,7 @@ function isValidTile(tile, includePlayer, includeRobot) {
     tile.x < game.map.width &&
     tile.y >= 0 &&
     tile.y < game.map.height &&
-    (!includePlayer || !((tile.x == game.player.currentTile.x && tile.y == game.player.currentTile.y) || (tile.x == game.player.nextTile.x && tile.y == game.player.nextTile.y))) &&
+    (game.player == null || (game.player && (!includePlayer || !((tile.x == game.player.currentTile.x && tile.y == game.player.currentTile.y) || (tile.x == game.player.nextTile.x && tile.y == game.player.nextTile.y))))) &&
     (game.robot == null || (game.robot && (!includeRobot || game.robot.currentTile == null || !((tile.x == game.robot.currentTile.x && tile.y == game.robot.currentTile.y) || (game.robot.plan != null && game.robot.plan.length > 0 && tile.x == game.robot.plan[0].x && tile.y == game.robot.plan[0].y))))) &&
     game.worldLayer.getTileAt(tile.x, tile.y) == null
   )

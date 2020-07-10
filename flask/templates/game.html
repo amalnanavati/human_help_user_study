@@ -38,7 +38,7 @@
       // Local Development
       const baseURL = "http://0.0.0.0:8194/";
       // AWS EC2 Deployment
-      // const baseURL = "http://ec2-52-14-97-33.us-east-2.compute.amazonaws.com:8194/";
+      // const baseURL = "http://ec2-18-236-122-235.us-west-2.compute.amazonaws.com:8194/";
 
       // Load game params
       const load = {{load|default("false", false)}};
@@ -46,6 +46,7 @@
       lastLoadedData = null;
       const uuid = "{{ uuid }}";
       const gid = "{{gid|default(-1, false)}}";
+      console.log("uuid", uuid, "gid", gid);
       const tutorial = {{tutorial|default("false", false)}};
 
       const gameMode = tutorial ? gameModes.TUTORIAL : gameModes.GAME;
@@ -91,7 +92,7 @@
         // Load the robot
         this.load.spritesheet(
           'robot',
-          'assets/robot.png',
+          'assets/robot2_64x64_spritesheet_bw.png',
           {frameWidth: 64, frameHeight: 64},
         );
 
@@ -246,6 +247,7 @@
                 var isInMiddleOfRobotMotion = this.game.robot.movementTimer != null;
 
                 if (!isInMiddleOfRobotMotion) {
+                  // console.log("isInMiddleOfRobotMotion", isInMiddleOfRobotMotion, this.game.robot.actionInProgress);
                   if (this.game.robot.actionInProgress) {
                     executeRobotAction(this);
                   }

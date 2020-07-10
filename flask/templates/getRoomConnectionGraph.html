@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  </head>
+  <body>
+    <script src="{{ url_for('static', filename='game_src/map.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/logging.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/planning.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/PriorityQueue.js') }}"></script>
+    <script>
+      // Screen size params
+      const tileSize = 64;
+      const screenSizeX = 13;
+      const screenSizeY = 11;
+
+      // Local Development
+      const baseURL = "http://0.0.0.0:8194/";
+      // AWS EC2 Deployment
+      // const baseURL = "http://ec2-52-14-97-33.us-east-2.compute.amazonaws.com:8194/";
+
+      const config = {
+        type: Phaser.AUTO, // Which renderer to use
+        width: tileSize*screenSizeX, // Canvas width in pixels; must be odd multipliers so the player starts centered
+        height: tileSize*screenSizeY, // Canvas height in pixels; must be odd multipliers so the player starts centered
+        parent: "game-container", // ID of the DOM element to add the canvas to
+        scene: {
+          preload: preload,
+          create: create,
+          update: update,
+        },
+        scale: {
+            mode: Phaser.Scale.FIT,
+            autoCenter: Phaser.Scale.CENTER_BOTH
+        },
+        physics: {
+          default: "arcade",
+          arcade: {
+            gravity: { y: 0 } // Top down game, so no gravity
+          },
+        },
+      };
+
+      const game = new Phaser.Game(config);
+
+      // Load the assets that will be used in this game
+      function preload() {
+        console.log("preload");
+        // Load the tiles and tile map (created in Tiled https://www.mapeditor.org/ )
+        this.load.image("tiles", "./assets/tiles2.png");
+        this.load.tilemapTiledJSON("map", "../assets/map3.json");
+      }
+
+      function create() {
+        console.log("create");
+        // Create the map
+        createMap(this);
+        console.log("created map");
+
+        var distances = {};
+        var semanticLabelToXYForTargets = {};
+
+        // Iterate over every "Chair 1" position (every room has one)
+        for (targetName0 in this.game.nonLabelPointSemanticLabelsToXY) {
+          if (targetName0.includes("Start")) {
+            distances[targetName0] = {};
+            semanticLabelToXYForTargets[targetName0] = this.game.nonLabelPointSemanticLabelsToXY[targetName0];
+            var start = this.game.nonLabelPointSemanticLabelsToXY[targetName0];
+            // Iterate over every different "Chair 1" position
+            for (targetName1 in this.game.nonLabelPointSemanticLabelsToXY) {
+              if (targetName1.includes("Start") && !targetName0.includes(targetName1)) {
+                // Get the distance between them
+                var end = this.game.nonLabelPointSemanticLabelsToXY[targetName1];
+                var plan = generatePlan(start, [end], end);
+                var halfwayLocation = plan[Math.floor(plan.length/2)];
+                distances[targetName0][targetName1] = {
+                  distance: plan.length,
+                  halfwayLocation: halfwayLocation,
+                }
+                var halfwayToRoomsDistance = {};
+                for (targetName2 in this.game.nonLabelPointSemanticLabelsToXY) {
+                  if (targetName2.includes("Start")) {
+                    var end2 = this.game.nonLabelPointSemanticLabelsToXY[targetName2];
+                    var planFromHalfway = generatePlan(halfwayLocation, [end2], end2);
+                    halfwayToRoomsDistance[targetName2] = planFromHalfway.length;
+                  }
+                }
+                distances[targetName0][targetName1]["halfwayToRoomsDistance"] = halfwayToRoomsDistance;
+
+              }
+            }
+
+          }
+        }
+
+        // Send the distances to the Flask server, to be processed in Python
+        logData("get_room_connection_graph_finished", {
+          distances: distances,
+          semanticLabelToXYForTargets: semanticLabelToXYForTargets,
+        });
+        console.log("logged data!");
+
+      }
+
+      function update(time, delta) {
+
+      }
+
+    </script>
+
+  </body>
+</html>

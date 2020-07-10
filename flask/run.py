@@ -12,7 +12,7 @@ from flask_cors import CORS
 numGIDs = 5
 completedGIDsFilename = "outputs/completedGIDs.json"
 
-completionCodesFilename = "outputs/completionCodes.pkl"
+completionCodesToUUIDFilename = "outputs/completionCodesToUUID.pkl"
 
 app = Flask(__name__)
 CORS(app, resources={r"*": {"origins": "*"}})
@@ -42,6 +42,7 @@ class FlaskExample:
             """
             Assign this user a new unique user ID
             """
+            global minUUID
             # Get all pre-assigned user IDs as ints
             base_dir = "/Users/amaln/Documents/PRL/human_help_user_study/"
             uuids = []
@@ -53,7 +54,7 @@ class FlaskExample:
             uuids.sort()
 
             # Get the lowest free user ID
-            uuidToAssign = 100 # the UUIDs below this cannot be automatically assigned
+            uuidToAssign = minUUID # the UUIDs below this cannot be automatically assigned
             for uuid in uuids:
                 if uuid == uuidToAssign:
                     uuidToAssign += 1
@@ -91,21 +92,21 @@ class FlaskExample:
         # Called when the tutorial is completed
         @app.route('/game', methods=['POST'])
         def game():
-            global completedGameIDs
+            global completedGameIDs, minUUID
 
             uuid = request.form['uuid']
 
-            # Assign the user a game ID
-            # gidWithMinNumUsers = None
-            # minNumUsers = None
-            # for gid in completedGameIDs:
-            #     numUsers = len(completedGameIDs[gid])
-            #     if minNumUsers is None or numUsers < minNumUsers:
-            #         minNumUsers = numUsers
-            #         gidWithMinNumUsers = gid
-
-            gidWithMinNumUsers = 0
-
+            # # Assign the user a game ID
+            gidWithMinNumUsers = None
+            minNumUsers = None
+            for gid in completedGameIDs:
+                numUsers = 0
+                for tempUUID in completedGameIDs[gid]:
+                    if int(tempUUID) >= minUUID: # only count actual users
+                        numUsers += 1
+                if minNumUsers is None or numUsers < minNumUsers:
+                    minNumUsers = numUsers
+                    gidWithMinNumUsers = gid
             # Render the tutorial
             return render_template('game.html', uuid=uuid, gid=gidWithMinNumUsers)
 
@@ -132,8 +133,8 @@ class FlaskExample:
             fname = "outputs/{}/completionCode.txt".format(uuid)
             with open(fname, "w") as f:
                 f.write(completionCode)
-            completionCodes.add(completionCode)
-            with open(completionCodesFilename, "wb") as f:
+            completionCodes[completionCode] = uuid
+            with open(completionCodesToUUIDFilename, "wb") as f:
                 pickle.dump(completionCodes, f)
 
             # Update and save the completedGameIDs
@@ -245,6 +246,22 @@ class FlaskExample:
             return json.dumps(
                 {'status': 'success', 'msg': 'saved'})
 
+        # Called when the tutorial is completed
+        @app.route('/get_room_connection_graph')
+        def get_room_connection_graph():
+            return render_template('getRoomConnectionGraph.html')
+
+        @app.route('/get_room_connection_graph_finished', methods=['POST'])
+        def get_room_connection_graph_finished():
+            fname = "assets/map_distances.json"
+            with open(fname, "w") as f:
+                dataJSON = json.dumps(request.json)#, separators=(',', ':'))
+                f.write(dataJSON+"\n")
+                print("Wrote to ", fname)
+
+            return json.dumps(
+                {'status': 'success', 'msg': 'saved'})
+
         # Called to access files in the assets folder
         @app.route('/assets/<source>', methods=['GET'])
         def get_file(source):
@@ -260,18 +277,21 @@ class FlaskExample:
 
 
 if __name__ == '__main__':
+    minUUID = 100
 
     if os.path.isfile(completedGIDsFilename):
         with open(completedGIDsFilename, "r") as f:
             completedGameIDs = json.load(f)
     else:
         completedGameIDs = {str(gid) : [] for gid in range(numGIDs)}
+    print("completedGameIDs", completedGameIDs)
 
-    if os.path.isfile(completionCodesFilename):
-        with open(completionCodesFilename, "rb") as f:
+    if os.path.isfile(completionCodesToUUIDFilename):
+        with open(completionCodesToUUIDFilename, "rb") as f:
             completionCodes = pickle.load(f)
     else:
-        completionCodes = set()
+        completionCodes = {}
+    print("completionCodes", completionCodes)
 
     server = FlaskExample()
 

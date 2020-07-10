@@ -12,25 +12,25 @@
       "semanticLabel": "Room 43",
       "str": "Room 43",
       "target": 1,
-      "timeLimit": -1
+      "busyness": "free time"
     },
     {
       "semanticLabel": "Room 5",
       "str": "Room 5",
       "target": 8,
-      "timeLimit": -1
+      "busyness": "free time"
     },
     {
       "semanticLabel": "Room 22",
       "str": "Room 22",
       "target": 2,
-      "timeLimit": -1
+      "busyness": "free time"
     },
     {
       "semanticLabel": "Room 4",
       "str": "Room 4",
       "target": 1,
-      "timeLimit": 30
+      "busyness": "medium"
     },
     {
       "semanticLabel": "Room 30",
@@ -42,37 +42,37 @@
       "semanticLabel": "Game Room",
       "str": "Game Room",
       "target": 3,
-      "timeLimit": -1
+      "busyness": "free time"
     },
     {
       "semanticLabel": "Room 8",
       "str": "Room 8",
       "target": 3,
-      "timeLimit": 30
+      "busyness": "medium"
     },
     {
       "semanticLabel": "Room 20",
       "str": "Room 20",
       "target": 2,
-      "timeLimit": 20
+      "busyness": "high"
     },
     {
       "semanticLabel": "Room 47",
       "str": "Room 47",
       "target": 1,
-      "timeLimit": 30
+      "busyness": "medium"
     },
     {
       "semanticLabel": "Room 6",
       "str": "Room 6",
       "target": 1,
-      "timeLimit": 20
+      "busyness": "medium"
     },
     {
       "semanticLabel": "Lounge",
       "str": "Lounge",
       "target": 1,
-      "timeLimit": -1
+      "busyness": "free time"
     }
   ],
   "robotActions": [

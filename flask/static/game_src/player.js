@@ -62,6 +62,25 @@ function createPlayer(scene) {
 }
 
 function initializeGamePlayerTimer(scene) {
+  // Compute the timeLimit for this task
+  if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "free time") {
+    scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = -1;
+  } else if (scene.game.tasks.tasks[scene.game.player.taskI].busyness != null) {
+    var startLoc = scene.game.player.currentTile;
+    var goalSemanticLabel = scene.game.tasks.tasks[scene.game.player.taskI].semanticLabel + pointOfInterestString + scene.game.tasks.tasks[scene.game.player.taskI].target.toString();
+    var endLocs = scene.game.semanticLabelsToXY[goalSemanticLabel];
+    var playerPlan = generatePlan(startLoc, endLocs, endLocs[0]);
+    var distanceToGoal = playerPlan.length;
+    if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "high") {
+      scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = distanceToGoal*2.0*playerMsPerStep/1000;
+    } else if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "medium") {
+      scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = distanceToGoal*4.0*playerMsPerStep/1000;
+    } else {
+      console.log("Unknown busyness", scene.game.tasks.tasks[scene.game.player.taskI].busyness);
+      scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = -1;
+    }
+  }
+
   if (scene.game.tasks.tasks[scene.game.player.taskI].timeLimit > 0) {
     scene.game.player.negativeScoreTimer = null;
     if (scene.game.player.timer) {
@@ -242,7 +261,9 @@ function transitionPlayerState(scene) {
 
     // }
     if (scene.game.robot) {
+      setHelpBubbleVisible(scene, false);
       setRobotActionInProgress(scene, false);
+      scene.game.robot.isBeingLed = false;
       if (scene.game.minimap) destroyRobotGoalRect(scene);
       if (scene.game.robot.currentState != robotState.OFFSCREEN && scene.game.robot.currentState != robotState.WALK_PAST_HUMAN) {
         scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
