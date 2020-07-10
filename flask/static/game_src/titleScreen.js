@@ -1,4 +1,4 @@
-const instructionText = "Instructions:\n\n\t1) Use the arrow keys to move. \n\t2) Hold down Space to fix a computer. \n\t3) If the robot talks to you, you can ignore it or click the buttons to respond to it. \n\t4) The instructions on the top tell you where to go and how much time you have left. \n\t5) Every cleaned computer is +10 points. \n\t6) Every second late you arrive is -1 point.";
+const instructionText = "Instructions:\n\n\t1) Use the arrow keys to move. \n\t2) When you are in front of a highlighted computer's keyboard, hold down Space to fix it. \n\t3) If the robot talks to you, you can ignore it or click the buttons to respond to it. \n\t4) The instructions on the top tell you where to go and how much time you have left. \n\t5) Every cleaned computer is +10 points. \n\t6) Every second late you arrive is -1 point.";
 
 function createTitleScreen(scene, callbackFunction) {
   var offset = scene.game.config.width/20;

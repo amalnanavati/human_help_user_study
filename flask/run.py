@@ -86,6 +86,12 @@ class FlaskExample:
 
             print("Showing the tutorial to UUID {}".format(uuid))
 
+            # Save the startTime
+            timestamp = time.time()
+            fname = "outputs/{}/tutorialTime.txt".format(uuid)
+            with open(fname, "w") as f:
+                f.write(str(timestamp))
+
             # Render the tutorial
             return render_template('game.html', uuid=uuid, gid=0, tutorial="true")
 
@@ -95,6 +101,12 @@ class FlaskExample:
             global completedGameIDs, minUUID
 
             uuid = request.form['uuid']
+
+            # Save the startTime
+            timestamp = time.time()
+            fname = "outputs/{}/gameTime.txt".format(uuid)
+            with open(fname, "w") as f:
+                f.write(str(timestamp))
 
             # # Assign the user a game ID
             if int(uuid) < 100:
@@ -118,6 +130,12 @@ class FlaskExample:
         def survey():
             uuid = request.form['uuid']
             gid = request.form['gid']
+
+            # Save the startTime
+            timestamp = time.time()
+            fname = "outputs/{}/surveyTime.txt".format(uuid)
+            with open(fname, "w") as f:
+                f.write(str(timestamp))
 
             return render_template('survey.html', uuid=uuid, gid=gid)
 
