@@ -97,16 +97,19 @@ class FlaskExample:
             uuid = request.form['uuid']
 
             # # Assign the user a game ID
-            gidWithMinNumUsers = None
-            minNumUsers = None
-            for gid in completedGameIDs:
-                numUsers = 0
-                for tempUUID in completedGameIDs[gid]:
-                    if int(tempUUID) >= minUUID: # only count actual users
-                        numUsers += 1
-                if minNumUsers is None or numUsers < minNumUsers:
-                    minNumUsers = numUsers
-                    gidWithMinNumUsers = gid
+            if int(uuid) < 100:
+                gidWithMinNumUsers = 3
+            else:
+                gidWithMinNumUsers = None
+                minNumUsers = None
+                for gid in completedGameIDs:
+                    numUsers = 0
+                    for tempUUID in completedGameIDs[gid]:
+                        if int(tempUUID) >= minUUID: # only count actual users
+                            numUsers += 1
+                    if minNumUsers is None or numUsers < minNumUsers:
+                        minNumUsers = numUsers
+                        gidWithMinNumUsers = gid
             # Render the tutorial
             return render_template('game.html', uuid=uuid, gid=gidWithMinNumUsers)
 
@@ -182,6 +185,13 @@ class FlaskExample:
                     dataToLoad.append(json.loads(line))
                 # Sometimes, the data arrives a few ms out of order
                 dataToLoad.sort(key=lambda x : x['dtime'])
+            # Remove duplicates
+            # i = 1
+            # while i < len(dataToLoad):
+            #     if dataToLoad[i]['dtime'] == dataToLoad[i-1]['dtime']:
+            #         dataToLoad.pop(i-1)
+            #     else:
+            #         i += 1
             return render_template('game.html', uuid=uuid, gid=gid, load="true", dataToLoad=dataToLoad)
 
         # Called to log the game state

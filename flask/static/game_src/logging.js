@@ -88,9 +88,14 @@ function logData(endpoint, data) {
 function loadUpdate(scene) {
   scene.game.prevHelpBubbleVisible = false;
   if (dataToLoad.length > 0) {
-    var currentTime = Date.now();
-    var dtime = currentTime - scene.game.start_time;
+    var numTimesInWhileLoop = 0;
     while (dataToLoad.length > 1) {
+      numTimesInWhileLoop += 1;
+      if (numTimesInWhileLoop > 1) {
+        console.log("numTimesInWhileLoop", numTimesInWhileLoop);
+      }
+      var currentTime = Date.now();
+      var dtime = currentTime - scene.game.start_time;
 
       console.log("dtime", dtime, "dataToLoad[0].dtime", dataToLoad[0].dtime);
 
@@ -123,6 +128,10 @@ function loadUpdate(scene) {
       if (!dataToLoad[0].player_anim_is_playing) {
         scene.game.player.anims.stop();
       }
+      // Update the player compass
+      if (scene.game.compass) {
+        updateCompass(scene);
+      }
       if (dataToLoad[0].player.currentState != scene.game.player.currentState) {
         if (scene.game.player.currentState == playerState.NAVIGATION_TASK) {
           navigationTaskToDistractionTask(scene);
@@ -145,8 +154,17 @@ function loadUpdate(scene) {
       scene.game.robot.currentActionI = dataToLoad[0].robot.currentActionI;
 
       if (!dataToLoad[0].active_player_movement_timer) {
+        if (scene.game.player.movementTimer) {
+          scene.game.player.movementTimer.paused = true;
+          scene.game.player.movementTimer.destroy();
+        }
         scene.game.player.movementTimer = null;
       } else if (lastLoadedData != null && dataToLoad[0].active_player_movement_timer && !lastLoadedData.active_player_movement_timer && scene.game.player.movementTimer == null) {
+        if (scene.game.player.movementTimer) {
+          scene.game.player.movementTimer.paused = true;
+          scene.game.player.movementTimer.destroy();
+          scene.game.player.movementTimer = null;
+        }
         scene.game.player.movementTimer = scene.time.addEvent({delay: playerMsPerStep});
       }
 
@@ -161,12 +179,21 @@ function loadUpdate(scene) {
       }
 
       if (!dataToLoad[0].active_robot_movement_timer) {
+        if (scene.game.robot.movementTimer) {
+          scene.game.robot.movementTimer.paused = true;
+          scene.game.robot.movementTimer.destroy();
+        }
         scene.game.robot.movementTimer = null;
       } else if (lastLoadedData != null && dataToLoad[0].active_robot_movement_timer && !lastLoadedData.active_robot_movement_timer && scene.game.robot.movementTimer == null) {
+        if (scene.game.robot.movementTimer) {
+          scene.game.robot.movementTimer.paused = true;
+          scene.game.robot.movementTimer.destroy();
+          scene.game.robot.movementTimer = null;
+        }
         scene.game.robot.movementTimer = scene.time.addEvent({delay: robotMsPerStep});
       }
 
-      if (scene.game.prevHelpBubbleVisible && !dataToLoad[0].robot.helpBubbleVisible) {
+      if (scene.game.minimap && scene.game.prevHelpBubbleVisible && !dataToLoad[0].robot.helpBubbleVisible) {
         destroyRobotGoalRect(scene);
       }
       scene.game.prevHelpBubbleVisible = dataToLoad[0].robot.helpBubbleVisible;
@@ -180,6 +207,8 @@ function loadUpdate(scene) {
         scene.game.robot.y = gameXY.y;
       }
 
+      scene.game.lastLoadUpdateTime = currentTime;
+
       var next_dtime = dataToLoad[1].dtime;
       if (dtime >= next_dtime) {
         lastLoadedData = dataToLoad.splice(0, 1);
@@ -188,8 +217,6 @@ function loadUpdate(scene) {
         break;
       }
     }
-
-    scene.game.lastLoadUpdateTime = currentTime;
 
     if (dataToLoad.length == 1) {
       console.log("Finished Playback!");

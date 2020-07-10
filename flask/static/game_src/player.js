@@ -175,13 +175,16 @@ function navigationTaskToDistractionTask(scene) {
 
 function inDistractionTask(scene) {
   if (scene.game.player.timer != null && !scene.game.player.timer.paused) {
+    // TODO (amal) maybe set paused = true first?
     scene.game.player.timer.destroy();
     scene.game.player.timer.paused = true;
     // if (scene.game.player.taskI < scene.game.tasks.tasks.length) {
     if (scene.game.player.negativeScoreTimer != null) {
       // scene.game.scoreText.setFill("#ececec");
       // scene.game.negativeScoreRedOutline.setVisible(false);
+      // TODO (amal) maybe set paused = true first?
       scene.game.player.negativeScoreTimer.destroy();
+      scene.game.player.negativeScoreTimer.paused = true;
       scene.game.player.negativeScoreTimer = null;
     }
     scene.game.timeProgressBar.destroyTimer();
@@ -344,11 +347,11 @@ function renderPlayerMovementAnimation(scene) {
   }
   if (scene.game.player.movementTimer != null && scene.game.player.movementTimer.getOverallProgress() == 1.0) {
     scene.game.player.currentTile = scene.game.player.nextTile;
+    scene.game.player.movementTimer = null;
     if (!load) {
       // Log the game state
       logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
     }
-    scene.game.player.movementTimer = null;
   }
 }
 

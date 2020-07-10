@@ -433,11 +433,11 @@ function renderRobotMovementAnimation(scene) {
       scene.game.robot.currentTile = scene.game.robot.plan[0];
     }
     scene.game.robot.plan.splice(0,1);
+    scene.game.robot.movementTimer = null;
     if (!load) {
       // Log the game state
       logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.MOVEMENT));
     }
-    scene.game.robot.movementTimer = null;
   }
 }
 
