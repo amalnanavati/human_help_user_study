@@ -44,9 +44,8 @@ class FlaskExample:
             """
             global minUUID
             # Get all pre-assigned user IDs as ints
-            base_dir = "/Users/amaln/Documents/PRL/human_help_user_study/"
             uuids = []
-            for uuid in os.listdir(base_dir+"flask/outputs"):
+            for uuid in os.listdir("./outputs"):
                 try:
                     uuids.append(int(uuid))
                 except:
