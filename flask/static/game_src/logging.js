@@ -47,7 +47,6 @@ function getGameState(scene, eventType, additionalData) {
     // Animation information
     player_anim_is_playing: scene.game.player.anims.isPlaying,
     player_anim_key: scene.game.player.anims.getCurrentKey(),
-    robot_anim_key: null,
     active_player_movement_timer: scene.game.player.movementTimer != null,
     // Distraction Task Information
     distractionTaskTimerSecs: scene.game.distractionTaskTimerSecs,
@@ -63,6 +62,8 @@ function getGameState(scene, eventType, additionalData) {
       helpBubbleVisible: scene.game.robot.helpBubble.getVisible(),
       currentActionI: scene.game.robot.currentActionI,
     };
+    // console.log("scene.game.robot.anims.getCurrentKey()", scene.game.robot.anims.getCurrentKey());
+    retval.robot_anim_key = scene.game.robot.anims.getCurrentKey();
     retval.active_robot_movement_timer = scene.game.robot.movementTimer != null;
   }
   for (dataKey in additionalData) {

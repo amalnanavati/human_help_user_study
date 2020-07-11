@@ -113,7 +113,7 @@ class FlaskExample:
             else:
                 gidWithMinNumUsers = None
                 minNumUsers = None
-                for gid in completedGameIDs:
+                for gid in [2,0,4]:#completedGameIDs:
                     numUsers = 0
                     for tempUUID in completedGameIDs[gid]:
                         if int(tempUUID) >= minUUID: # only count actual users
