@@ -108,12 +108,14 @@ class FlaskExample:
                 f.write(str(timestamp))
 
             # # Assign the user a game ID
-            if int(uuid) < 100:
-                gidWithMinNumUsers = 3
+            if int(uuid) == 18:
+                gidWithMinNumUsers = 4
+            elif int(uuid) < 100:
+                gidWithMinNumUsers = random.randint(0, 4)
             else:
                 gidWithMinNumUsers = None
                 minNumUsers = None
-                for gid in [2,0,4]:#completedGameIDs:
+                for gid in ["2","0","4"]:#completedGameIDs:
                     numUsers = 0
                     for tempUUID in completedGameIDs[gid]:
                         if int(tempUUID) >= minUUID: # only count actual users
