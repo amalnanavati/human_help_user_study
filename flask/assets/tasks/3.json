@@ -155,7 +155,7 @@
         {
             "semanticLabel": "Room 31",
             "str": "Room 31",
-            "target": 1,
+            "target": 4,
             "busyness": "medium"
         },
         {
@@ -275,7 +275,7 @@
         },
         {
             "afterHumanTaskIndex": 15,
-            "humanDistanceProportionToNextGoal": 0.5,
+            "humanDistanceProportionToNextGoal": 0.75,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 1",
@@ -293,7 +293,7 @@
         },
         {
             "afterHumanTaskIndex": 18,
-            "humanDistanceProportionToNextGoal": 0.5,
+            "humanDistanceProportionToNextGoal": 0.75,
             "robotAction": {
                 "query": "walkPast"
             }
@@ -327,7 +327,7 @@
         },
         {
             "afterHumanTaskIndex": 24,
-            "humanDistanceProportionToNextGoal": 0.5,
+            "humanDistanceProportionToNextGoal": 0.7,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 44",
@@ -343,7 +343,7 @@
         },
         {
             "afterHumanTaskIndex": 26,
-            "humanDistanceProportionToNextGoal": 0.5,
+            "humanDistanceProportionToNextGoal": 0.7,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 32",

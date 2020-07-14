@@ -61,7 +61,7 @@ function createPlayer(scene) {
   scene.game.player.anims.stop();
 }
 
-function initializeGamePlayerTimer(scene) {
+function setTimeLimitFromBusyness(scene) {
   // Compute the timeLimit for this task
   if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "free time") {
     scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = -1;
@@ -79,6 +79,12 @@ function initializeGamePlayerTimer(scene) {
       console.log("Unknown busyness", scene.game.tasks.tasks[scene.game.player.taskI].busyness);
       scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = -1;
     }
+  }
+}
+
+function initializeGamePlayerTimer(scene) {
+  if (!scene.game.tasks.tasks[scene.game.player.taskI].timeLimit) {
+    setTimeLimitFromBusyness(scene);
   }
 
   if (scene.game.tasks.tasks[scene.game.player.taskI].timeLimit > 0) {
@@ -462,7 +468,9 @@ function transitionToNewTask(scene) {
   if (hasNextGoal) {
     var targetStr = game.tasks.tasks[game.player.taskI].semanticLabel + highlightPointString + game.tasks.tasks[game.player.taskI].target;
     targetTile = game.semanticLabelsToXY[targetStr][0];
+    var adjacentStr = game.tasks.tasks[game.player.taskI].semanticLabel + pointOfInterestString + game.tasks.tasks[game.player.taskI].target;
+    adjacentTile = game.semanticLabelsToXY[adjacentStr][0];
   }
-  if (scene.game.highlightBox) updateHighlightBox(scene, hasNextGoal, targetTile);
+  if (scene.game.highlightBoxSq) updateHighlightBox(scene, hasNextGoal, targetTile, adjacentTile);
   if (scene.game.minimap) renderPlayerGoalOnMinimap(scene, hasNextGoal, targetTile);
 }

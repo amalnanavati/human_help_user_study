@@ -197,13 +197,18 @@ class FlaskExample:
         def load_game(uuid, gid):
             dataToLoad = []
             fname ="outputs/{}/{}_data.json".format(uuid, gid)
+            # fname ="ec2_outputs/{}/{}_data.json".format(uuid, gid)
             with open(fname, "r") as f:
                 for cnt, line in enumerate(f):
                     if len(line.strip()) == 0:
                         break
                     dataToLoad.append(json.loads(line))
                 # Sometimes, the data arrives a few ms out of order
-                dataToLoad.sort(key=lambda x : x['dtime'])
+                if "gameStateID" in dataToLoad[0]:
+                    dataToLoad.sort(key=lambda x : int(x['gameStateID']))
+                else:
+                    dataToLoad.sort(key=lambda x : int(x['dtime']))
+
             # Remove duplicates
             # i = 1
             # while i < len(dataToLoad):

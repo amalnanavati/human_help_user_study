@@ -872,7 +872,7 @@
   </object>
   <object id="216" name="C" x="422.394" y="1959.44">
    <properties>
-    <property name="label" type="bool" value="false"/>
+    <property name="label" type="bool" value="true"/>
    </properties>
    <point/>
   </object>

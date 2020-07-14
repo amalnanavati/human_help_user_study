@@ -19,6 +19,8 @@ const logTutorialStateEndpoint = "log_tutorial_state";
 
 var numLogDataErrors = 0;
 
+var gameStateID = 0;
+
 function getGameConfig(scene) {
   return {
     uuid:uuid,
@@ -38,6 +40,7 @@ function getGameState(scene, eventType, additionalData) {
     eventType: eventType,
     // Game state
     dtime: Date.now() - scene.game.start_time,
+    gameStateID: gameStateID,
     player: {
       currentTile: scene.game.player.currentTile,
       nextTile: scene.game.player.nextTile,
@@ -71,6 +74,7 @@ function getGameState(scene, eventType, additionalData) {
   for (dataKey in additionalData) {
     retval[dataKey] = additionalData[dataKey];
   }
+  gameStateID++;
   return retval;
 }
 
@@ -86,7 +90,7 @@ function logData(endpoint, data) {
         // console.log(`${received_data} and status is ${status}`);
     },
     error: function(received_data, status) {
-	if (numLogDataErrors % 10 == 0) {
+        if (numLogDataErrors % 10 == 0) {
           if (numLogDataErrors < 10) {
             alert("ERROR: Your internet is unable to properly log game data. If this message comes again, please stop the Amazon Mechanical Turk task.");
           } else {

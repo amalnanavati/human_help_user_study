@@ -128,7 +128,9 @@ function loadStep(scene, step) {
       var targetTile = null;
       var targetStr = "Room 5" + highlightPointString + game.tasks.tasks[game.player.taskI].target;
       targetTile = game.semanticLabelsToXY[targetStr][0];
-      updateHighlightBox(scene, true, targetTile);
+      var adjacentStr = "Room 5" + pointOfInterestString + game.tasks.tasks[game.player.taskI].target;
+      adjacentTile = game.semanticLabelsToXY[adjacentStr][0];
+      updateHighlightBox(scene, true, targetTile, adjacentTile);
       break;
     case 5:
       // Create the compass
@@ -142,6 +144,9 @@ function loadStep(scene, step) {
       // Create the header
       createHeader(scene);
       // updateHeader(scene);
+      if (!scene.game.tasks.tasks[scene.game.player.taskI].timeLimit) {
+        setTimeLimitFromBusyness(scene);
+      }
       scene.game.timeProgressBar.drawBar(0.0, scene.game.tasks.tasks[scene.game.player.taskI].timeLimit*1000);
 
       // Create the negative score red outline
