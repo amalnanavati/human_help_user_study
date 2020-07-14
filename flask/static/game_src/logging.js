@@ -17,6 +17,8 @@ const logGameStateEndpoint = "log_game_state";
 const logTutorialConfigEndpoint = "log_tutorial_config";
 const logTutorialStateEndpoint = "log_tutorial_state";
 
+var numLogDataErrors = 0;
+
 function getGameConfig(scene) {
   return {
     uuid:uuid,
@@ -82,6 +84,16 @@ function logData(endpoint, data) {
     contentType: 'application/json;charset=UTF-8',
     success: function(received_data, status) {
         // console.log(`${received_data} and status is ${status}`);
+    },
+    error: function(received_data, status) {
+	if (numLogDataErrors % 10 == 0) {
+          if (numLogDataErrors < 10) {
+            alert("ERROR: Your internet is unable to properly log game data. If this message comes again, please stop the Amazon Mechanical Turk task.");
+          } else {
+            alert("ERROR: Please stop the Amazon Mechanical Turk task. You will not be compensated due to errors with your internet.");
+          }
+        }
+        numLogDataErrors++;
     }
   });
 }
