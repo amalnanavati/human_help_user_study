@@ -4,7 +4,7 @@ const robotColor = 0x00ffff;
 const robotColorStr = '#0077ff';
 
 const queryAskingDistance = 3; // tiles, in the l-infinity norm
-const moveTowardsHumanDistance = 7; // tiles, in the l-infinity norm
+const moveTowardsHumanDistance = 8; // tiles, in the l-infinity norm
 const numTimesToTryAskingForHelp = 1;
 
 const robotToHumanDistance = 2;
@@ -105,6 +105,7 @@ function getOffScreenTileInDirectionOfHumanMotion(scene) {
         break;
     }
   }
+  console.log("robotSpawnNear", robotSpawnNear);
 
   // The point must be the closest point to
   // robotSpawnNear (or the robot's currentTile) that is also:
@@ -116,7 +117,8 @@ function getOffScreenTileInDirectionOfHumanMotion(scene) {
     return isOffCamera(scene, tile) && isInHallway;
   }
   function pathConstraints(tile) {
-    return isOffCamera(scene, tile);
+    var notWall = scene.game.worldLayer.getTileAt(tile.x, tile.y) == null;
+    return notWall;// && isOffCamera(scene, tile);
   }
 
   return closestPointWithinConstraints(robotSpawnNear, goalConstraints, pathConstraints, 40*screenSizeX*screenSizeY);
@@ -173,7 +175,8 @@ function getOffScreenTileInOppositeDirectionOfHumanMotion(scene) {
     return isOffCamera && isInHallway && isInOppositeDirection;
   }
   function pathConstraints(tile) {
-    return true;
+    var notWall = scene.game.worldLayer.getTileAt(tile.x, tile.y) == null;
+    return notWall;
   }
   return closestPointWithinConstraints(scene.game.player.currentTile/*scene.game.robot.currentTile*/, goalConstraints, pathConstraints, 40*screenSizeX*screenSizeY);
 }
@@ -190,7 +193,8 @@ function getOffScreenTile(scene) {
     return isOffCamera(scene, tile) && isInHallway;
   }
   function pathConstraints(tile) {
-    return true;
+    var notWall = scene.game.worldLayer.getTileAt(tile.x, tile.y) == null;
+    return notWall;
   }
 
   return closestPointWithinConstraints(scene.game.robot.currentTile, goalConstraints, pathConstraints, 40*screenSizeX*screenSizeY);
@@ -445,37 +449,37 @@ function executeRobotAction(scene) {
   if (scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query == "amIHere" ||
       scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query == "leadMe") {
     // console.log("executeRobotAction", scene.game.robot.isBeingLed, scene.game.robot.movementTimer, scene.game.robot.actionInProgress);
-    if (scene.game.numTimesAskedForHelp >= numTimesToTryAskingForHelp) {
-      console.log("human ignored the robot");
-      setHelpBubbleVisible(scene, false);
-      scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
-      setRobotActionInProgress(scene, false);
-      if (scene.game.minimap) destroyRobotGoalRect(scene);
-    } else {
 
-      if (!scene.game.robot.isBeingLed) {
-        // If the human is far enough from you to try moving towards
-        // them again, do so
-        if (scene.game.numTimesAskedForHelp == -1 || distance(scene.game.robot.currentTile, scene.game.player.currentTile) >= moveTowardsHumanDistance) {
+    if (!scene.game.robot.isBeingLed) {
+      // If the human is far enough from you to try moving towards
+      // them again, do so
+      if (scene.game.numTimesAskedForHelp == -1 || distance(scene.game.robot.currentTile, scene.game.player.currentTile) >= moveTowardsHumanDistance) {
+        setHelpBubbleVisible(scene, false);
+        if (scene.game.robot.currentState == robotState.STATIONARY) {
+          scene.game.numTimesAskedForHelp += 1;
+        }
+        if (scene.game.numTimesAskedForHelp >= numTimesToTryAskingForHelp) {
+          console.log("human ignored the robot");
           setHelpBubbleVisible(scene, false);
-          if (scene.game.robot.currentState == robotState.STATIONARY) {
-            scene.game.numTimesAskedForHelp += 1;
-          }
+          scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+          setRobotActionInProgress(scene, false);
+          if (scene.game.minimap) destroyRobotGoalRect(scene);
+        } else {
           scene.game.robot.currentState = robotState.APPROACH_HUMAN;
         }
+      }
 
-        // If the human is too far away from you to answer the query,
-        // make the query invisible.
-        // if (distance(game.robot.currentTile, game.player.currentTile) >= queryAnsweringDistance) {
-        //     setHelpBubbleVisible(false);
-        // }
+      // If the human is too far away from you to answer the query,
+      // make the query invisible.
+      // if (distance(game.robot.currentTile, game.player.currentTile) >= queryAnsweringDistance) {
+      //     setHelpBubbleVisible(false);
+      // }
 
-        // When you are close enough to the human, display the query
-        // and stop moving
-        if (distance(scene.game.robot.currentTile, scene.game.player.currentTile) <= queryAskingDistance) {
-          setHelpBubbleVisible(scene, true);
-          scene.game.robot.currentState = robotState.STATIONARY;
-        }
+      // When you are close enough to the human, display the query
+      // and stop moving
+      if (distance(scene.game.robot.currentTile, scene.game.player.currentTile) <= queryAskingDistance) {
+        setHelpBubbleVisible(scene, true);
+        scene.game.robot.currentState = robotState.STATIONARY;
       }
     }
   } else if (scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query == "walkPast") {
@@ -494,6 +498,9 @@ function setHelpBubbleVisible(scene, visible) {
 }
 
 function transitionRobotState(scene) {
+  if (scene.game.robot.currentState != scene.game.robot.previousState) {
+    if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.ROBOT_STATE_CHANGE));
+  }
   var robotStateToEvaluate = scene.game.robot.currentState;
   switch(robotStateToEvaluate) {
     case robotState.OFFSCREEN:
@@ -626,9 +633,6 @@ function transitionRobotState(scene) {
       break;
   }
   scene.game.robot.previousState = robotStateToEvaluate;
-  if (scene.game.robot.currentState != scene.game.robot.previousState) {
-    if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.ROBOT_STATE_CHANGE));
-  }
 }
 
 function moveRobotAlongPlan(scene) {

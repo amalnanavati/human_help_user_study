@@ -180,7 +180,7 @@
     "robotActions": [
         {
             "afterHumanTaskIndex": 0,
-            "humanDistanceProportionToNextGoal": 0.65,
+            "humanDistanceProportionToNextGoal": 0.6,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 30",
@@ -297,7 +297,7 @@
         },
         {
             "afterHumanTaskIndex": 18,
-            "humanDistanceProportionToNextGoal": 0.75,
+            "humanDistanceProportionToNextGoal": 0.6,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 5",
@@ -306,7 +306,7 @@
         },
         {
             "afterHumanTaskIndex": 19,
-            "humanDistanceProportionToNextGoal": 0.75,
+            "humanDistanceProportionToNextGoal": 0.65,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 21",
@@ -324,7 +324,7 @@
         },
         {
             "afterHumanTaskIndex": 22,
-            "humanDistanceProportionToNextGoal": 0.5,
+            "humanDistanceProportionToNextGoal": 0.65,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 31",
@@ -333,7 +333,7 @@
         },
         {
             "afterHumanTaskIndex": 24,
-            "humanDistanceProportionToNextGoal": 0.7,
+            "humanDistanceProportionToNextGoal": 0.75,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 44",
@@ -351,7 +351,7 @@
         },
         {
             "afterHumanTaskIndex": 26,
-            "humanDistanceProportionToNextGoal": 0.7,
+            "humanDistanceProportionToNextGoal": 0.6,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 32",

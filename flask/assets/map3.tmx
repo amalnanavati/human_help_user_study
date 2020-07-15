@@ -328,7 +328,7 @@
   </object>
   <object id="51" name="Hallway" x="2204.77" y="1378.77" width="251.256" height="1805.9">
    <properties>
-    <property name="vertical" type="bool" value="false"/>
+    <property name="vertical" type="bool" value="true"/>
    </properties>
   </object>
   <object id="52" name="Hallway" x="1564.07" y="2908.29" width="895.101" height="273.241">

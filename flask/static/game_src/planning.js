@@ -76,8 +76,31 @@ function generatePlan(startLoc, endLocs, heuristicEndLoc) {
       if (closedNodes.has(childNode)) {
         continue;
       }
+
       var heuristicDist = distance(heuristicEndLoc, childNode);
-      var childDist = currNode.dist + 1;
+
+      // Add a small factor if the user moves the wrong direction in a hallway
+      var orientationFactor = 0.0;
+      var key = null;
+      var currKey = String([currNode.x, currNode.y]);
+      var childKey = String([currNode.x, currNode.y]);
+      if (currKey in game.hallwayOrientation) {
+        key = currKey;
+      } else if (childKey in game.hallwayOrientation) {
+        key = childKey;
+      }
+      if (key) {
+        if (childNode.x != currNode.x) { // horizontal movement
+          if (game.hallwayOrientation[key] == hallwayOrientation.VERTICAL) {
+            orientationFactor += 0.1;
+          }
+        } else { // vertical movement
+          if (game.hallwayOrientation[key] == hallwayOrientation.HORIZONTAL) {
+            orientationFactor += 0.1;
+          }
+        }
+      }
+      var childDist = currNode.dist + 1 + orientationFactor;
 
       if (childNode.dist == null || childDist < childNode.dist) {
         childNode.dist = childDist;

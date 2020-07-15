@@ -72,9 +72,11 @@ function setTimeLimitFromBusyness(scene) {
     var playerPlan = generatePlan(startLoc, endLocs, endLocs[0]);
     var distanceToGoal = playerPlan.length;
     if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "high") {
-      scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = distanceToGoal*2.0*playerMsPerStep/1000;
+      // 2.0 is cutting it close for Amal
+      scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = distanceToGoal*3.0*playerMsPerStep/1000;
     } else if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "medium") {
-      scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = distanceToGoal*4.0*playerMsPerStep/1000;
+      // 4.0 is cutting it close for Amal to help the robot *and* get to the goal
+      scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = distanceToGoal*7.0*playerMsPerStep/1000;
     } else {
       console.log("Unknown busyness", scene.game.tasks.tasks[scene.game.player.taskI].busyness);
       scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = -1;
@@ -245,6 +247,7 @@ function completedDistractionTask(scene) {
     }
   } else {
     scene.game.player.currentState = playerState.COMPLETED_TASKS;
+    if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.PLAYER_STATE_CHANGE));
     scene.game.endGameDelayTimer = scene.time.addEvent({
       delay: 2*1000,
       callback: function() {
@@ -370,6 +373,7 @@ function processPlayerKeyPresses(scene) {
       scene.game.shiftHeldSecs += (currentTime - scene.game.lastTimeShiftHeld)/1000;
       scene.game.lastTimeShiftHeld = currentTime;
       if (scene.game.shiftHeldSecs > 10) {
+        if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.SHIFT_GAME_KILL));
         scene.game.isRunning = false;
         createEndingScreen(scene);
       }

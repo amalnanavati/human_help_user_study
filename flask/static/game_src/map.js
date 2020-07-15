@@ -1,3 +1,9 @@
+const hallwayOrientation = {
+  VERTICAL: 0,
+  HORIZONTAL: 1,
+  BOTH: 2,
+}
+
 // tileSize is defined in game.html
 function tileToGameXY(tile) {
   return {x : (tile.x + 0.5) * tileSize, y : (tile.y + 0.5) * tileSize};
@@ -18,6 +24,7 @@ function createMap(scene) {
   // scene.game.aboveLayer = scene.game.map.createStaticLayer("Above Player", scene.game.tileset, 0, 0);
   // scene.game.aboveLayer.setDepth(10);
   // TODO (amal): preprocess this and save it in an assets json file
+  scene.game.hallwayOrientation = {};
   scene.game.roomLabels = {};
   scene.game.xyToSemanticLabels = {};
   scene.game.nonLabelPointSemanticLabelsToXY = {};
@@ -75,6 +82,26 @@ function createMap(scene) {
                 scene.game.xyToSemanticLabels[key] = new Set();
               }
               scene.game.xyToSemanticLabels[key].add(rect.name);
+              if (rect.name.includes("allway")) { // is it a Hallway?
+                for (var k = 0; k < scene.game.map.objects[i].objects[j].properties.length; k++) {
+                  var property = scene.game.map.objects[i].objects[j].properties[k];
+                  if (property.name == "vertical") {
+                    if (property.value) { // vertical
+                      if (key in scene.game.hallwayOrientation && scene.game.hallwayOrientation[key] != hallwayOrientation.VERTICAL) {
+                        scene.game.hallwayOrientation[key] = hallwayOrientation.BOTH;
+                      } else {
+                        scene.game.hallwayOrientation[key] = hallwayOrientation.VERTICAL;
+                      }
+                    } else { // horizontal
+                      if (key in scene.game.hallwayOrientation && scene.game.hallwayOrientation[key] != hallwayOrientation.HORIZONTAL) {
+                        scene.game.hallwayOrientation[key] = hallwayOrientation.BOTH;
+                      } else {
+                        scene.game.hallwayOrientation[key] = hallwayOrientation.HORIZONTAL;
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
           scene.game.semanticLabelToRoomRectBounds[rect.name] = {

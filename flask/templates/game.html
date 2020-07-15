@@ -17,6 +17,7 @@
     <script src="{{ url_for('static', filename='game_src/minimap.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/compass.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/highlightBox.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/pathToGoal.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/miscellaneous.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/endingScreen.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/tutorial.js') }}"></script>
@@ -219,6 +220,8 @@
                   this.game.robot.elapsedDistanceSinceComputingTaskPlan++;
                 }
               }
+
+              // updatePlayerPath(this);
 
               // Update the player compass
               if (this.game.compass) {

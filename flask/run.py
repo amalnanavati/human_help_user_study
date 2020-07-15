@@ -107,22 +107,42 @@ class FlaskExample:
             with open(fname, "w") as f:
                 f.write(str(timestamp))
 
+            # Remove UUIDs that have not been updated for maxWaitTimeBeforeDeletingUUID
+            uuidsToDelete = []
+            for uuidTemp in inProgressUUIDs:
+                if time.time() >= inProgressUUIDs[uuidTemp][1] + maxWaitTimeBeforeDeletingUUID:
+                    uuidsToDelete.append(uuidTemp)
+            for uuidTemp in uuidsToDelete:
+                del inProgressUUIDs[uuidTemp]
+
+            print("completedGameIDs", completedGameIDs)
+            print("inProgressUUIDs", inProgressUUIDs)
+
             # # Assign the user a game ID
+            # gidWithMinNumUsers = 4
             if int(uuid) == 18:
                 gidWithMinNumUsers = 4
             elif int(uuid) < 100:
                 gidWithMinNumUsers = random.randint(0, 4)
             else:
-                gidWithMinNumUsers = None
-                minNumUsers = None
-                for gid in ["2","0","4"]:#completedGameIDs:
-                    numUsers = 0
+                gidAndUsersList = [] # (numRealAndInProgressUsers, numRealUsers, gid)
+                for gid in ["0", "2", "4"]:#completedGameIDs:
+                    numRealUsers = 0
+                    numInProgressUsers = 0
                     for tempUUID in completedGameIDs[gid]:
                         if int(tempUUID) >= minUUID: # only count actual users
-                            numUsers += 1
-                    if minNumUsers is None or numUsers < minNumUsers:
-                        minNumUsers = numUsers
-                        gidWithMinNumUsers = gid
+                            numRealUsers += 1
+                    for uuidTemp in inProgressUUIDs:
+                        # If the user is still playing the game or the game is finished
+                        # if time.time() <= inProgressUUIDs[uuidTemp][1] + maxBreaktime or inProgressUUIDs[uuidTemp][2]:
+                        if inProgressUUIDs[uuidTemp][0] == gid:
+                            numInProgressUsers += 1
+                    gidAndUsersList.append((numRealUsers+numInProgressUsers, numRealUsers, gid))
+                gidAndUsersList.sort()
+                print("gidAndUsersList", gidAndUsersList)
+                gidWithMinNumUsers = gidAndUsersList[0][2]
+
+            inProgressUUIDs[uuid] = [gidWithMinNumUsers, time.time()]#, False]
             # Render the tutorial
             return render_template('game.html', uuid=uuid, gid=gidWithMinNumUsers)
 
@@ -131,6 +151,9 @@ class FlaskExample:
         def survey():
             uuid = request.form['uuid']
             gid = request.form['gid']
+
+            if uuid in inProgressUUIDs:
+                inProgressUUIDs[uuid] = [gid, time.time()]
 
             # Save the startTime
             timestamp = time.time()
@@ -164,6 +187,9 @@ class FlaskExample:
             with open(completedGIDsFilename, "w") as f:
                 json.dump(completedGameIDs, f)
 
+            if uuid in inProgressUUIDs:
+                del inProgressUUIDs[uuid]
+
             # Save the endTime
             timestamp = time.time()
             fname = "outputs/{}/endTime.txt".format(uuid)
@@ -196,8 +222,8 @@ class FlaskExample:
         @app.route('/load_game_<uuid>_<gid>')
         def load_game(uuid, gid):
             dataToLoad = []
-            fname ="outputs/{}/{}_data.json".format(uuid, gid)
-            # fname ="ec2_outputs/{}/{}_data.json".format(uuid, gid)
+            # fname ="outputs/{}/{}_data.json".format(uuid, gid)
+            fname ="ec2_outputs/{}/{}_data.json".format(uuid, gid)
             with open(fname, "r") as f:
                 for cnt, line in enumerate(f):
                     if len(line.strip()) == 0:
@@ -230,6 +256,12 @@ class FlaskExample:
         def log_state(request, tutorial):
             uuid = request.json['uuid']
             gid = request.json['gid']
+
+            if (not tutorial):
+                # Either the user is in COMPLETED_TASKS or the eventType is SHIFT_GAME_KILL
+                # isGameComplete = (request.json["player"]["currentState"] == "2" or
+                #                   request.json["eventType"] == "11")
+                inProgressUUIDs[uuid] = [gid, time.time()]#, isGameComplete]
 
             if tutorial:
                 fname ="outputs/{}/{}_tutorial_data.json".format(uuid, gid)
@@ -326,6 +358,10 @@ if __name__ == '__main__':
     else:
         completionCodes = {}
     print("completionCodes", completionCodes)
+
+    inProgressUUIDs = {} # uuid -> [GID, lastTimestepGotGameState, isFinished]
+    # maxBreaktime = 90 # Max time to wait for a game state log before reassigning the GID
+    maxWaitTimeBeforeDeletingUUID = 45*60 # if no new log states are received within this much time, delete this uuid from inProgressUUIDs
 
     server = FlaskExample()
 

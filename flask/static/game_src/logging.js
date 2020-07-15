@@ -10,6 +10,7 @@ const eventType = {
   SCORE_CHANGE : 8,
   TUTORIAL_NEXT_BUTTON_PRESSED : 9,
   TUTORIAL_LOAD_STATE : 10,
+  SHIFT_GAME_KILL : 11,
 }
 
 const logGameConfigEndpoint = "log_game_config";
@@ -48,6 +49,8 @@ function getGameState(scene, eventType, additionalData) {
       // timerProgress: (scene.game.player.timer == null) ? null : scene.game.player.timer.getProgress(),
       // timerDelay: (scene.game.player.timer == null) ? null : scene.game.player.timer.delay,
       score: scene.game.player.score,
+      taskI: scene.game.player.taskI,
+      taskPlan: scene.game.player.taskPlan,
     },
     // Animation information
     player_anim_is_playing: scene.game.player.anims.isPlaying,
@@ -66,6 +69,7 @@ function getGameState(scene, eventType, additionalData) {
       previousState: scene.game.robot.previousState,
       helpBubbleVisible: scene.game.robot.helpBubble.getVisible(),
       currentActionI: scene.game.robot.currentActionI,
+      taskPlan: scene.game.robot.taskPlan,
     };
     // console.log("scene.game.robot.anims.getCurrentKey()", scene.game.robot.anims.getCurrentKey());
     retval.robot_anim_key = scene.game.robot.anims.getCurrentKey();
