@@ -126,7 +126,9 @@ class FlaskExample:
                 gidWithMinNumUsers = random.randint(0, 4)
             else:
                 gidAndUsersList = [] # (numRealAndInProgressUsers, numRealUsers, gid)
-                for gid in ["0", "2", "4"]:#completedGameIDs:
+                gidsToTest = ["2", "0", "4"] # completedGameIDs #
+                for i in range(len(gidsToTest)):
+                    gid = gidsToTest[i]
                     numRealUsers = 0
                     numInProgressUsers = 0
                     for tempUUID in completedGameIDs[gid]:
@@ -137,10 +139,10 @@ class FlaskExample:
                         # if time.time() <= inProgressUUIDs[uuidTemp][1] + maxBreaktime or inProgressUUIDs[uuidTemp][2]:
                         if inProgressUUIDs[uuidTemp][0] == gid:
                             numInProgressUsers += 1
-                    gidAndUsersList.append((numRealUsers+numInProgressUsers, numRealUsers, gid))
+                    gidAndUsersList.append((numRealUsers+numInProgressUsers, numRealUsers, i, gid))
                 gidAndUsersList.sort()
                 print("gidAndUsersList", gidAndUsersList)
-                gidWithMinNumUsers = gidAndUsersList[0][2]
+                gidWithMinNumUsers = gidAndUsersList[0][3]
 
             inProgressUUIDs[uuid] = [gidWithMinNumUsers, time.time()]#, False]
             # Render the tutorial
