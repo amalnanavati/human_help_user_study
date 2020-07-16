@@ -41,8 +41,8 @@ def analyzeGameLog(uuid, gid):
     prevIsOne = False
     askedForHelp = False
 
-    prevRobotOffScreen = False
-    taskNum = 0;
+    spaceBar = False
+    taskNum = 1;
 
     humanResponseToHelp = []
     for logEntry in gameLog:
@@ -82,26 +82,25 @@ def analyzeGameLog(uuid, gid):
         else:
             prevIsOne = False
 
-        if prevRobotOffScreen and logEntry["robot"]["currentTile"]["x"] != -1:
-            taskNum = taskNum + 1;
+        if spaceBar and logEntry["eventType"] == 4: #TODO would this work for accidental space bar touches?
+            taskNum = taskNum + 1
+            spaceBar = False
 
-        if logEntry["robot"]["currentTile"]["x"] == -1:
-            prevRobotOffScreen = True;
-        else:
-            prevRobotOffScreen = False;
+        if logEntry["eventType"] == 3:
+            spaceBar = True
 
         if logEntry.get("buttonName") is not None:
             if askedForHelp and logEntry["buttonName"] == "Yes":
                 pprint.pprint("User said yes and was on task " + str(taskNum))
-                askedForHelp = False;
+                askedForHelp = False
                 pprint.pprint(logEntry)
             elif askedForHelp and logEntry["buttonName"] == "No":
                 pprint.pprint("User said no and was on task " + str(taskNum))
-                askedForHelp = False;
+                askedForHelp = False
                 pprint.pprint(logEntry)
         elif askedForHelp and robotState == 2:
                 pprint.pprint("User ignored and was on task " + str(taskNum))
-                askedForHelp = False;
+                askedForHelp = False
 
 
 
