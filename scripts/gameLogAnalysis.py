@@ -35,10 +35,14 @@ def analyzeGameLog(uuid, gid):
          output will be ["Yes", "Ignore", "Can't Help"].
     """
     filepath ="../flask/outputs/1/0_data.json".format(uuid, gid)
+    tasks ="../flask/assets/tasks/0.json".format(uuid, gid)
     gameLog = loadGameLog(filepath)
 
     prevIsOne = False
-    askedForHelp = False;
+    askedForHelp = False
+
+    prevRobotOffScreen = False
+    taskNum = 0;
 
     humanResponseToHelp = []
     for logEntry in gameLog:
@@ -58,9 +62,17 @@ def analyzeGameLog(uuid, gid):
         # Access elements of logEntry using strings. For example:
         robotState = logEntry["robot"]["currentState"]
 
+
         # First, determine when the robot asked for help. Then, determine how
         # the human responded. This Google Doc has more pointers:
         # https://docs.google.com/document/d/1_RYKOTqaRre4kbgZDYgtMJP3xeNFwsSFTJ6Suk3SEhg/edit#
+
+
+        # 1) how the human responded; but also
+        # 2) where the human was going at that time; and - TODO not working
+        # 3) what the time limit was for that goal. - TODO not working
+
+        # determine what task the human completed and using that determine next goal
 
         if prevIsOne and robotState == 3:
             askedForHelp = True
@@ -70,18 +82,34 @@ def analyzeGameLog(uuid, gid):
         else:
             prevIsOne = False
 
+        if prevRobotOffScreen and logEntry["robot"]["currentTile"]["x"] != -1:
+            taskNum = taskNum + 1;
+
+        if logEntry["robot"]["currentTile"]["x"] == -1:
+            prevRobotOffScreen = True;
+        else:
+            prevRobotOffScreen = False;
+
         if logEntry.get("buttonName") is not None:
             if askedForHelp and logEntry["buttonName"] == "Yes":
-                pprint.pprint("User said yes")
+                pprint.pprint("User said yes and was on task " + str(taskNum))
                 askedForHelp = False;
                 pprint.pprint(logEntry)
             elif askedForHelp and logEntry["buttonName"] == "No":
-                pprint.pprint("User said no")
+                pprint.pprint("User said no and was on task " + str(taskNum))
                 askedForHelp = False;
                 pprint.pprint(logEntry)
         elif askedForHelp and robotState == 2:
-                pprint.pprint("User ignored")
+                pprint.pprint("User ignored and was on task " + str(taskNum))
                 askedForHelp = False;
+
+
+
+
+
+
+
+
 
     ########################################################################
     return humanResponseToHelp
