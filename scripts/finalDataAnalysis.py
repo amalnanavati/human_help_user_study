@@ -243,6 +243,12 @@ if __name__ == "__main__":
 
     pprint.pprint(surveyData)
 
+    # Partition UUID by Prosociality
+    allUUIDs = [uuid for uuid in surveyData]
+    allUUIDs.sort(key = lambda uuid: surveyData[uuid]["Demography"]["Prosociality"])
+    prosocialityLow = allUUIDs[0:len(allUUIDs)//2]
+    prosocialityHigh = allUUIDs[len(allUUIDs)//2:]
+
     # Generate Graphs
     freqs = []
     rosasFactorsOrder = ["Competence", "Discomfort", "Warmth", "Curiosity"]
@@ -251,11 +257,13 @@ if __name__ == "__main__":
     nasaTLX = {factor : [] for factor in nasaTLXFactorOrder}
     busynessFactorOrder = ["high", "medium", "free time"]
     busyness = {factor : [] for factor in busynessFactorOrder}
+    prosociality = {"low" : ([], []), "high" : ([], [])}
     demographicFactors = ["Prosociality", "Navigational Ability", "Video Game Experience", "Age", "Gender"]
     demography = {factor : [] for factor in demographicFactors}
     for uuid in surveyData:
         gid = surveyData[uuid]["gid"]
-        freqs.append((gid+1)/5.0)
+        freq = (gid+1)/5.0
+        freqs.append(freq)
         # RoSAS
         for factor in rosasFactorsOrder:
             rosas[factor].append(surveyData[uuid]["RoSAS"][factor])
@@ -265,6 +273,13 @@ if __name__ == "__main__":
         # Busyness Factors
         for factor in busynessFactorOrder:
             busyness[factor].append(surveyData[uuid]["helpGivingData"][factor])
+        # prosociality
+        if uuid in prosocialityLow:
+            prosociality["low"][0].append(freq)
+            prosociality["low"][1].append(surveyData[uuid]["helpGivingData"][factor])
+        else:
+            prosociality["high"][0].append(freq)
+            prosociality["high"][1].append(surveyData[uuid]["helpGivingData"][factor])
         # Demographic Factors
         for factor in demographicFactors:
             demography[factor].append(surveyData[uuid]["Demography"][factor])
@@ -304,7 +319,7 @@ if __name__ == "__main__":
     # Busyness
     fig = plt.figure(figsize=(8,10))
     axes = fig.subplots(len(busynessFactorOrder), 1)
-    fig.suptitle('Willingness To Help By Frequency')
+    fig.suptitle('Willingness To Help vs. Frequency')
     for i in range(len(axes)):
         factor = busynessFactorOrder[i]
         axes[i].scatter(freqs, busyness[factor], c=colors[i%len(colors)])
@@ -315,7 +330,24 @@ if __name__ == "__main__":
         axes[i].set_ylabel("Willingness to Help")
     # plt.show()
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig("../flask/ec2_outputs/busyness.png")
+    plt.savefig("../flask/ec2_outputs/willingnessToHelpBusyness.png")
+
+    # Prosociality
+    fig = plt.figure(figsize=(8,10))
+    axes = fig.subplots(len(prosociality), 1)
+    fig.suptitle('Willingness To Help vs. Frequency')
+    i = 0
+    for factor in prosociality:
+        axes[i].scatter(prosociality[factor][0], prosociality[factor][1], c=colors[i%len(colors)])
+        axes[i].set_xlim([0,1.1])
+        axes[i].set_ylim([0,1.1])
+        axes[i].set_title("Prosociality: %s" % factor)
+        axes[i].set_xlabel("Frequency")
+        axes[i].set_ylabel("Willingness to Help")
+        i += 1
+    # plt.show()
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig("../flask/ec2_outputs/willingnessToHelpProsociality.png")
 
     # Demographic Factors
     for factor in demographicFactors:
