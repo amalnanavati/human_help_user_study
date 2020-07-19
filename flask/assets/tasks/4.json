@@ -279,7 +279,7 @@
         },
         {
             "afterHumanTaskIndex": 15,
-            "humanDistanceProportionToNextGoal": 0.75,
+            "humanDistanceProportionToNextGoal": 0.5,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 1",
@@ -324,7 +324,7 @@
         },
         {
             "afterHumanTaskIndex": 22,
-            "humanDistanceProportionToNextGoal": 0.65,
+            "humanDistanceProportionToNextGoal": 0.55,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 31",
@@ -333,7 +333,7 @@
         },
         {
             "afterHumanTaskIndex": 24,
-            "humanDistanceProportionToNextGoal": 0.75,
+            "humanDistanceProportionToNextGoal": 0.5,
             "robotAction": {
                 "query": "leadMe",
                 "targetStr": "Room 44",

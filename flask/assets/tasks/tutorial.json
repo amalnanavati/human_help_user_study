@@ -45,26 +45,14 @@
       "busyness": "free time"
     },
     {
-      "semanticLabel": "Room 8",
-      "str": "Room 8",
-      "target": 3,
-      "busyness": "medium"
-    },
-    {
-      "semanticLabel": "Room 20",
-      "str": "Room 20",
-      "target": 2,
+      "semanticLabel": "Room 7",
+      "str": "Room 7",
+      "target": 1,
       "busyness": "high"
     },
     {
       "semanticLabel": "Room 47",
       "str": "Room 47",
-      "target": 1,
-      "busyness": "medium"
-    },
-    {
-      "semanticLabel": "Room 6",
-      "str": "Room 6",
       "target": 1,
       "busyness": "medium"
     },
@@ -77,14 +65,14 @@
   ],
   "robotActions": [
     {
-      "afterHumanTaskIndex": 5,
+      "afterHumanTaskIndex": 4,
       "humanDistanceProportionToNextGoal": 0.5,
       "robotAction": {
         "query": "walkPast"
       }
     },
     {
-      "afterHumanTaskIndex": 6,
+      "afterHumanTaskIndex": 5,
       "humanDistanceProportionToNextGoal": 0.7,
       "robotAction": {
         "query": "leadMe",
@@ -93,7 +81,7 @@
       }
     },
     {
-      "afterHumanTaskIndex": 7,
+      "afterHumanTaskIndex": 6,
       "humanDistanceProportionToNextGoal": 0.5,
       "robotAction": {
         "query": "leadMe",
@@ -102,21 +90,12 @@
       }
     },
     {
-      "afterHumanTaskIndex": 8,
-      "humanDistanceProportionToNextGoal": 0.75,
-      "robotAction": {
-        "query": "leadMe",
-        "targetStr": "Room 45",
-        "targetSemanticLabel": "Room 45"
-      }
-    },
-    {
-      "afterHumanTaskIndex": 9,
+      "afterHumanTaskIndex": 7,
       "humanDistanceProportionToNextGoal": 0.5,
       "robotAction": {
         "query": "leadMe",
-        "targetStr": "Room 33",
-        "targetSemanticLabel": "Room 33"
+        "targetStr": "Room 11",
+        "targetSemanticLabel": "Room 11"
       }
     }
   ]

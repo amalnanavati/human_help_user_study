@@ -18,7 +18,12 @@ const logGameStateEndpoint = "log_game_state";
 const logTutorialConfigEndpoint = "log_tutorial_config";
 const logTutorialStateEndpoint = "log_tutorial_state";
 
-var numLogDataErrors = 0;
+// if you have >= logDataErrorNum errors within logDataErrorTimeLimit secs, tell the user to quit.
+var logDataErrorTimeLimit = 60; // seconds
+var logDataErrorNum = 20;
+var logDataRecentErrors = [];
+var errorsBeforeRepeatNotifications = 10;
+var errorsSinceLastNotification = 0;
 
 var gameStateID = 0;
 
@@ -94,14 +99,31 @@ function logData(endpoint, data) {
         // console.log(`${received_data} and status is ${status}`);
     },
     error: function(received_data, status) {
-        if (numLogDataErrors % 10 == 0) {
-          if (numLogDataErrors < 10) {
-            alert("ERROR: Your internet is unable to properly log game data. If this message comes again, please stop the Amazon Mechanical Turk task.");
+        for (var i = 0; i < logDataRecentErrors.length; i++) {
+          if (Date.now() - logDataRecentErrors[i] >= logDataErrorTimeLimit*1000) {
+            logDataRecentErrors.splice(i, 1);
+            i -= 1;
+            if (logDataRecentErrors.length == 0) {
+              break;
+            }
           } else {
-            alert("ERROR: Please stop the Amazon Mechanical Turk task. You will not be compensated due to errors with your internet.");
+            break;
           }
         }
-        numLogDataErrors++;
+        if (logDataRecentErrors.length == 0) {
+          errorsSinceLastNotification = 0;
+        }
+        logDataRecentErrors.push(Date.now());
+        if (logDataRecentErrors.length > logDataErrorNum) {
+          if (errorsSinceLastNotification % errorsBeforeRepeatNotifications == 0) {
+            if (errorsSinceLastNotification < errorsBeforeRepeatNotifications) {
+              alert("WARNING: Your internet is unable to properly log game data. If this problem persists, you will be asked to stop the Amazon Mechanical Turk task.");
+            } else {
+              alert("ERROR: Please stop the Amazon Mechanical Turk task. Data is not getting logged properly, and you will not be compensated.");
+            }
+          }
+          errorsSinceLastNotification += 1;
+        }
     }
   });
 }

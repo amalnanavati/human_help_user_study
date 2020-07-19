@@ -58,7 +58,7 @@ def processGameLog(gameLog, taskDefinition):
     previousLogEntry = None
     playerTaskI = 0
     isRobotHelpQueryActive = False
-    humanHelpSequence = {"high":[], "medium":[], "free time":[]}
+    humanHelpSequence = {"high":[], "medium":[], "free time":[], "overall":[]}
 
     print("UUID %s, GID %s" % (gameLog[0]["uuid"], gameLog[0]["gid"]))
 
@@ -93,20 +93,22 @@ def processGameLog(gameLog, taskDefinition):
             ((previousRobotState == RobotState.STATIONARY.value and currentRobotState == RobotState.WALK_PAST_HUMAN.value) or
             (previousRobotState == RobotState.APPROACH_HUMAN.value and currentRobotState == RobotState.WALK_PAST_HUMAN.value) or
             (didHumanHelp and previousRobotState == RobotState.APPROACH_HUMAN.value and currentRobotState == RobotState.GO_TOWARDS_GOAL.value))): # Bug where the robot goes briefly into approach human for a few steps before walk past -- should be fixed
-            # print("Stopped Asking For Help", playerTaskI, logEntry["dtime"])
+            # print("Stopped Asking For Help", playerTaskI, logEntry["dtime"], didHumanHelp)
             if (playerTaskI > 6): # skip the first round of help-seeking
                 busyness = taskDefinition["tasks"][playerTaskI]["busyness"]
                 if (didHumanHelp):
                     humanHelpSequence[busyness].append(1)
+                    humanHelpSequence["overall"].append(1)
                 else:
                     humanHelpSequence[busyness].append(0)
+                    humanHelpSequence["overall"].append(0)
             isRobotHelpQueryActive = False
 
         previousLogEntry = logEntry
 
     print("humanHelpSequence", humanHelpSequence)
 
-    return {busyness : sum(humanHelpSequence[busyness])/len(humanHelpSequence[busyness]) for busyness in humanHelpSequence}
+    return {descriptor : sum(humanHelpSequence[descriptor])/len(humanHelpSequence[descriptor]) for descriptor in humanHelpSequence}
 
 def processSurveyData(filepath):
     # Columns from the CSV
@@ -211,13 +213,15 @@ def processSurveyData(filepath):
     return processedData
 
 if __name__ == "__main__":
-    surveyData = processSurveyData("../flask/ec2_outputs/Human Help User Study Survey (Responses) - Form Responses 1.csv")
+    baseDir = "../flask/finalData/friendsData/"
+    surveyData = processSurveyData(baseDir + "Human Help User Study Survey (Responses) - Form Responses 1.csv")
     taskDefintions = {}
     for gid in range(5):
         filepath = "../flask/assets/tasks/{}.json".format(gid)
         taskDefintions[gid] = loadTaskDefinitionFile(filepath)
 
-    uuidsToKeep = [100, 103, 104, 108, 110, 122]
+    # uuidsToKeep = [100, 103, 104, 108, 110, 122] # pilot1
+    uuidsToKeep = [133] # friendsData
     uuidsToDel = []
     for uuid in surveyData:
         if uuid not in uuidsToKeep:
@@ -229,13 +233,13 @@ if __name__ == "__main__":
     for uuid in surveyData:
         print("UUID", uuid)
         gotGID = False
-        for filename in os.listdir("../flask/ec2_outputs/{}".format(uuid)):
+        for filename in os.listdir(baseDir + "{}".format(uuid)):
             if "_data." in filename and "_tutorial_" not in filename:
                 if gotGID:
                     raise Exception("UUID {} has multiple GIDs".format(uuid))
                 gid = int(filename[0])
                 surveyData[uuid]["gid"] = gid
-                gameLog = loadGameLog("../flask/ec2_outputs/{}/{}".format(uuid, filename))
+                gameLog = loadGameLog(baseDir + "{}/{}".format(uuid, filename))
                 surveyData[uuid]["helpGivingData"] = processGameLog(gameLog, taskDefintions[gid])
                 gotGID = True
         if not gotGID:
@@ -246,6 +250,10 @@ if __name__ == "__main__":
     # Partition UUID by Prosociality
     allUUIDs = [uuid for uuid in surveyData]
     allUUIDs.sort(key = lambda uuid: surveyData[uuid]["Demography"]["Prosociality"])
+    if (len(allUUIDs) % 2 == 0):
+        prosocialityMedian = (surveyData[allUUIDs[len(allUUIDs)//2-1]]["Demography"]["Prosociality"]+surveyData[allUUIDs[len(allUUIDs)//2]]["Demography"]["Prosociality"])/2
+    else:
+        prosocialityMedian = surveyData[allUUIDs[(len(allUUIDs)-1)//2]]["Demography"]["Prosociality"]
     prosocialityLow = allUUIDs[0:len(allUUIDs)//2]
     prosocialityHigh = allUUIDs[len(allUUIDs)//2:]
 
@@ -257,7 +265,7 @@ if __name__ == "__main__":
     nasaTLX = {factor : [] for factor in nasaTLXFactorOrder}
     busynessFactorOrder = ["high", "medium", "free time"]
     busyness = {factor : [] for factor in busynessFactorOrder}
-    prosociality = {"low" : ([], []), "high" : ([], [])}
+    prosociality = {"low: < {}".format(prosocialityMedian) : ([], []), "high: >= {}".format(prosocialityMedian) : ([], [])}
     demographicFactors = ["Prosociality", "Navigational Ability", "Video Game Experience", "Age", "Gender"]
     demography = {factor : [] for factor in demographicFactors}
     for uuid in surveyData:
@@ -274,12 +282,15 @@ if __name__ == "__main__":
         for factor in busynessFactorOrder:
             busyness[factor].append(surveyData[uuid]["helpGivingData"][factor])
         # prosociality
+        factor = "overall"
         if uuid in prosocialityLow:
-            prosociality["low"][0].append(freq)
-            prosociality["low"][1].append(surveyData[uuid]["helpGivingData"][factor])
+            key = "low: < {}".format(prosocialityMedian)
+            prosociality[key][0].append(freq)
+            prosociality[key][1].append(surveyData[uuid]["helpGivingData"][factor])
         else:
-            prosociality["high"][0].append(freq)
-            prosociality["high"][1].append(surveyData[uuid]["helpGivingData"][factor])
+            key = "high: >= {}".format(prosocialityMedian)
+            prosociality[key][0].append(freq)
+            prosociality[key][1].append(surveyData[uuid]["helpGivingData"][factor])
         # Demographic Factors
         for factor in demographicFactors:
             demography[factor].append(surveyData[uuid]["Demography"][factor])
@@ -299,7 +310,7 @@ if __name__ == "__main__":
         axes[i].set_xlabel("Frequency")
         axes[i].set_ylabel(factor)
     # plt.show()
-    plt.savefig("../flask/ec2_outputs/rosas.png")
+    plt.savefig(baseDir + "rosas.png")
 
     # NASA-TLX
     fig = plt.figure(figsize=(8,12))
@@ -314,7 +325,7 @@ if __name__ == "__main__":
         axes[i].set_xlabel("Frequency")
         axes[i].set_ylabel(factor)
     # plt.show()
-    plt.savefig("../flask/ec2_outputs/nasaTLX.png")
+    plt.savefig(baseDir + "nasaTLX.png")
 
     # Busyness
     fig = plt.figure(figsize=(8,10))
@@ -330,7 +341,7 @@ if __name__ == "__main__":
         axes[i].set_ylabel("Willingness to Help")
     # plt.show()
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig("../flask/ec2_outputs/willingnessToHelpBusyness.png")
+    plt.savefig(baseDir + "willingnessToHelpBusyness.png")
 
     # Prosociality
     fig = plt.figure(figsize=(8,10))
@@ -347,7 +358,7 @@ if __name__ == "__main__":
         i += 1
     # plt.show()
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig("../flask/ec2_outputs/willingnessToHelpProsociality.png")
+    plt.savefig(baseDir + "willingnessToHelpProsociality.png")
 
     # Demographic Factors
     for factor in demographicFactors:
@@ -359,4 +370,4 @@ if __name__ == "__main__":
         ax.set_ylabel("Count")
         if factor in ["Prosociality", "Navigational Ability", "Video Game Experience"]:
             ax.set_xlim([0,5.5])
-        plt.savefig("../flask/ec2_outputs/%s.png" % factor)
+        plt.savefig(baseDir + "%s.png" % factor)

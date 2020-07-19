@@ -532,12 +532,12 @@ if __name__ == "__main__":
         })
 
     specialProprtions = {
-        0 : 0.60,
-        15 : 0.75,
+        0 : 0.60,#0.52,#
+        # 15 : 0.75,
         18 : 0.60,
         19 : 0.65,
-        22 : 0.65,
-        24 : 0.75,
+        22 : 0.55,#0.65,
+        # 24 : 0.38,#0.75,
         26 : 0.6,
     }
 
@@ -545,10 +545,16 @@ if __name__ == "__main__":
         jsonRetval["robotActions"] = [];
         for i in range(len(robotAppearsAfterTaskIndex)):
             afterTaskI = robotAppearsAfterTaskIndex[i]-1
+            proportion = specialProprtions[afterTaskI] if afterTaskI in specialProprtions else 0.5 # 0.42, #
+            source = jsonRetval["tasks"][afterTaskI]["semanticLabel"] + " Start"
+            target = jsonRetval["tasks"][afterTaskI+1]["semanticLabel"] + " Start"
+            humanDistance = mapDistances[source][target]["distance"]
+            if (gameID == 0): print("afterTaskI", afterTaskI, "dist from goal", humanDistance*(1-proportion), "halway", humanDistance*0.5, source[:-6], "-->", target[:-6])
             jsonRetval["robotActions"].append({
                 "afterHumanTaskIndex": afterTaskI,
-                "humanDistanceProportionToNextGoal": specialProprtions[afterTaskI] if afterTaskI in specialProprtions else 0.5,
+                "humanDistanceProportionToNextGoal": proportion,
             })
+
             if gameID == 0:
                 timesToAsk = [4]
             elif gameID == 1:
@@ -569,5 +575,6 @@ if __name__ == "__main__":
                 jsonRetval["robotActions"][-1]["robotAction"] = {
                     "query": "walkPast",
                 }
+        # raise Exception()
         with open("../flask/assets/tasks/{}.json".format(gameID), "w") as f:
             f.write(json.dumps(jsonRetval, indent=4))

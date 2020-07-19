@@ -12,9 +12,9 @@ class Prosociality(Enum):
 
 def getXsAndYs(func, xRange):
     xs, ys = [], []
-    for x in xrange:
+    for x in xRange:
         xs.append(x)
-        ys.append(func, x)
+        ys.append(func(x))
     return xs, ys
 
 def sampleHypothesis(busyness, prosociality):
@@ -45,30 +45,65 @@ def hypothesis1(busyness, prosociality):
         return likelihood
     return likelihoodOfHelping
 
+def hypothesis2(busyness, prosociality):
+    """
+    Hypothesis 2: More asking gets more help
+    (e.g., shows necessity, annoys people into helping)
+    """
+    def likelihoodOfHelping(frequencyOfAsking):
+        if busyness == Busyness.HIGH:
+            likelihood = 0
+        elif busyness == Busyness.MEDIUM:
+            likelihood = 0.3*frequencyOfAsking+0.5
+        else:
+            likelihood = 0.2*frequencyOfAsking+0.8
+        return likelihood
+    return likelihoodOfHelping
+
+def hypothesis3(busyness, prosociality):
+    """
+    Hypothesis 3: More asking gets less help
+    (e.g., annoys people, shows incompetence)
+    """
+    def likelihoodOfHelping(frequencyOfAsking):
+        if busyness == Busyness.HIGH:
+            likelihood = 0
+        elif busyness == Busyness.MEDIUM:
+            likelihood = -0.5*frequencyOfAsking+0.8
+        else:
+            likelihood = -0.2*frequencyOfAsking+1.0
+        return likelihood
+    return likelihoodOfHelping
+
 if __name__ == "__main__":
-    hypothesisToGraph = [hypothesis1]
+    noProsocialityHypotheses = [hypothesis1, hypothesis2, hypothesis3]
 
     colors = ["b", "r", "g", "m", "k"]
 
-    fig = plt.figure(figsize=(8,8))
-    axes = fig.subplots(len(hypothesisToGraph), len(Busyness))
-    fig.suptitle('RoSAS Results By Frequency')
-    for i in range(len(hypothesisToGraph)):
-        hypothesis = hypothesisToGraph[i]
+    fig = plt.figure(figsize=(16,4))
+    axes = fig.subplots(1, len(noProsocialityHypotheses))
+    # if len(noProsocialityHypotheses) == 1:
+    #     axes = [axes]
+    fig.suptitle('Predicted Graphs Across Hypotheses')
+    for i in range(len(noProsocialityHypotheses)):
+        hypothesis = noProsocialityHypotheses[i]
         k = 0
         for busyness in Busyness:
-            axes[i][k].set_title("Busyness: {}".format(busyness.name))
+            title = ""
+            title += hypothesis.__doc__#+"\n"
+            # title += "Busyness {}".format(busyness.name)
+            axes[i].set_title(title)
 
-            for prosociality in Prosociality:
-                xs, ys = getXsAndYs(hypothesis(busyness, prosociality), range(0.2, 1.0, 0.05))
-
-            axes[i][k].plot(xs, yw, c=colors[i%len(colors)])
-            axes[i].set_xlim([0,1.1])
-            axes[i].set_ylim([0,1.1])
+            # j = 0
+            # for prosociality in Prosociality:
+            xs, ys = getXsAndYs(hypothesis(busyness, Prosociality.LOW), [x/100 for x in range(20, 105, 5)])
+            axes[i].plot(xs, ys, c=colors[k%len(colors)], label="Busy {}".format(busyness.name))
+            axes[i].set_xlim([-0.19,1.0])
+            axes[i].set_ylim([-0.1,1.1])
             axes[i].set_xlabel("Frequency of Asking")
             axes[i].set_ylabel("Likelihood of Helping")
+            axes[i].legend()
+                # j += 1
             k += 1
-    # plt.show()
-    plt.savefig("../flask/ec2_outputs/rosas.png")
-
-    for i in range(len(hypothesisToGraph)):
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig("../flask/ec2_outputs/hypotheses.png")

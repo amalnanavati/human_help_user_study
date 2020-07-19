@@ -6,12 +6,12 @@ const tutorialText = {
   5 : "This is your compass. Use your compass to navigate to Room 22 and clear computer viruses.",
   6 : "The header shows you game information. Go to Room 4 before the time runs out!",
   7 : "For every repaired computer, you get +10 points. For every second late you arrive, you get -1 point. Go to Room 30.",
-  8 : "Sometimes, you will get break time. Go to the Game Room and take a break.",
-  9 : "Sometimes, you will see a robot moving around the building. Go to the Room 8, and keep your eyes open for the robot.",
-  10 : "The robot is new and still learning about the building. It will sometimes ask for help. Go to Room 20. When the robot asks for help, ignore it and walk past.",
-  11 : "Nice! Now go to Room 47. When the robot asks for help, say \"Yes\" and drop it off near its goal.",
-  12 : "Nice! Now go to Room 6. When the robot asks for help, say \"Can't Help\" and continue on your way.",
-  13 : "You have now learned every way to interact with the robot: 1) ignore; 2) \"Yes\"; and 3) \"Can't Help\". Take a break in the Lounge. When the robot asks for help, you can decide how you want to interact with it.",
+  8 : "Sometimes, you will get break time. Go to the Game Room and take a break. Meanwhile, keep your eyes open for the office robot.",
+  // 9 : "Sometimes, you will see a robot moving around the building. Go to the Room 8, and keep your eyes open for the robot.",
+  9 : "The robot is new and still learning about the building. It will sometimes ask for help. Go to Room 7. When the robot asks for help, ignore it and walk past.",
+  10 : "Nice! Now go to Room 47. When the robot asks for help, say \"Yes\" and drop it off near its goal.",
+  // 12 : "Nice! Now go to Room 6. When the robot asks for help, say \"Can't Help\" and continue on your way.",
+  11 : "There are three ways to interact with the robot: 1) ignore; 2) \"Yes\"; and 3) \"Can't Help\". Take a break in the Lounge. When the robot asks for help, you can decide how you want to interact with it.",
 };
 
 function createTutorialTextBox(scene) {
@@ -156,7 +156,7 @@ function loadStep(scene, step) {
         initializeGamePlayerTimer(scene);
       }
       break;
-    case 9:
+    case 8:
       //Create the robot
       createRobot(scene);
       // Create the robot help bubble

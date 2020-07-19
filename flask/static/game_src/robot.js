@@ -385,6 +385,7 @@ function initiateRobotActionIfApplicable(scene) {
             console.log("distanceProportionToNextGoal", distanceProportionToNextGoal, robotAction.humanDistanceProportionToNextGoal);
             // Has the human traversed enough distance to trigger the robot action?
             if (distanceProportionToNextGoal >= robotAction.humanDistanceProportionToNextGoal) {
+              console.log("robot appears, distance", scene.game.player.taskPlan.length, "taskI", scene.game.player.taskI);
               setRobotActionInProgress(scene, true);
 
               var robotSpawnTile = getOffScreenTileInDirectionOfHumanMotion(scene);
