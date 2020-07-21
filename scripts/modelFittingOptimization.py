@@ -66,6 +66,7 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
             length-k list corresponds to one parameter setting to be inputted into
             parameterizedFuncion
     """
+
     bestParams = None
     ############################################################################
     # STEP 1
