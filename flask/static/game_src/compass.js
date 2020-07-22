@@ -58,7 +58,7 @@ function updateCompass(scene) {
     scene.game.compass.playerGoalText.y = scene.game.compass.playerArrow.y + scene.game.compass.radius*Math.sin(rotation);
   }
 
-  if (scene.game.robot && (scene.game.robot.isBeingLed || (scene.game.robot.actionInProgress && scene.game.robot.currentState == robotState.STATIONARY && scene.game.robot.helpBubble.getVisible())) /*&& scene.game.robot.taskPlan != null && scene.game.robot.taskPlan.length > 0*/) {
+  if (scene.game.robot && (scene.game.robot.isBeingLed || (scene.game.robot.actionInProgress && scene.game.robot.currentState == robotState.STATIONARY && scene.game.robot.helpBubble.getVisible())) && scene.game.robot.currentActionI < scene.game.tasks.robotActions.length /*&& scene.game.robot.taskPlan != null && scene.game.robot.taskPlan.length > 0*/) {
     scene.game.compass.robotArrow.setVisible(true);
     var goalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel + pointOfInterestString + "1";
     var goal = scene.game.semanticLabelsToXY[goalSemanticLabel][0];

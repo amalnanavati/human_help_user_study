@@ -2,17 +2,19 @@
 
 import os
 import json
-import pickle
 import random
 import string
 import time
+import traceback
+import datetime
+
 from flask import Flask, render_template, send_file, request, redirect
 from flask_cors import CORS
 
 numGIDs = 5
 completedGIDsFilename = "outputs/completedGIDs.json"
 
-completionCodesToUUIDFilename = "outputs/completionCodesToUUID.pkl"
+completionCodesToUUIDFilename = "outputs/completionCodesToUUID.json"
 
 app = Flask(__name__)
 CORS(app, resources={r"*": {"origins": "*"}})
@@ -20,6 +22,68 @@ CORS(app, resources={r"*": {"origins": "*"}})
 def get_random_alphaNumeric_string(stringLength=10):
     lettersAndDigits = string.ascii_letters + string.digits
     return ''.join((random.choice(lettersAndDigits) for i in range(stringLength)))
+
+class Logger(object):
+    def __init__(self, logDir="outputs/", filename="log.txt"):
+        self.f = open(logDir+filename, "a")
+        self.datetimeFormatStr = "{:%b %d, %Y %Z %H:%M:%S:%f}"
+        beginningStr = """
+********************************************************************************
+[{}] BEGIN LOGGING
+********************************************************************************
+""".format(self.datetimeFormatStr.format(datetime.datetime.now()))
+        print(beginningStr)
+        self.f.write(beginningStr)
+
+        self.timesSinceLastFlush = 0
+        self.flushEveryNTimes = 3000 # roughly once every two minutes when there is one user playing the tutorial/game
+
+    def logPrint(self, *args, printToOutput=True, **kwargs):
+        self.timesSinceLastFlush += 1
+        headerStr = "[{}] ".format(self.datetimeFormatStr.format(datetime.datetime.now()))
+        self.f.write(headerStr)
+        for argument in args:
+            self.f.write(str(argument))
+            self.f.write(", ")
+        self.f.write("\n")
+
+        if (self.timesSinceLastFlush >= self.flushEveryNTimes):
+            self.f.flush()
+            os.fsync(self.f.fileno())
+            self.timesSinceLastFlush = 0
+            print("Cleared logfile buffer")
+
+        if (printToOutput):
+            printArgs = [headerStr, *args]
+            print(*printArgs, **kwargs)
+
+    def logRaiseException(self, *args, **kwargs):
+        self.timesSinceLastFlush += 1
+        headerStr = "[{}] ".format(self.datetimeFormatStr.format(datetime.datetime.now()))
+        self.f.write(headerStr)
+        for argument in args:
+            self.f.write(str(argument))
+            self.f.write(", ")
+        self.f.write("\n")
+
+        if (self.timesSinceLastFlush >= self.flushEveryNTimes):
+            self.f.flush()
+            os.fsync(self.f.fileno())
+            self.timesSinceLastFlush = 0
+            print("Cleared logfile buffer")
+
+        printArgs = [headerStr, *args]
+        raise Exception(*printArgs, **kwargs)
+
+    def close(self):
+        endingStr = """
+********************************************************************************
+[{}] END LOGGING
+********************************************************************************
+""".format(self.datetimeFormatStr.format(datetime.datetime.now()))
+        print(endingStr)
+        self.f.write(endingStr)
+        self.f.close()
 
 class FlaskExample:
 
@@ -29,13 +93,31 @@ class FlaskExample:
         app.secret_key = 'example_secret_key_change_this_later'
 
         def _check_and_send_file(filename, dirname):
+            logger.logPrint("{}: _check_and_send_file({}, {})".format(request.remote_addr, filename, dirname), printToOutput=False)
             filename = filename.strip()
             target_filepath = os.path.join('./{}'.format(dirname), filename)
             if not os.path.exists(target_filepath):
-                print("Could not find ", target_filepath)
+                logger.logPrint("Could not find ", target_filepath)
                 return json.dumps(
-                    {'status': 'failed', 'msg': 'cannot find the file'})
+                    {'status': 'failed', 'msg': 'cannot find the file'}), 500
             return send_file(target_filepath)
+
+        def updateInProgressUUIDs():
+            # Remove UUIDs that have not been updated for maxWaitTimeBeforeDeletingUUID
+            logger.logPrint("Update in progress UUIDs")
+            uuidsToDelete = []
+            for uuidTemp in inProgressUUIDs:
+                if time.time() >= inProgressUUIDs[uuidTemp][1] + maxWaitTimeBeforeDeletingUUID:
+                    uuidsToDelete.append(uuidTemp)
+            for uuidTemp in uuidsToDelete:
+                del inProgressUUIDs[uuidTemp]
+                if uuidTemp in inProgressUUIDLogStateFiles:
+                    inProgressUUIDLogStateFiles[uuidTemp].flush()
+                    os.fsync(inProgressUUIDLogStateFiles[uuidTemp].fileno())
+                    inProgressUUIDLogStateFiles[uuidTemp].close()
+                    del inProgressUUIDLogStateFiles[uuidTemp]
+            logger.logPrint("inProgressUUIDs", inProgressUUIDs)
+            logger.logPrint("inProgressUUIDLogStateFiles", inProgressUUIDLogStateFiles)
 
         @app.route('/')
         def root():
@@ -57,18 +139,22 @@ class FlaskExample:
             for uuid in uuids:
                 if uuid == uuidToAssign:
                     uuidToAssign += 1
-            print("Got new user, assigned UUID {}".format(uuidToAssign))
+            logger.logPrint("{}: Got new user, assigned UUID {}".format(request.remote_addr, uuidToAssign))
+
+            updateInProgressUUIDs()
 
             return redirect('./consent/{}'.format(uuidToAssign))
 
         # The landing page for user with uid
         @app.route('/consent/<uuid>')
         def consent(uuid):
-            print("Showing the consent form to UUID {}".format(uuid))
+            logger.logPrint("{}: Showing the consent form to UUID {}".format(request.remote_addr, uuid))
 
             dirname = "outputs/{}".format(uuid)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
+
+            updateInProgressUUIDs()
 
             # Save the startTime
             timestamp = time.time()
@@ -83,7 +169,9 @@ class FlaskExample:
         def tutorial():
             uuid = request.form['uuid']
 
-            print("Showing the tutorial to UUID {}".format(uuid))
+            logger.logPrint("{}: Showing the tutorial to UUID {}".format(request.remote_addr, uuid))
+
+            updateInProgressUUIDs()
 
             # Save the startTime
             timestamp = time.time()
@@ -101,22 +189,17 @@ class FlaskExample:
 
             uuid = request.form['uuid']
 
+            logger.logPrint("{}: Showing the game to UUID {}".format(request.remote_addr, uuid))
+
             # Save the startTime
             timestamp = time.time()
             fname = "outputs/{}/gameTime.txt".format(uuid)
             with open(fname, "w") as f:
                 f.write(str(timestamp))
 
-            # Remove UUIDs that have not been updated for maxWaitTimeBeforeDeletingUUID
-            uuidsToDelete = []
-            for uuidTemp in inProgressUUIDs:
-                if time.time() >= inProgressUUIDs[uuidTemp][1] + maxWaitTimeBeforeDeletingUUID:
-                    uuidsToDelete.append(uuidTemp)
-            for uuidTemp in uuidsToDelete:
-                del inProgressUUIDs[uuidTemp]
+            updateInProgressUUIDs()
 
-            print("completedGameIDs", completedGameIDs)
-            print("inProgressUUIDs", inProgressUUIDs)
+            logger.logPrint("completedGameIDs", completedGameIDs)
 
             # # Assign the user a game ID
             # gidWithMinNumUsers = 4
@@ -141,8 +224,10 @@ class FlaskExample:
                             numInProgressUsers += 1
                     gidAndUsersList.append((numRealUsers+numInProgressUsers, numRealUsers, i, gid))
                 gidAndUsersList.sort()
-                print("gidAndUsersList", gidAndUsersList)
+                logger.logPrint("gidAndUsersList", gidAndUsersList)
                 gidWithMinNumUsers = gidAndUsersList[0][3]
+
+            logger.logPrint("Assigned UUID {} GID {}".format(uuid, gidWithMinNumUsers))
 
             inProgressUUIDs[uuid] = [gidWithMinNumUsers, time.time()]#, False]
             # Render the tutorial
@@ -153,6 +238,19 @@ class FlaskExample:
         def survey():
             uuid = request.form['uuid']
             gid = request.form['gid']
+
+            logger.logPrint("{}: Showing survey to UUID {} GID {}".format(request.remote_addr, uuid, gid))
+
+            updateInProgressUUIDs()
+
+            if uuid in inProgressUUIDLogStateFiles:
+                logger.logPrint("survey UUID {} closing old logStateFile {}".format(uuid, inProgressUUIDLogStateFiles[uuid]))
+                inProgressUUIDLogStateFiles[uuid].flush()
+                os.fsync(inProgressUUIDLogStateFiles[uuid].fileno())
+                inProgressUUIDLogStateFiles[uuid].close()
+                del inProgressUUIDLogStateFiles[uuid]
+            else:
+                logger.logPrint("ERROR survey UUID {} no old logStateFile exists".format(uuid))
 
             if uuid in inProgressUUIDs:
                 inProgressUUIDs[uuid] = [gid, time.time()]
@@ -173,6 +271,10 @@ class FlaskExample:
             uuid = request.form['uuid']
             gid = request.form['gid']
 
+            logger.logPrint("{}: Showing completion code to UUID {} GID {}".format(request.remote_addr, uuid, gid))
+
+            updateInProgressUUIDs()
+
             # Generate and save completion code
             completionCode = None
             while completionCode is None or completionCode in completionCodes:
@@ -181,8 +283,8 @@ class FlaskExample:
             with open(fname, "w") as f:
                 f.write(completionCode)
             completionCodes[completionCode] = uuid
-            with open(completionCodesToUUIDFilename, "wb") as f:
-                pickle.dump(completionCodes, f)
+            with open(completionCodesToUUIDFilename, "w") as f:
+                json.dump(completionCodes, f)
 
             # Update and save the completedGameIDs
             completedGameIDs[gid].append(uuid)
@@ -200,29 +302,12 @@ class FlaskExample:
 
             return render_template('completionCode.html', completionCode=completionCode)
 
-        # # Called when the demography questionairre is submitted
-        # # TODO: make this make another post request for game so game has a proper URL
-        # @app.route('/demography', methods=['POST'])
-        # def demography():
-        #     # age = request.form['age']
-        #     # gender = request.form['gender']
-        #     data = dict(request.form)
-        #
-        #     uuid = request.form['uuid']
-        #     dirname = "outputs/{}".format(uuid)
-        #     if not os.path.exists(dirname):
-        #         os.makedirs(dirname)
-        #
-        #     fname ="outputs/{}/demography.json".format(uuid)
-        #     with open(fname, "w") as f:
-        #         json.dump(data, f)
-        #         print("Wrote to ", fname)
-        #
-        #     return render_template('game.html', uuid=uuid, gid=0)
-
         # Load and replay a saved game
         @app.route('/load_game_<uuid>_<gid>')
         def load_game(uuid, gid):
+
+            logger.logPrint("{}: Loading game for UUID {} GID {}".format(request.remote_addr, uuid, gid))
+
             dataToLoad = []
             # fname ="outputs/{}/{}_data.json".format(uuid, gid)
             fname ="ec2_outputs/{}/{}_data.json".format(uuid, gid)
@@ -237,27 +322,32 @@ class FlaskExample:
                 else:
                     dataToLoad.sort(key=lambda x : int(x['dtime']))
 
-            # Remove duplicates
+            # Remove duplicates dtimes -- removed because multiple logs *can* happen in the same ms
             # i = 1
             # while i < len(dataToLoad):
             #     if dataToLoad[i]['dtime'] == dataToLoad[i-1]['dtime']:
             #         dataToLoad.pop(i-1)
             #     else:
             #         i += 1
+
             return render_template('game.html', uuid=uuid, gid=gid, load="true", dataToLoad=dataToLoad)
 
         # Called to log the game state
         @app.route('/log_game_state', methods=['POST'])
         def log_game_state():
+            logger.logPrint("{}: log_game_state".format(request.remote_addr))
             return log_state(request, tutorial=False)
 
         @app.route('/log_tutorial_state', methods=['POST'])
         def log_tutorial_state():
+            logger.logPrint("{}: log_tutorial_state".format(request.remote_addr))
             return log_state(request, tutorial=True)
 
         def log_state(request, tutorial):
             uuid = request.json['uuid']
             gid = request.json['gid']
+
+            logger.logPrint("Log state for UUID {} GID {} gameStateID {} dtime {} tutorial {}".format(uuid, gid, request.json['gameStateID'], request.json['dtime'], tutorial))
 
             if (not tutorial):
                 # Either the user is in COMPLETED_TASKS or the eventType is SHIFT_GAME_KILL
@@ -269,50 +359,81 @@ class FlaskExample:
                 fname ="outputs/{}/{}_tutorial_data.json".format(uuid, gid)
             else:
                 fname ="outputs/{}/{}_data.json".format(uuid, gid)
-            with open(fname, "a") as f:
+            try:
                 dataJSON = json.dumps(request.json, separators=(',', ':'))
-                f.write(dataJSON+"\n")
-                print("Wrote to ", fname)
 
-            return json.dumps(
-                {'status': 'success', 'msg': 'saved'})
+                if uuid not in inProgressUUIDLogStateFiles:
+                    logger.logPrint("log_state reopen logFile for UUID {} GID {} gameStateID {} tutorial {}".format(uuid, gid, request.json['gameStateID'], tutorial))
+                    inProgressUUIDLogStateFiles[uuid] = open(fname, "a")
+
+                inProgressUUIDLogStateFiles[uuid].write(dataJSON+"\n")
+                logger.logPrint("Wrote log for UUID {} GID {} gameStateID {} to {}".format(uuid, gid, request.json['gameStateID'], fname))
+                return json.dumps({'status': 'success', 'msg': 'saved'})
+            except Exception as err:
+                logger.logPrint("log_state failure for UUID {} GID {} gameStateID {}: {}\n{}".format(uuid, gid, request.json['gameStateID'], err, traceback.format_exc()))
+                return json.dumps({'status': 'failed', 'msg': 'error writing'}), 500
 
         # Called to log the game config
         @app.route('/log_game_config', methods=['POST'])
         def log_game_config():
+            logger.logPrint("{}: log_game_config".format(request.remote_addr))
             return log_config(request, tutorial=False)
 
         @app.route('/log_tutorial_config', methods=['POST'])
         def log_tutorial_config():
+            logger.logPrint("{}: log_tutorial_config".format(request.remote_addr))
             return log_config(request, tutorial=True)
 
         def log_config(request, tutorial):
             uuid = request.json['uuid']
             gid = request.json['gid']
 
+            logger.logPrint("Log config for UUID {} GID {} tutorial {}".format(uuid, gid, tutorial))
+
             dirname = "outputs/{}".format(uuid)
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
+
+            gotError = False
 
             if tutorial:
                 fname = "outputs/{}/{}_tutorial_config.json".format(uuid, gid)
             else:
                 fname = "outputs/{}/{}_config.json".format(uuid, gid)
-            with open(fname, "w") as f:
-                dataJSON = json.dumps(request.json, separators=(',', ':'))
-                f.write(dataJSON+"\n")
-                print("Wrote to ", fname)
+            try:
+                with open(fname, "w") as f:
+                    dataJSON = json.dumps(request.json, separators=(',', ':'))
+                    f.write(dataJSON+"\n")
+                    logger.logPrint("Wrote log_config for UUID {} GID {} to {}".format(uuid, gid, fname))
+            except Exception as err:
+                logger.logPrint("log_config failure for UUID {} GID {}: {}\n{}".format(uuid, gid, err, traceback.format_exc()))
+                traceback.print_exc()
+                gotError = True
 
             if tutorial:
                 fname ="outputs/{}/{}_tutorial_data.json".format(uuid, gid)
             else:
                 fname ="outputs/{}/{}_data.json".format(uuid, gid)
-            with open(fname, "w") as f:
-                f.write("")
-                print("Wrote to ", fname)
+            try:
+                if uuid in inProgressUUIDLogStateFiles:
+                    logger.logPrint("log_config closing old logStateFile {}".format(inProgressUUIDLogStateFiles[uuid]))
+                    inProgressUUIDLogStateFiles[uuid].flush()
+                    os.fsync(inProgressUUIDLogStateFiles[uuid].fileno())
+                    inProgressUUIDLogStateFiles[uuid].close()
+                    del inProgressUUIDLogStateFiles[uuid]
 
-            return json.dumps(
-                {'status': 'success', 'msg': 'saved'})
+                inProgressUUIDLogStateFiles[uuid] = open(fname, "w")
+                inProgressUUIDLogStateFiles[uuid].write("")
+
+                logger.logPrint("Wrote initial log_state for UUID {} GID {} to {}".format(uuid, gid, fname))
+            except Exception as err:
+                logger.logPrint("log_config failure to create state for UUID {} GID {}: {}\n{}".format(uuid, gid, err, traceback.format_exc()))
+                gotError = True
+
+            if gotError:
+                return json.dumps({'status': 'failed', 'msg': 'error writing'}), 500
+            else:
+                return json.dumps({'status': 'success', 'msg': 'saved'})
 
         # Called when the tutorial is completed
         @app.route('/get_room_connection_graph')
@@ -325,19 +446,20 @@ class FlaskExample:
             with open(fname, "w") as f:
                 dataJSON = json.dumps(request.json)#, separators=(',', ':'))
                 f.write(dataJSON+"\n")
-                print("Wrote to ", fname)
+                logger.logPrint("Wrote room connection graph to {}".format(fname))
 
-            return json.dumps(
-                {'status': 'success', 'msg': 'saved'})
+            return json.dumps({'status': 'success', 'msg': 'saved'})
 
         # Called to access files in the assets folder
         @app.route('/assets/<source>', methods=['GET'])
         def get_file(source):
+            logger.logPrint("{}: _check_and_send_file({})".format(request.remote_addr, source), printToOutput=False)
             return _check_and_send_file(source, "assets")
 
         # Called to access files in the assets folder
         @app.route('/assets/tasks/<source>', methods=['GET'])
         def get_task_file(source):
+            logger.logPrint("{}: get_task_file({})".format(request.remote_addr, source), printToOutput=False)
             return _check_and_send_file(source, "assets/tasks")
 
         app.debug = False
@@ -347,24 +469,34 @@ class FlaskExample:
 if __name__ == '__main__':
     minUUID = 100
 
+    logger = Logger()
+
     if os.path.isfile(completedGIDsFilename):
         with open(completedGIDsFilename, "r") as f:
             completedGameIDs = json.load(f)
     else:
         completedGameIDs = {str(gid) : [] for gid in range(numGIDs)}
-    print("completedGameIDs", completedGameIDs)
+    logger.logPrint("completedGameIDs", completedGameIDs)
 
     if os.path.isfile(completionCodesToUUIDFilename):
-        with open(completionCodesToUUIDFilename, "rb") as f:
-            completionCodes = pickle.load(f)
+        with open(completionCodesToUUIDFilename, "r") as f:
+            completionCodes = json.load(f)
     else:
         completionCodes = {}
-    print("completionCodes", completionCodes)
+    logger.logPrint("completionCodes", completionCodes)
 
     inProgressUUIDs = {} # uuid -> [GID, lastTimestepGotGameState, isFinished]
     # maxBreaktime = 90 # Max time to wait for a game state log before reassigning the GID
-    maxWaitTimeBeforeDeletingUUID = 45*60 # if no new log states are received within this much time, delete this uuid from inProgressUUIDs
+    maxWaitTimeBeforeDeletingUUID = 20*60 # if no new log states are received within this much time, delete this uuid from inProgressUUIDs
+    inProgressUUIDLogStateFiles = {}
 
     server = FlaskExample()
 
     server.run()
+
+    for uuid in inProgressUUIDLogStateFiles:
+        inProgressUUIDLogStateFiles[uuid].flush()
+        os.fsync(inProgressUUIDLogStateFiles[uuid].fileno())
+        inProgressUUIDLogStateFiles[uuid].close()
+
+    logger.close()

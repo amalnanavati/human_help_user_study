@@ -1,3 +1,5 @@
+// const playbackSpeed = 2.0;
+
 const eventType = {
   MOVEMENT : 0,
   CLICK : 1,
@@ -22,7 +24,7 @@ const logTutorialStateEndpoint = "log_tutorial_state";
 var logDataErrorTimeLimit = 60; // seconds
 var logDataErrorNum = 20;
 var logDataRecentErrors = [];
-var errorsBeforeRepeatNotifications = 10;
+var errorsBeforeRepeatNotifications = 20;
 var errorsSinceLastNotification = 0;
 
 var gameStateID = 0;
@@ -117,9 +119,9 @@ function logData(endpoint, data) {
         if (logDataRecentErrors.length > logDataErrorNum) {
           if (errorsSinceLastNotification % errorsBeforeRepeatNotifications == 0) {
             if (errorsSinceLastNotification < errorsBeforeRepeatNotifications) {
-              alert("WARNING: Your internet is unable to properly log game data. If this problem persists, you will be asked to stop the Amazon Mechanical Turk task.");
+              alert("WARNING: Your internet is unable to properly log game data. If this problem persists, you will be asked to stop the Amazon Mechanical Turk HIT.");
             } else {
-              alert("ERROR: Please stop the Amazon Mechanical Turk task. Data is not getting logged properly, and you will not be compensated.");
+              alert("ERROR: Please STOP the Amazon Mechanical Turk HIT. Data is not getting logged properly, and you will not be approved for the HIT.");
             }
           }
           errorsSinceLastNotification += 1;
@@ -138,7 +140,7 @@ function loadUpdate(scene) {
         console.log("numTimesInWhileLoop", numTimesInWhileLoop);
       }
       var currentTime = Date.now();
-      var dtime = currentTime - scene.game.start_time;
+      var dtime = (currentTime - scene.game.start_time);
 
       console.log("dtime", dtime, "dataToLoad[0].dtime", dataToLoad[0].dtime);
 

@@ -222,7 +222,7 @@
 10,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2684354561,1,1,1,2684354561,1,1,1,1,1,1,1,1,1,1,1,1,1,1,9
 </data>
  </layer>
- <objectgroup id="3" name="Objects" visible="0">
+ <objectgroup id="3" name="Objects">
   <object id="1" name="Lounge" x="661.323" y="28.0561" width="913.828" height="521.042"/>
   <object id="2" name="Restroom A" x="673.347" y="805.611" width="444.89" height="248.497"/>
   <object id="3" name="Restroom B" x="1122.24" y="809.619" width="448.898" height="248.497"/>
