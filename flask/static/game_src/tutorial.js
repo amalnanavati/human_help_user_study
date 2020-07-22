@@ -3,7 +3,7 @@ const tutorialText = {
   2 : "These are the room labels in this environment. Navigate to Room 43.",
   3 : "Great! Now, navigate to Room 5.",
   4 : "Your job is to maintain the computers. Move to the highlighted computer's keyboard and hold down the Space bar.",
-  5 : "This is your compass. Use your compass to navigate to Room 22 and clear computer viruses.",
+  5 : "This is your compass. It tells you the direction and distance to your goal. Use your compass to navigate to Room 22 and clear computer viruses.",
   6 : "The header shows you game information. Go to Room 4 before the time runs out!",
   7 : "For every repaired computer, you get +10 points. For every second late you arrive, you get -1 point. Go to Room 30.",
   8 : "Sometimes, you will get break time. Go to the Game Room and take a break. Meanwhile, keep your eyes open for the office robot.",
