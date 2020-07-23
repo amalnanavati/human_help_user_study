@@ -69,7 +69,7 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
 
     """
     index = 0
-    average = 0
+    sum = 0
     small = 9223372036854775807
     size = 0
     for val in paramValues:
@@ -79,12 +79,12 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
             y = ys[index]
             sqredError = (y-yPred)**2
             index = index + 1
-            average = average + sqredError
+            sum = sum + sqredError
             size = len(xs)
-        if average/size < small:
-            small = average/size
+        if sum/size < small:
+            small = sum/size
         index = 0
-        average = 0
+        sum = 0
 
     print(small)
     return small
