@@ -1,5 +1,6 @@
 import random
 import matplotlib.pyplot as plt
+import numpy as np
 
 def oneDLinearParametrizedFunction(params):
     """
@@ -130,7 +131,9 @@ if __name__ == "__main__":
     #
     ############################################################################
 
-    ############################################################################
+    plt.scatter(xs, ys)
+    plt.show()
+############################################################################
     # STEP 3
     # Once the above two steps work, message Amal, before starting on step 3.
     #
