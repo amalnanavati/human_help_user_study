@@ -13,6 +13,9 @@ def oneDLinearParametrizedFunction(params):
         """
         m = params[0]
         b = params[1]
+        print(m)
+        print(x[0])
+        print(x)
         output = m*x[0] + b
         return output
     return oneDLinearFunction
@@ -65,7 +68,28 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
         paramValues: an arbitrary-length list of length-k lists, where each
             length-k list corresponds to one parameter setting to be inputted into
             parameterizedFuncion
+
     """
+    index = 0
+    average = 0
+    small = 0
+    size = 0
+    for val in paramValues:
+        for x in xs:
+            func = parameterizedFuncion(paramValues)
+            yPred = func(x) #where error is
+            print(yPred)
+            y = ys[index]
+            sqredError = (y-yPred)**2
+            index = index + 1
+            average = average + sqredError
+            size = len(xs)
+        index = 0
+        if average/size < small:
+            small = average/size
+
+    #print(small)
+    return small
 
     bestParams = None
     ############################################################################
