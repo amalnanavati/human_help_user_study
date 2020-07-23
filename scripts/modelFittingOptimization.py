@@ -14,9 +14,6 @@ def oneDLinearParametrizedFunction(params):
         """
         m = params[0]
         b = params[1]
-        #print(m)
-        #print(x[0])
-        #print(x)
         output = m*x[0] + b
         return output
     return oneDLinearFunction
@@ -131,7 +128,11 @@ if __name__ == "__main__":
     #
     ############################################################################
 
+    yPredVals = []
     plt.scatter(xs, ys)
+    for x in xs:
+        yPredVals.append(10*x[0] + (-3)) #what should I put in for m and b
+    plt.plot(xs, yPredVals)
     plt.show()
 ############################################################################
     # STEP 3
