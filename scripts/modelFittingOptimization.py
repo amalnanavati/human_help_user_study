@@ -49,7 +49,7 @@ def quadraticParameterizedFunction(params):
         a = params[0]
         b = params[1]
         c = params[2]
-        output = a*x**2 + b*x + c
+        output = a*x[0]**2 + b*x[0] + c
         return output
     return quadraticFunction
 
@@ -70,10 +70,11 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
     """
     index = 0
     sum = 0
-    small = 9223372036854775807
+    minSumSqredError = None
     size = 0
-    for val in paramValues:
-        func = parameterizedFuncion(val)
+    bestParams = None
+    for params in paramValues:
+        func = parameterizedFuncion(params)
         for x in xs:
             yPred = func(x)
             y = ys[index]
@@ -81,15 +82,16 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
             index = index + 1
             sum = sum + sqredError
             size = len(xs)
-        if sum/size < small:
-            small = sum/size
+        if minSumSqredError is None or sum/size < minSumSqredError:
+            minSumSqredError = sum/size
+            bestParams = params
+
         index = 0
         sum = 0
 
-    print(small)
-    return small
+    print(bestParams, type(bestParams))
+    return bestParams
 
-    bestParams = None
     ############################################################################
     # STEP 1
     # Loop over paramValues
@@ -109,15 +111,26 @@ if __name__ == "__main__":
     # Generate a fake dataset. This is a liner dataset, where the line with best
     # fit should be something like y=10x-3
     xs = [[x/100] for x in range(0, 100)]
-    ys = [10*x[0]-3+random.random() for x in xs]
+    ys = [10*x[0]-3+(random.random()-0.5)*10 for x in xs]
 
     # Generate the parameter range
-    paramValues = []
-    for m in range(-100, 100, 1):
-        for b in range(-100, 100, 1):
-            paramValues.append([m, b])
+    # parameterizedFunc = oneDLinearParametrizedFunction
+    #
+    # paramValues = []
+    # for m in range(-100, 100, 1):
+    #     for b in range(-100, 100, 1):
+    #         paramValues.append([m, b])
 
-    bestParams = performOptimization(xs, ys, oneDLinearParametrizedFunction, paramValues)
+
+    parameterizedFunc = quadraticParameterizedFunction
+
+    paramValues = []
+    for a in range(-50, 50, 2):
+        for b in range(-50, 50, 2):
+            for c in range(-50, 50, 2):
+                paramValues.append([a, b, c])
+
+    bestParams = performOptimization(xs, ys, parameterizedFunc, paramValues)
 
     ############################################################################
     # STEP 2
@@ -130,8 +143,9 @@ if __name__ == "__main__":
 
     yPredVals = []
     plt.scatter(xs, ys)
+    func = parameterizedFunc(bestParams)
     for x in xs:
-        yPredVals.append(10*x[0] + (-3)) #what should I put in for m and b
+        yPredVals.append(func(x))
     plt.plot(xs, yPredVals)
     plt.show()
 ############################################################################
