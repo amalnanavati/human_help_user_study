@@ -268,6 +268,8 @@ var helpRequestButtonCallbacks = {
         if (scene.game.robot.plan != null && scene.game.robot.plan.length > 0) {
           scene.game.robot.currentTile = scene.game.robot.plan[0];
         }
+        scene.game.robot.movementTimer.destroy();
+        scene.game.robot.movementTimer = null;
       }
       scene.game.robot.plan = generatePlan(scene.game.robot.currentTile, [scene.game.robot.goalTile], scene.game.robot.goalTile, isValidTile);
       scene.game.robot.currentState = robotState.GO_TOWARDS_GOAL; // TODO (amal): might the user expect the robot to go into the target room, instead of just walking away?
@@ -390,6 +392,10 @@ function initiateRobotActionIfApplicable(scene) {
 
               var robotSpawnTile = getOffScreenTileInDirectionOfHumanMotion(scene);
               console.log("robotSpawnTile", robotSpawnTile);
+              if (scene.game.robot.movementTimer) {
+                scene.game.robot.movementTimer.destroy();
+                scene.game.robot.movementTimer = null;
+              }
               scene.game.robot.currentState = robotState.STATIONARY;
 
               // Spawn the robot there
@@ -438,6 +444,7 @@ function renderRobotMovementAnimation(scene) {
       scene.game.robot.currentTile = scene.game.robot.plan[0];
     }
     scene.game.robot.plan.splice(0,1);
+    scene.game.robot.movementTimer.destroy();
     scene.game.robot.movementTimer = null;
     if (!load) {
       // Log the game state
