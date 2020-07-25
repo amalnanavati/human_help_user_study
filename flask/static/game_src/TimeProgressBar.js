@@ -1,14 +1,16 @@
 class TimeProgressBar {
-  constructor(scene, x, y, width, height, warningCallback) {
+  constructor(scene, x, y, width, height, warningCallback, color) {
     this.scene = scene;
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
-    this.createTimeProgressBar();
+    this.color = color;
     this.warningCallback = warningCallback;
     this.progress = null;
     this.timeLastDestroyedAtProgress = null;
+    this.baseDepth = 7;
+    this.createTimeProgressBar();
   }
 
   setText(text) {
@@ -59,7 +61,7 @@ class TimeProgressBar {
     return this.coloredBarTimer != null;
   }
 
-  drawBar(progress, delay) {
+  drawBar(progress, delay, remainingTimeText) {
     this.progress = progress;
 
     if (this.coloredBar != null) {
@@ -73,35 +75,43 @@ class TimeProgressBar {
     this.coloredBar = this.scene.add.graphics({ x : this.x, y : this.y});
     this.coloredBar.setVisible(this.isColoredBarVisible);
 
-    if (progress <= 0.5) {
-      this.coloredBar.fillStyle(0x008000, 1);
-    } else if (progress <= 0.80) {
-      this.coloredBar.fillStyle(0xff7518, 1);
-    } else {
-      this.coloredBar.fillStyle(0xff0000, 1);
-      if (progress > 0.80 && this.timeLastDestroyedAtProgress == null) {
-        // the colored bar should flash in and out
-        if (this.coloredBarTimer == null) {
-          this.isColoredBarVisible = true;
-          var self = this;
-          this.coloredBarTimer = this.scene.time.addEvent({
-            delay: 500, // 0.5 sec
-            loop: true,
-            callback: function() {
-              self.isColoredBarVisible = !self.isColoredBarVisible;
-              self.coloredBar.setVisible(self.isColoredBarVisible);
-              self.warningCallback(self.scene, self.isColoredBarVisible);
-              // console.log("callback", self.isColoredBarVisible);
-              // self.text.setVisible(self.isColoredBarVisible);
-              // self.remainingTimeText.setVisible(self.isColoredBarVisible);
-            },
-          });
+    if (this.color == null) {
+      if (progress <= 0.5) {
+        this.coloredBar.fillStyle(0x008000, 1);
+      } else if (progress <= 0.80) {
+        this.coloredBar.fillStyle(0xff7518, 1);
+      } else {
+        this.coloredBar.fillStyle(0xff0000, 1);
+        if (progress > 0.80 && this.timeLastDestroyedAtProgress == null) {
+          // the colored bar should flash in and out
+          if (this.coloredBarTimer == null) {
+            this.isColoredBarVisible = true;
+            var self = this;
+            this.coloredBarTimer = this.scene.time.addEvent({
+              delay: 500, // 0.5 sec
+              loop: true,
+              callback: function() {
+                self.isColoredBarVisible = !self.isColoredBarVisible;
+                self.coloredBar.setVisible(self.isColoredBarVisible);
+                self.warningCallback(self.scene, self.isColoredBarVisible);
+                // console.log("callback", self.isColoredBarVisible);
+                // self.text.setVisible(self.isColoredBarVisible);
+                // self.remainingTimeText.setVisible(self.isColoredBarVisible);
+              },
+            });
+          }
         }
       }
+    } else {
+      this.coloredBar.fillStyle(this.color, 1);
     }
 
     var remainingSecs = Math.round((delay - progress*delay)/1000);
-    this.remainingTimeText.text = remainingSecs.toString();
+    if (remainingTimeText == null) {
+      this.remainingTimeText.text = remainingSecs.toString();
+    } else {
+      this.remainingTimeText.text = remainingTimeText;
+    }
 
     // if (progress != 1.0) {
     var roundedRectVal = this.getRoundedRectVal();
@@ -116,7 +126,7 @@ class TimeProgressBar {
       this.remainingTimeText.x = this.text.x + this.text.width;
     }
     // }
-    this.coloredBar.setScrollFactor(0.0, 0.0).setDepth(7);
+    this.coloredBar.setScrollFactor(0.0, 0.0).setDepth(this.baseDepth);
 
   }
 
@@ -155,19 +165,28 @@ class TimeProgressBar {
     return 0;//this.height/2;
   }
 
+  setDepth(baseDepth) {
+    this.baseDepth = baseDepth;
+    this.timeProgressBar.setDepth(baseDepth);
+    if (this.coloredBar) this.coloredBar.setDepth(baseDepth);
+    this.text.setDepth(baseDepth+1);
+    this.remainingTimeText.setDepth(baseDepth+1);
+    this.timeProgressBarStroke.setDepth(baseDepth+2);
+  }
+
   createTimeProgressBar() {
     this.originalWidth = this.width;
 
     var roundedRectVal = this.getRoundedRectVal();
 
     this.timeProgressBar = this.scene.add.graphics({ x : this.x, y : this.y});
-    this.timeProgressBar.setDepth(7);
+    this.timeProgressBar.setDepth(this.baseDepth);
     this.timeProgressBar.fillStyle(0x000000, 1);
     this.timeProgressBar.fillRoundedRect(0, 0, this.width, this.height, roundedRectVal);
     this.timeProgressBar.setScrollFactor(0.0, 0.0);
 
     this.timeProgressBarStroke = this.scene.add.graphics({ x : this.x, y : this.y});
-    this.timeProgressBarStroke.setDepth(9);
+    this.timeProgressBarStroke.setDepth(this.baseDepth+2);
     this.timeProgressBarStroke.lineStyle(2, 0xffffff, 1);
     this.timeProgressBarStroke.strokeRoundedRect(0, 0, this.width, this.height, roundedRectVal);
     this.timeProgressBarStroke.setScrollFactor(0.0, 0.0);
@@ -187,7 +206,7 @@ class TimeProgressBar {
         fill: '#ffffff',
         padding: {x : 5, y : 0},
       },
-    ).setOrigin(0.0, 0.5).setScrollFactor(0.0, 0.0).setDepth(8);
+    ).setOrigin(0.0, 0.5).setScrollFactor(0.0, 0.0).setDepth(this.baseDepth+1);
 
     this.remainingTimeText = this.scene.add.text(
       offset,
@@ -197,6 +216,6 @@ class TimeProgressBar {
         font: fontSize.toString()+"px monospace",
         fill: '#ffffff',
       },
-    ).setOrigin(1.0, 0.5).setScrollFactor(0.0, 0.0).setDepth(8);
+    ).setOrigin(1.0, 0.5).setScrollFactor(0.0, 0.0).setDepth(this.baseDepth+1);
   }
 }

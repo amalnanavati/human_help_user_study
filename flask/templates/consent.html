@@ -10,6 +10,8 @@
     <link rel="stylesheet" href = "{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 
+    <script src="https://cdn.jsdelivr.net/npm/bowser@latest/es5.js"></script>
+
     <style>
     p {
       padding-left: 20px;
@@ -33,46 +35,64 @@
   </head>
 
   <body>
+    <script>
+      const browser = bowser.getParser(window.navigator.userAgent);
+      console.log(browser, typeof browser, typeof browser.name, typeof browser.version);
 
-    <h1><center>UNIVERSITY OF WASHINGTON<br>CONSENT FORM</center></h1><br>
-<h2><center>“ONLINE SURVEY INTERACTIONS WITH A ROBOT”</center></h2><br>
+      if (browser.getPlatform().type == "mobile") {
+        document.body.innerHTML =  "<h1>ERROR</h1> <p>This task does not work on a mobile device. Please try again from a computer.</p>"
+      } else if (browser.satisfies({
+        chrome: ">=72", // released Jan 2019
+        firefox: ">=68", // released July 2019
+        edge: ">=44", // released Nov 2018
+        safari: ">=13", // released 2017
+        opera: ">=58", // released Jan 2019
+      })) {
+        document.body.innerHTML = `<h1><center>UNIVERSITY OF WASHINGTON<br>CONSENT FORM</center></h1><br>
+        <h2><center>“ONLINE SURVEY INTERACTIONS WITH A ROBOT”</center></h2><br>
 
-<br>
+        <br>
 
-<h4>RESEARCHER'S STATEMENT</h4>
-<p>We are asking you to be in a research study. The purpose of this consent form is to give you the information you will need to help you decide whether to be in the study or not. Please read the form carefully. You may ask questions about the purpose of the research, what we would ask you to do, the possible risks and benefits, your rights as a volunteer, and anything else about the research or this form that is not clear. When we have answered all your questions, you can decide if you want to be in the study or not. This process is called “informed consent.”</p>
+        <h4>RESEARCHER'S STATEMENT</h4>
+        <p>We are asking you to be in a research study. The purpose of this consent form is to give you the information you will need to help you decide whether to be in the study or not. Please read the form carefully. You may ask questions about the purpose of the research, what we would ask you to do, the possible risks and benefits, your rights as a volunteer, and anything else about the research or this form that is not clear. When we have answered all your questions, you can decide if you want to be in the study or not. This process is called “informed consent.”</p>
 
-<br>
-<h4>PURPOSE OF THE STUDY</h4>
-<p>This project aims to better understand how people interact with robots in an office environment.</p>
+        <br>
+        <h4>PURPOSE OF THE STUDY</h4>
+        <p>This project aims to better understand how people interact with robots in an office environment.</p>
 
-<h4>STUDY PROCEDURES</h4>
-<p>In this study, you will be asked to play a game where you control an office worker performing routine office tasks (e.g., maintaining computers, making coffee, etc.). A robot is also performing office tasks in the building (e.g., mail delivery), and may periodically interact with you. At the end of the game, you will be asked to answer questions about your experience. The study will take 30-60 minutes total.</p>
+        <h4>STUDY PROCEDURES</h4>
+        <p>In this study, you will be asked to play a game where you control an office worker performing routine office tasks (e.g., maintaining computers, making coffee, etc.). A robot is also performing office tasks in the building (e.g., mail delivery), and may periodically interact with you. At the end of the game, you will be asked to answer questions about your experience. The study will take 30-60 minutes total.</p>
 
-<h4>RISKS, STRESS, OR DISCOMFORT</h4>
-<p>This study does not present any risks that are greater than those of daily activities that involve using a personal computer or laptop.</p>
-<h4>BENEFITS OF THE STUDY</h4>
-<p>This research will inform the design of intelligent robots. You will not individually benefit from participation in the study.</p>
-<h4>SOURCE OF FUNDING</h4>
-<p>The study team and/or the University of Washington is receiving financial support from Honda Research Institute.</p>
+        <h4>RISKS, STRESS, OR DISCOMFORT</h4>
+        <p>This study does not present any risks that are greater than those of daily activities that involve using a personal computer or laptop.</p>
+        <h4>BENEFITS OF THE STUDY</h4>
+        <p>This research will inform the design of intelligent robots. You will not individually benefit from participation in the study.</p>
+        <h4>SOURCE OF FUNDING</h4>
+        <p>The study team and/or the University of Washington is receiving financial support from Honda Research Institute.</p>
 
-<h4>OTHER INFORMATION</h4>
-<p>You may refuse to participate and you are free to withdraw from this study at any time without penalty or loss of benefits to which you are otherwise entitled.</p>
+        <h4>OTHER INFORMATION</h4>
+        <p>You may refuse to participate and you are free to withdraw from this study at any time without penalty or loss of benefits to which you are otherwise entitled.</p>
 
-<h4>CONFIDENTIALITY OF RESEARCH INFORMATION</h4>
-<p>All of the information you provide will be confidential. There will be no association between your name and the answers you provide. The data will be analyzed by our research team to understand how people interact with a robot in an office building. Sample logs from your gameplay may be used in scientific articles or talks.</p>
+        <h4>CONFIDENTIALITY OF RESEARCH INFORMATION</h4>
+        <p>All of the information you provide will be confidential. There will be no association between your name and the answers you provide. The data will be analyzed by our research team to understand how people interact with a robot in an office building. Sample logs from your gameplay may be used in scientific articles or talks.</p>
 
-<center>
-<form action="../tutorial" method="post">
-  <!-- <input type="radio" name="agree" value="agree" /> Agree
-  &nbsp;
-  <input type="radio" name="agree" value="disagree" /> Disagree
-  <br><br> -->
-  <input type="hidden" id="uuid" name="uuid" value="{{uuid}}">
+        <center>
+        <form action="../tutorial" method="post">
+          <!-- <input type="radio" name="agree" value="agree" /> Agree
+          &nbsp;
+          <input type="radio" name="agree" value="disagree" /> Disagree
+          <br><br> -->
+          <input type="hidden" id="uuid" name="uuid" value="{{uuid}}">
 
-  <input type="submit" value="Continue to Tutorial">
+          <input type="submit" value="Continue to Tutorial">
 
-</form>
-<br><br><br><br>
+        </form>
+        <br><br><br><br>`;
+      } else {
+        document.body.innerHTML =  "<h1>ERROR</h1> <p>This task is incompatible with your browser. It requires at least the following browser version: <ol><li>Google Chrome 72</li><li>Firefox 68</li><li>Edge 44</li><li>Safari 13</li><li>Opera 58</li></ol> If you would like to complete this task, please upgrade to a newer browser.</p>"
+      }
+    </script>
+
+
 </body>
 </html>

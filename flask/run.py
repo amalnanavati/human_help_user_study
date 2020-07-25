@@ -179,6 +179,25 @@ class FlaskExample:
             with open(fname, "w") as f:
                 f.write(str(timestamp))
 
+            gid = 0
+
+            fname ="outputs/{}/{}_tutorial_data.json".format(uuid, gid)
+            try:
+                if uuid in inProgressUUIDLogStateFiles:
+                    logger.logPrint("tutorial closing old logStateFile {}".format(inProgressUUIDLogStateFiles[uuid]))
+                    inProgressUUIDLogStateFiles[uuid].flush()
+                    os.fsync(inProgressUUIDLogStateFiles[uuid].fileno())
+                    inProgressUUIDLogStateFiles[uuid].close()
+                    del inProgressUUIDLogStateFiles[uuid]
+
+                inProgressUUIDLogStateFiles[uuid] = open(fname, "w")
+                inProgressUUIDLogStateFiles[uuid].write("")
+
+                logger.logPrint("Wrote initial log_state for UUID {} GID {} to {}".format(uuid, gid, fname))
+            except Exception as err:
+                logger.logPrint("tutorial failure to create state file for UUID {} GID {}: {}\n{}".format(uuid, gid, err, traceback.format_exc()))
+                gotError = True
+
             # Render the tutorial
             return render_template('game.html', uuid=uuid, gid=0, tutorial="true")
 
@@ -228,6 +247,22 @@ class FlaskExample:
                 gidWithMinNumUsers = gidAndUsersList[0][3]
 
             logger.logPrint("Assigned UUID {} GID {}".format(uuid, gidWithMinNumUsers))
+
+            fname ="outputs/{}/{}_data.json".format(uuid, gid)
+            try:
+                if uuid in inProgressUUIDLogStateFiles:
+                    logger.logPrint("game closing old logStateFile {}".format(inProgressUUIDLogStateFiles[uuid]))
+                    inProgressUUIDLogStateFiles[uuid].flush()
+                    os.fsync(inProgressUUIDLogStateFiles[uuid].fileno())
+                    inProgressUUIDLogStateFiles[uuid].close()
+                    del inProgressUUIDLogStateFiles[uuid]
+
+                inProgressUUIDLogStateFiles[uuid] = open(fname, "w")
+                inProgressUUIDLogStateFiles[uuid].write("")
+
+                logger.logPrint("Wrote initial log_state for UUID {} GID {} to {}".format(uuid, gid, fname))
+            except Exception as err:
+                logger.logPrint("game failure to create state file for UUID {} GID {}: {}\n{}".format(uuid, gid, err, traceback.format_exc()))
 
             inProgressUUIDs[uuid] = [gidWithMinNumUsers, time.time()]#, False]
             # Render the tutorial
@@ -303,10 +338,12 @@ class FlaskExample:
             return render_template('completionCode.html', completionCode=completionCode)
 
         # Load and replay a saved game
-        @app.route('/load_game_<uuid>_<gid>')
-        def load_game(uuid, gid):
+        @app.route('/load_game_<uuid>_<gid>_<starting_dtime>')
+        def load_game(uuid, gid, starting_dtime):
 
-            logger.logPrint("{}: Loading game for UUID {} GID {}".format(request.remote_addr, uuid, gid))
+            logger.logPrint("{}: Loading game for UUID {} GID {} starting_dtime {}".format(request.remote_addr, uuid, gid, starting_dtime))
+
+            starting_dtime = int(starting_dtime)
 
             dataToLoad = []
             # fname ="outputs/{}/{}_data.json".format(uuid, gid)
@@ -330,7 +367,7 @@ class FlaskExample:
             #     else:
             #         i += 1
 
-            return render_template('game.html', uuid=uuid, gid=gid, load="true", dataToLoad=dataToLoad)
+            return render_template('game.html', uuid=uuid, gid=gid, load="true", dataToLoad=dataToLoad, starting_dtime=starting_dtime)
 
         # Called to log the game state
         @app.route('/log_game_state', methods=['POST'])
@@ -344,34 +381,65 @@ class FlaskExample:
             return log_state(request, tutorial=True)
 
         def log_state(request, tutorial):
-            uuid = request.json['uuid']
-            gid = request.json['gid']
+            successGameStateIDs = []
+            failedGameStateIDs = []
+            largestGameStateID = None
+            numReceivedLogs = len(request.json);
+            logger.logPrint("Received game state log of batch size {}".format(len(request.json)))
+            for data in request.json:
+                uuid = data['uuid']
+                gid = data['gid']
 
-            logger.logPrint("Log state for UUID {} GID {} gameStateID {} dtime {} tutorial {}".format(uuid, gid, request.json['gameStateID'], request.json['dtime'], tutorial))
+                logger.logPrint("Log state for UUID {} GID {} gameStateID {} dtime {} eventType {} tutorial {}".format(uuid, gid, data['gameStateID'], data['dtime'], data['eventType'], tutorial))
 
-            if (not tutorial):
-                # Either the user is in COMPLETED_TASKS or the eventType is SHIFT_GAME_KILL
-                # isGameComplete = (request.json["player"]["currentState"] == "2" or
-                #                   request.json["eventType"] == "11")
-                inProgressUUIDs[uuid] = [gid, time.time()]#, isGameComplete]
+                if largestGameStateID is None or int(data['gameStateID']) > largestGameStateID:
+                    largestGameStateID = int(data['gameStateID'])
 
-            if tutorial:
-                fname ="outputs/{}/{}_tutorial_data.json".format(uuid, gid)
+                if (not tutorial):
+                    # Either the user is in COMPLETED_TASKS or the eventType is SHIFT_GAME_KILL
+                    # isGameComplete = (request.json["player"]["currentState"] == "2" or
+                    #                   request.json["eventType"] == "11")
+                    inProgressUUIDs[uuid] = [gid, time.time()]#, isGameComplete]
+
+                if tutorial:
+                    fname ="outputs/{}/{}_tutorial_data.json".format(uuid, gid)
+                else:
+                    fname ="outputs/{}/{}_data.json".format(uuid, gid)
+                try:
+                    dataJSON = json.dumps(data, separators=(',', ':'))
+
+                    if uuid not in inProgressUUIDLogStateFiles:
+                        logger.logPrint("log_state reopen logFile for UUID {} GID {} gameStateID {} tutorial {}".format(uuid, gid, data['gameStateID'], tutorial))
+                        inProgressUUIDLogStateFiles[uuid] = open(fname, "a")
+
+                    inProgressUUIDLogStateFiles[uuid].write(dataJSON+"\n")
+                    logger.logPrint("Wrote log for UUID {} GID {} gameStateID {} to {}".format(uuid, gid, data['gameStateID'], fname))
+                    successGameStateIDs.append(data['gameStateID'])
+                except Exception as err:
+                    logger.logPrint("log_state failure for UUID {} GID {} gameStateID {}: {}\n{}".format(uuid, gid, data['gameStateID'], err, traceback.format_exc()))
+                    failedGameStateIDs.append(data['gameStateID'])
+            if len(successGameStateIDs) > 0:
+                retval = json.dumps({
+                    'status': 'success',
+                    'msg': 'saved',
+                    'successGameStateIDs': successGameStateIDs,
+                    'failedGameStateIDs': failedGameStateIDs,
+                    'largestGameStateID': largestGameStateID,
+                    'numReceivedLogs': numReceivedLogs,
+                })
+                # time.sleep(5);
+                return retval
             else:
-                fname ="outputs/{}/{}_data.json".format(uuid, gid)
-            try:
-                dataJSON = json.dumps(request.json, separators=(',', ':'))
+                retval = json.dumps({
+                    'status': 'failed',
+                    'msg': 'error writing',
+                    'successGameStateIDs': successGameStateIDs,
+                    'failedGameStateIDs': failedGameStateIDs,
+                    'largestGameStateID': largestGameStateID,
+                    'numReceivedLogs': numReceivedLogs,
+                })
+                return retval, 500
 
-                if uuid not in inProgressUUIDLogStateFiles:
-                    logger.logPrint("log_state reopen logFile for UUID {} GID {} gameStateID {} tutorial {}".format(uuid, gid, request.json['gameStateID'], tutorial))
-                    inProgressUUIDLogStateFiles[uuid] = open(fname, "a")
-
-                inProgressUUIDLogStateFiles[uuid].write(dataJSON+"\n")
-                logger.logPrint("Wrote log for UUID {} GID {} gameStateID {} to {}".format(uuid, gid, request.json['gameStateID'], fname))
-                return json.dumps({'status': 'success', 'msg': 'saved'})
-            except Exception as err:
-                logger.logPrint("log_state failure for UUID {} GID {} gameStateID {}: {}\n{}".format(uuid, gid, request.json['gameStateID'], err, traceback.format_exc()))
-                return json.dumps({'status': 'failed', 'msg': 'error writing'}), 500
 
         # Called to log the game config
         @app.route('/log_game_config', methods=['POST'])
@@ -405,35 +473,11 @@ class FlaskExample:
                     dataJSON = json.dumps(request.json, separators=(',', ':'))
                     f.write(dataJSON+"\n")
                     logger.logPrint("Wrote log_config for UUID {} GID {} to {}".format(uuid, gid, fname))
+                return json.dumps({'status': 'success', 'msg': 'saved'})
             except Exception as err:
                 logger.logPrint("log_config failure for UUID {} GID {}: {}\n{}".format(uuid, gid, err, traceback.format_exc()))
                 traceback.print_exc()
-                gotError = True
-
-            if tutorial:
-                fname ="outputs/{}/{}_tutorial_data.json".format(uuid, gid)
-            else:
-                fname ="outputs/{}/{}_data.json".format(uuid, gid)
-            try:
-                if uuid in inProgressUUIDLogStateFiles:
-                    logger.logPrint("log_config closing old logStateFile {}".format(inProgressUUIDLogStateFiles[uuid]))
-                    inProgressUUIDLogStateFiles[uuid].flush()
-                    os.fsync(inProgressUUIDLogStateFiles[uuid].fileno())
-                    inProgressUUIDLogStateFiles[uuid].close()
-                    del inProgressUUIDLogStateFiles[uuid]
-
-                inProgressUUIDLogStateFiles[uuid] = open(fname, "w")
-                inProgressUUIDLogStateFiles[uuid].write("")
-
-                logger.logPrint("Wrote initial log_state for UUID {} GID {} to {}".format(uuid, gid, fname))
-            except Exception as err:
-                logger.logPrint("log_config failure to create state for UUID {} GID {}: {}\n{}".format(uuid, gid, err, traceback.format_exc()))
-                gotError = True
-
-            if gotError:
                 return json.dumps({'status': 'failed', 'msg': 'error writing'}), 500
-            else:
-                return json.dumps({'status': 'success', 'msg': 'saved'})
 
         # Called when the tutorial is completed
         @app.route('/get_room_connection_graph')

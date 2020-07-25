@@ -87,49 +87,63 @@ def processGameLog(gameLog, taskDefinition):
         previousRobotState = int(previousLogEntry["robot"]["currentState"])
         currentRobotState = int(logEntry["robot"]["currentState"])
 
-        if "buttonName" in logEntry and logEntry["buttonName"] == "Stop Following":
-            didHumanHelp = True
-            wasHelpAccurate = len(logEntry["robot"]["taskPlan"]) <= 5
-            userSaidCantHelp = False
-        elif "buttonName" in logEntry and logEntry["buttonName"] == "Can't Help":
-            didHumanHelp = False
+        if "buttonName" in logEntry and logEntry["buttonName"] == "Yes":
+            didHumanSayYes = True
+            didHumanSayStopFollowing = False
             wasHelpAccurate = False
-            userSaidCantHelp = True
+            didHumanSayCantHelp = False
+        elif "buttonName" in logEntry and logEntry["buttonName"] == "Stop Following":
+            didHumanSayStopFollowing = True
+            wasHelpAccurate = len(logEntry["robot"]["taskPlan"]) <= 5
+            didHumanSayCantHelp = False
+        elif "buttonName" in logEntry and logEntry["buttonName"] == "Can't Help":
+            didHumanSayYes = False
+            didHumanSayStopFollowing = False
+            wasHelpAccurate = False
+            didHumanSayCantHelp = True
 
         if (previousRobotState == RobotState.APPROACH_HUMAN.value and currentRobotState == RobotState.STATIONARY.value):
             print("Began Asking For Help", playerTaskI, logEntry["dtime"])
             isRobotHelpQueryActive = True
-            if "buttonName" in logEntry and logEntry["buttonName"] == "Stop Following": # Odd edge case where the "yes" log is the same as the state change log
-                didHumanHelp = True
+            didHumanSayYes = False
+            didHumanSayStopFollowing = False
+            didHumanSayCantHelp = False
+            wasHelpAccurate = False
+            if "buttonName" in logEntry and logEntry["buttonName"] == "Yes":
+                didHumanSayYes = True
+                didHumanSayStopFollowing = False
+                wasHelpAccurate = False
+                didHumanSayCantHelp = False
+            elif "buttonName" in logEntry and logEntry["buttonName"] == "Stop Following":
+                didHumanSayStopFollowing = True
                 wasHelpAccurate = len(logEntry["robot"]["taskPlan"]) <= 5
+                didHumanSayCantHelp = False
             elif "buttonName" in logEntry and logEntry["buttonName"] == "Can't Help":
-                didHumanHelp = False
+                didHumanSayYes = False
+                didHumanSayStopFollowing = False
                 wasHelpAccurate = False
-                userSaidCantHelp = True
-            else:
-                didHumanHelp = False
-                wasHelpAccurate = False
-                userSaidCantHelp = False
+                didHumanSayCantHelp = True
         elif ((isRobotHelpQueryActive and
             ((previousRobotState == RobotState.STATIONARY.value and currentRobotState == RobotState.WALK_PAST_HUMAN.value) or
-            (previousRobotState == RobotState.APPROACH_HUMAN.value and currentRobotState == RobotState.WALK_PAST_HUMAN.value) or
-            (didHumanHelp and previousRobotState == RobotState.APPROACH_HUMAN.value and currentRobotState == RobotState.GO_TOWARDS_GOAL.value))) or  # Bug where the robot goes briefly into approach human for a few steps before walk past -- should be fixed
+            (didHumanSayYes and previousRobotState == RobotState.APPROACH_HUMAN.value and currentRobotState == RobotState.WALK_PAST_HUMAN.value) or
+            (didHumanSayStopFollowing and previousRobotState == RobotState.APPROACH_HUMAN.value and currentRobotState == RobotState.GO_TOWARDS_GOAL.value))) or  # Bug where the robot goes briefly into approach human for a few steps before walk past -- should be fixed
             didRobotAppear and previousRobotState == RobotState.APPROACH_HUMAN.value and currentRobotState == RobotState.WALK_PAST_HUMAN.value):
-            print("Stopped Asking For Help", playerTaskI, logEntry["dtime"], didHumanHelp, wasHelpAccurate)
+            print("Stopped Asking For Help", playerTaskI, logEntry["dtime"], didHumanSayYes, wasHelpAccurate)
             if (playerTaskI > 6): # skip the first round of help-seeking
                 busyness = taskDefinition["tasks"][playerTaskI]["busyness"]
-                if (didHumanHelp):
+                if (didHumanSayYes):
                     if (wasHelpAccurate):
                         response = ResponseToHelpQuery.HELPED
                     else:
                         response = ResponseToHelpQuery.HELPED_INACCURATELY
                 else:
-                    if (userSaidCantHelp):
+                    if (didHumanSayCantHelp):
                         response = ResponseToHelpQuery.CANT_HELP
                     elif didRobotAppear:
                         response = ResponseToHelpQuery.AVOIDED
                     else:
                         response = ResponseToHelpQuery.IGNORED
+                print("response", response.name)
                 humanHelpSequence[busyness].append(response)
                 humanHelpSequence["overall"].append(response)
             isRobotHelpQueryActive = False
@@ -265,13 +279,13 @@ def processSurveyData(filepath):
 if __name__ == "__main__":
     numGIDs = 5
 
+    baseDir = "../flask/ec2_outputs/"
     # baseDir = "../flask/finalData/friendsData/"
-    baseDir = "../flask/finalData/pilot2/"
-    # baseDir = "../flask/ec2_outputs/"
+    # baseDir = "../flask/finalData/pilot3/"
 
-    completionCodesToUUIDFilename = "completionCodesToUUID.pkl"
+    completionCodesToUUIDFilename = "completionCodesToUUID.json"
     with open(baseDir+completionCodesToUUIDFilename, "rb") as f:
-        completionCodes = pickle.load(f)
+        completionCodes = json.load(f)
     print("completionCodes", completionCodes)
     uuidToCompletionID = {completionCodes[x] : x for x in completionCodes}
     print("uuidToCompletionID", uuidToCompletionID)
@@ -281,6 +295,7 @@ if __name__ == "__main__":
         completedGameIDs = json.load(f)
     print("completedGameIDs", completedGameIDs)
 
+    # raise Exception()
 
     surveyData = processSurveyData(baseDir + "Human Help User Study Survey (Responses) - Form Responses 1.csv")
     taskDefintions = {}
@@ -288,9 +303,13 @@ if __name__ == "__main__":
         filepath = "../flask/assets/tasks/{}.json".format(gid)
         taskDefintions[gid] = loadTaskDefinitionFile(filepath)
 
+    uuidsToKeep = []
     # uuidsToKeep = [100, 103, 104, 108, 110, 122] # pilot1
     # uuidsToKeep = [133] # friendsData
-    uuidsToKeep = [136, 137, 138, 140, 141, 142, 143, 144, 147, 149, 152, 153, 155, 156, 157, 159, 146, 166, 167, 170, 179] # pilot2
+    uuidsToKeep += [136, 137, 138, 140, 141, 142, 143, 144, 147, 149, 152, 153, 155, 156, 157, 159, 146, 166, 167, 170, 179] # pilot2
+    uuidsToKeep += [184, 185, 186, 187, 188, 189, 190, 191, 193, 196, 199, 201, 202, 203, 205, 209] # pilot3
+
+    # uuidsToKeep += [202]
     uuidsToDel = []
     for uuid in surveyData:
         if uuid not in uuidsToKeep:
@@ -329,6 +348,7 @@ if __name__ == "__main__":
 
     # Generate Graphs
     freqs = []
+    gids = []
     rosasFactorsOrder = ["Competence", "Discomfort", "Warmth", "Curiosity"]
     rosas = {factor : [] for factor in rosasFactorsOrder}
     nasaTLXFactorOrder = ["Mental Demand", "Physical Demand", "Temporal Demand", "Performance", "Effort", "Frustration"]
@@ -340,6 +360,7 @@ if __name__ == "__main__":
     demography = {factor : [] for factor in demographicFactors}
     for uuid in surveyData:
         gid = surveyData[uuid]["gid"]
+        gids.append(gid)
         freq = (gid+1)/5.0
         freqs.append(freq)
         # RoSAS
@@ -381,7 +402,7 @@ if __name__ == "__main__":
         for k in range(len(freqs)):
             gid = int(freqs[k]*5.0)-1
             boxplotData[gid].append(rosas[factor][k])
-        axes[i].boxplot(boxplotData)
+        axes[i].boxplot(boxplotData, showmeans=True)
         axes[i].set_xticklabels(["0.2", "0.4", "0.6", "0.8", "1.0"])
 
         axes[i].set_ylim([1,5.5])
@@ -406,7 +427,7 @@ if __name__ == "__main__":
         for k in range(len(freqs)):
             gid = int(freqs[k]*5.0)-1
             boxplotData[gid].append(nasaTLX[factor][k])
-        axes[i].boxplot(boxplotData)
+        axes[i].boxplot(boxplotData, showmeans=True)
         axes[i].set_xticklabels(["0.2", "0.4", "0.6", "0.8", "1.0"])
 
         axes[i].set_ylim([1,10.5])
@@ -431,7 +452,7 @@ if __name__ == "__main__":
             gid = int(freqs[k]*5.0)-1
             if (busyness[factor][k] is None): continue
             boxplotData[gid].append(busyness[factor][k])
-        axes[i].boxplot(boxplotData)
+        axes[i].boxplot(boxplotData, showmeans=True)
         axes[i].set_xticklabels(["0.2", "0.4", "0.6", "0.8", "1.0"])
 
         axes[i].set_ylim([-0.1,1.1])
@@ -456,7 +477,7 @@ if __name__ == "__main__":
         for k in range(len(prosociality[factor][0])):
             gid = int(prosociality[factor][0][k]*5.0)-1
             boxplotData[gid].append(prosociality[factor][1][k])
-        axes[i].boxplot(boxplotData)
+        axes[i].boxplot(boxplotData, showmeans=True)
         axes[i].set_xticklabels(["0.2", "0.4", "0.6", "0.8", "1.0"])
 
         axes[i].set_ylim([-0.1,1.1])
@@ -479,3 +500,12 @@ if __name__ == "__main__":
         if factor in ["Prosociality", "Navigational Ability", "Video Game Experience"]:
             ax.set_xlim([0,5.5])
         plt.savefig(baseDir + "%s.png" % factor)
+
+    # GIDs
+    fig = plt.figure()
+    ax = fig.subplots()
+    fig.suptitle('GIDs')
+    ax.hist(gids)
+    ax.set_xlabel("Game ID")
+    ax.set_ylabel("Count")
+    plt.savefig(baseDir + "gids.png")

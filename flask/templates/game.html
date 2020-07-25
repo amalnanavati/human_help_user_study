@@ -3,6 +3,7 @@
   <head>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bowser@latest/es5.js"></script>
   </head>
   <body>
     <script src="{{ url_for('static', filename='game_src/titleScreen.js') }}"></script>
@@ -49,6 +50,7 @@
       const gid = "{{gid|default(-1, false)}}";
       console.log("uuid", uuid, "gid", gid);
       const tutorial = {{tutorial|default("false", false)}};
+      const starting_dtime = {{starting_dtime|default(0, false)}};
 
       const gameMode = tutorial ? gameModes.TUTORIAL : gameModes.GAME;
 
@@ -263,6 +265,8 @@
                 }
               }
               game.player.previousTaskI = game.player.taskI;
+            } else if (this.game.endingScreen) {
+              updateEndingScreen(this);
             }
         //     break;
         //   case gameModes.TUTORIAL:

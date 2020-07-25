@@ -104,7 +104,7 @@ function initializeGamePlayerTimer(scene) {
             delay: 1000,
             loop: true,
             callback: function() {
-              if (!load) {
+              if (!load && scene.game.isRunning) {
                 scene.game.player.score -= 1;
                 logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.SCORE_CHANGE));
               }
@@ -179,6 +179,7 @@ function hasCompletedCurrentDistractionTask(scene) {
 function navigationTaskToDistractionTask(scene) {
   scene.game.distractionTaskTimerSecs = 0;
   scene.game.player.hasCompletedDistractionTask = false;
+  if (scene.game.robot) scene.game.robot.isBeingLed = false;
 }
 
 function inDistractionTask(scene) {
@@ -275,7 +276,6 @@ function transitionPlayerState(scene) {
     if (scene.game.robot) {
       setHelpBubbleVisible(scene, false);
       setRobotActionInProgress(scene, false);
-      scene.game.robot.isBeingLed = false;
       if (scene.game.minimap) destroyRobotGoalRect(scene);
       if (scene.game.robot.currentState != robotState.OFFSCREEN && scene.game.robot.currentState != robotState.WALK_PAST_HUMAN) {
         scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
@@ -369,6 +369,9 @@ function processPlayerKeyPresses(scene) {
   // A developer shortcut to quickly end a game
   if (scene.game.cursors.shift.isDown) {
     if (scene.game.lastTimeShiftHeld != null) {
+      if (scene.game.shiftHeldSecs == 0) {
+        if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.SHIFT_PRESSED));
+      }
       var currentTime = Date.now();
       scene.game.shiftHeldSecs += (currentTime - scene.game.lastTimeShiftHeld)/1000;
       scene.game.lastTimeShiftHeld = currentTime;

@@ -13,6 +13,8 @@ const eventType = {
   TUTORIAL_NEXT_BUTTON_PRESSED : 9,
   TUTORIAL_LOAD_STATE : 10,
   SHIFT_GAME_KILL : 11,
+  SHOWING_ENDING_SCREEN : 12,
+  SHIFT_PRESSED : 13,
 }
 
 const logGameConfigEndpoint = "log_game_config";
@@ -20,20 +22,32 @@ const logGameStateEndpoint = "log_game_state";
 const logTutorialConfigEndpoint = "log_tutorial_config";
 const logTutorialStateEndpoint = "log_tutorial_state";
 
+// Currently, I have no retry mechanism. I assume every request will go through,
+// but there may be some delay due to browser blocking/queuing. Therefore, I
+// do not store past requests
+const batchSize = 6;
+var currentBatch = [];
+
 // if you have >= logDataErrorNum errors within logDataErrorTimeLimit secs, tell the user to quit.
-var logDataErrorTimeLimit = 60; // seconds
-var logDataErrorNum = 20;
+const logDataErrorTimeLimit = 60; // seconds
+const logDataErrorNum = 20/batchSize;
 var logDataRecentErrors = [];
-var errorsBeforeRepeatNotifications = 20;
+const errorsBeforeRepeatNotifications = 20;
 var errorsSinceLastNotification = 0;
 
 var gameStateID = 0;
+var largestSentGameStateID = 0;
+var largestReceivedGameStateID = 0;
+var numSentLogs = 0;
+var numReceivedLogs = 0;
 
 function getGameConfig(scene) {
+  var browserData = bowser.getParser(window.navigator.userAgent);
   return {
     uuid:uuid,
     gid:gid,
     start_time: scene.game.start_time,
+    browserData: browserData ? browserData.parsedResult : null,
     // playerMsPerStep: playerMsPerStep,
     // robotMsPerStep: robotMsPerStep,
   };
@@ -90,17 +104,55 @@ function getGameState(scene, eventType, additionalData) {
 }
 
 function logData(endpoint, data) {
+  var payloadToSend;
+
+  if (endpoint == logGameStateEndpoint || endpoint == logTutorialStateEndpoint) {
+    var dataGameStateID = data.gameStateID;
+    if (dataGameStateID > largestSentGameStateID) {
+      largestSentGameStateID = dataGameStateID;
+    }
+    currentBatch.push(data);
+    if (currentBatch.length >= batchSize || data.eventType == eventType.SHOWING_ENDING_SCREEN) {
+      payloadToSend = currentBatch;
+      numSentLogs += currentBatch.length;
+      currentBatch = [];
+    } else {
+      return;
+    }
+  } else {
+    payloadToSend = data;
+  }
+
   var url = baseURL + endpoint;
   // console.log("Send ", data)
   $.ajax({
     type : "POST",
     url : url,
-    data: JSON.stringify(data, null, '\t'),
+    data: JSON.stringify(payloadToSend, null, '\t'),
     contentType: 'application/json;charset=UTF-8',
     success: function(received_data, status) {
-        // console.log(`${received_data} and status is ${status}`);
+        received_data = JSON.parse(received_data);
+        if ("largestGameStateID" in received_data) {
+          if (received_data["largestGameStateID"] > largestReceivedGameStateID) {
+            largestReceivedGameStateID = received_data["largestGameStateID"];
+          }
+          numReceivedLogs += received_data["numReceivedLogs"];
+          console.log("SUCCESS: confirmed log with largestGameStateID", received_data["largestGameStateID"], numReceivedLogs, numSentLogs);
+        }
     },
     error: function(received_data, status) {
+        try {
+          received_data = JSON.parse(received_data);
+          if ("largestGameStateID" in received_data) {
+            if (parseInt(received_data["largestGameStateID"]) > largestReceivedGameStateID) {
+              largestReceivedGameStateID = parseInt(received_data["largestGameStateID"]);
+            }
+            numReceivedLogs += parseInt(received_data["numReceivedLogs"]);
+            console.log("FAILURE: confirmed log with largestGameStateID", received_data["largestGameStateID"], numReceivedLogs, numSentLogs);
+          }
+        } catch(err) {
+
+        }
         for (var i = 0; i < logDataRecentErrors.length; i++) {
           if (Date.now() - logDataRecentErrors[i] >= logDataErrorTimeLimit*1000) {
             logDataRecentErrors.splice(i, 1);
@@ -124,7 +176,7 @@ function logData(endpoint, data) {
               alert("ERROR: Please STOP the Amazon Mechanical Turk HIT. Data is not getting logged properly, and you will not be approved for the HIT.");
             }
           }
-          errorsSinceLastNotification += 1;
+          errorsSinceLastNotification += numReceivedLogs;
         }
     }
   });
@@ -140,7 +192,7 @@ function loadUpdate(scene) {
         console.log("numTimesInWhileLoop", numTimesInWhileLoop);
       }
       var currentTime = Date.now();
-      var dtime = (currentTime - scene.game.start_time);
+      var dtime = (currentTime - scene.game.start_time) + starting_dtime;
 
       console.log("dtime", dtime, "dataToLoad[0].dtime", dataToLoad[0].dtime);
 
