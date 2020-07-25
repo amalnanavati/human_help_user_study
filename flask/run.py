@@ -248,7 +248,7 @@ class FlaskExample:
 
             logger.logPrint("Assigned UUID {} GID {}".format(uuid, gidWithMinNumUsers))
 
-            fname ="outputs/{}/{}_data.json".format(uuid, gid)
+            fname ="outputs/{}/{}_data.json".format(uuid, gidWithMinNumUsers)
             try:
                 if uuid in inProgressUUIDLogStateFiles:
                     logger.logPrint("game closing old logStateFile {}".format(inProgressUUIDLogStateFiles[uuid]))
