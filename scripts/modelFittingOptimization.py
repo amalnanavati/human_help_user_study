@@ -53,6 +53,21 @@ def quadraticParameterizedFunction(params):
         return output
     return quadraticFunction
 
+def oneDExponentialParametrizedFunction(params):
+    """
+    Input: a list of parameter values that must be greater than 0 and not equal to 1
+    Output: a 1D exponential function, given those parameter values
+    """
+    def oneDExponentialFunction(x):
+        """
+        Input: a 1D list, x
+        Output: f(x) = k^x, where k is given by params
+        """
+        k = params[0]
+        output = k**x[0]
+        return output
+    return oneDExponentialFunction
+
 def performOptimization(xs, ys, parameterizedFuncion, paramValues):
     """
     Inputs:
@@ -82,6 +97,8 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
             index = index + 1
             sum = sum + sqredError
             size = len(xs)
+        print(minSumSqredError)
+        print(sum/size)
         if minSumSqredError is None or sum/size < minSumSqredError:
             minSumSqredError = sum/size
             bestParams = params
@@ -122,13 +139,19 @@ if __name__ == "__main__":
     #         paramValues.append([m, b])
 
 
-    parameterizedFunc = quadraticParameterizedFunction
+    # parameterizedFunc = quadraticParameterizedFunction
+    #
+    # paramValues = []
+    # for a in range(-50, 50, 2):
+    #     for b in range(-50, 50, 2):
+    #         for c in range(-50, 50, 2):
+    #             paramValues.append([a, b, c])
+
+    parameterizedFunc = oneDExponentialParametrizedFunction
 
     paramValues = []
-    for a in range(-50, 50, 2):
-        for b in range(-50, 50, 2):
-            for c in range(-50, 50, 2):
-                paramValues.append([a, b, c])
+    for k in range(2, 100, 1):
+        paramValues.append([k])
 
     bestParams = performOptimization(xs, ys, parameterizedFunc, paramValues)
 
@@ -169,6 +192,9 @@ if __name__ == "__main__":
     #
     #
     ############################################################################
+
+    # make an exponential (y = k^x) 1D parametized function
+
 
     ############################################################################
     # STEP 4
