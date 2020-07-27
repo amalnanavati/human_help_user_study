@@ -127,8 +127,12 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
 if __name__ == "__main__":
     # Generate a fake dataset. This is a liner dataset, where the line with best
     # fit should be something like y=10x-3
+
+    # xs = [[x/100] for x in range(0, 100)]
+    # ys = [10*x[0]-3+(random.random()-0.5)*10 for x in xs]
+
     xs = [[x/100] for x in range(0, 100)]
-    ys = [10*x[0]-3+(random.random()-0.5)*10 for x in xs]
+    ys = [10**x[0]+(random.random()-0.5)*10 for x in xs]
 
     # Generate the parameter range
     # parameterizedFunc = oneDLinearParametrizedFunction
