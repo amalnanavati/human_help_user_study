@@ -1,6 +1,9 @@
 import random
 import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 def oneDLinearParametrizedFunction(params):
     """
@@ -68,6 +71,22 @@ def oneDExponentialParametrizedFunction(params):
         return output
     return oneDExponentialFunction
 
+def twoDLinearParametrizedFunction(params):
+    """
+    Input: a list of parameter values
+    Output: a 2D linear function, given those parameter values
+    """
+    def twoDLinearFunction(x):
+        """
+        Input: a 3D list, x
+        Output: f(x, y) = m0*x[0] + m1*x[1] + b, where ms and b are given by params
+        """
+        m0 = params[0]
+        m1 = params[1]
+        output = m0*x[0] + m1*x[1]
+        return output
+    return twoDLinearFunction
+
 def performOptimization(xs, ys, parameterizedFuncion, paramValues):
     """
     Inputs:
@@ -109,6 +128,8 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
     print(bestParams, type(bestParams))
     return bestParams
 
+
+
     ############################################################################
     # STEP 1
     # Loop over paramValues
@@ -131,8 +152,20 @@ if __name__ == "__main__":
     # xs = [[x/100] for x in range(0, 100)]
     # ys = [10*x[0]-3+(random.random()-0.5)*10 for x in xs]
 
+    # xs = [[x/100] for x in range(0, 100)]
+    # ys = [10**x[0]+(random.random()-0.5)*10 for x in xs]
+
     xs = [[x/100] for x in range(0, 100)]
-    ys = [10**x[0]+(random.random()-0.5)*10 for x in xs]
+    test = []
+    count = 1/100
+    ys = []
+    for x in xs:
+        ys.append([x[0], count+1/100])
+        test.append([count+1/100])
+    zs = [10*y[0]+(random.random()-0.5)*10 for y in ys]
+    print(len(xs))
+    print(len(ys))
+
 
     # Generate the parameter range
     # parameterizedFunc = oneDLinearParametrizedFunction
@@ -151,13 +184,20 @@ if __name__ == "__main__":
     #         for c in range(-50, 50, 2):
     #             paramValues.append([a, b, c])
 
-    parameterizedFunc = oneDExponentialParametrizedFunction
+    # parameterizedFunc = oneDExponentialParametrizedFunction
+    #
+    # paramValues = []
+    # for k in range(2, 100, 1):
+    #     paramValues.append([k])
+
+    parameterizedFunc = twoDLinearParametrizedFunction
 
     paramValues = []
-    for k in range(2, 100, 1):
-        paramValues.append([k])
+    for a in range(-5, 5, 2):
+         for b in range(-5, 5, 2):
+            paramValues.append([a, b])
 
-    bestParams = performOptimization(xs, ys, parameterizedFunc, paramValues)
+    bestParams = performOptimization(ys, zs, parameterizedFunc, paramValues)
 
     ############################################################################
     # STEP 2
@@ -168,13 +208,38 @@ if __name__ == "__main__":
     #
     ############################################################################
 
-    yPredVals = []
-    plt.scatter(xs, ys)
+    # yPredVals = []
+    # plt.scatter(xs, ys)
+    # func = parameterizedFunc(bestParams)
+    # for x in xs:
+    #     yPredVals.append(func(x))
+    # plt.plot(xs, yPredVals)
+    # plt.show()
+
+
+    zPredVals = []
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    print(len(xs))
+    print(len(test))
+    ax.scatter(xs, test, zs)
     func = parameterizedFunc(bestParams)
-    for x in xs:
-        yPredVals.append(func(x))
-    plt.plot(xs, yPredVals)
+
+    for y in ys:
+         zPredVals.append(func(y))
+    print(zPredVals)
+    X = np.arange(-5, 5, 0.25)
+    Y = np.arange(-5, 5, 0.25)
+    X, Y = np.meshgrid(X, Y)
+    R = np.sqrt(X**2 + Y**2)
+    Z = np.sin(R)
+    surf = ax.plot_surface(X, Y, Z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+    ax.set_zlim(-1.01, 1.01)
+    ax.zaxis.set_major_locator(LinearLocator(10))
+    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+    fig.colorbar(surf, shrink=0.5, aspect=5)
     plt.show()
+
 ############################################################################
     # STEP 3
     # Once the above two steps work, message Amal, before starting on step 3.
