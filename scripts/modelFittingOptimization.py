@@ -227,17 +227,30 @@ if __name__ == "__main__":
 
     for y in ys:
          zPredVals.append(func(y))
-    print(zPredVals)
-    X = np.arange(-5, 5, 0.25)
-    Y = np.arange(-5, 5, 0.25)
+    #print(zPredVals)
+    # X = np.arange(-0.5, 2, 0.25)
+    # print(X)
+    # Y = np.arange(-1, 1, 0.25)
+    # X, Y = np.meshgrid(X, Y)
+    # R = np.sqrt(X**2 + Y**2)
+    # Z = np.sin(R)
+    # print(Z)
+
+    xArr = []
+    for x in xs:
+        xArr.append(x[0])
+    yArr = []
+    for y in test:
+        yArr.append(y[0])
+    zArr = []
+    for z in zPredVals:
+        zArr.append([z])
+    X = np.array(xArr)
+    Y = np.array(yArr)
     X, Y = np.meshgrid(X, Y)
     R = np.sqrt(X**2 + Y**2)
-    Z = np.sin(R)
-    surf = ax.plot_surface(X, Y, Z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
-    ax.set_zlim(-1.01, 1.01)
-    ax.zaxis.set_major_locator(LinearLocator(10))
-    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-    fig.colorbar(surf, shrink=0.5, aspect=5)
+    Z = np.array(zArr)
+    ax.plot_wireframe(X, Y, Z, rstride=20, cstride=20)
     plt.show()
 
 ############################################################################
