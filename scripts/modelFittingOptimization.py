@@ -83,7 +83,8 @@ def twoDLinearParametrizedFunction(params):
         """
         m0 = params[0]
         m1 = params[1]
-        output = m0*x[0] + m1*x[1]
+        b = params[2]
+        output = m0*x[0] + m1*x[1] + b
         return output
     return twoDLinearFunction
 
@@ -108,16 +109,20 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
     size = 0
     bestParams = None
     for params in paramValues:
+        print(params)
         func = parameterizedFuncion(params)
         for x in xs:
+            #print(x)
             yPred = func(x)
+            #print("pred ", yPred)
             y = ys[index]
+            #print("actual ", y)
             sqredError = (y-yPred)**2
             index = index + 1
             sum = sum + sqredError
             size = len(xs)
-        print(minSumSqredError)
-        print(sum/size)
+        print("meanSqrdError: ", sum/size)
+        print("params: ", params)
         if minSumSqredError is None or sum/size < minSumSqredError:
             minSumSqredError = sum/size
             bestParams = params
@@ -125,8 +130,9 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
         index = 0
         sum = 0
 
-    print(bestParams, type(bestParams))
+    print("BEST PARAMS: ", bestParams, type(bestParams))
     return bestParams
+
 
 
 
@@ -143,7 +149,6 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
     #
     #
     ############################################################################
-    return bestParams
 
 if __name__ == "__main__":
     # Generate a fake dataset. This is a liner dataset, where the line with best
@@ -155,16 +160,29 @@ if __name__ == "__main__":
     # xs = [[x/100] for x in range(0, 100)]
     # ys = [10**x[0]+(random.random()-0.5)*10 for x in xs]
 
-    xs = [[x/100] for x in range(0, 100)]
-    test = []
-    count = 1/100
+
+
+    numSamples = 10
+
+    xSamples = [x / numSamples for x in range(0, numSamples)]
+    xs = []
+    ySamples = [y / numSamples for y in range(0, numSamples)]
     ys = []
-    for x in xs:
-        ys.append([x[0], count+1/100])
-        test.append([count+1/100])
-    zs = [10*y[0]+(random.random()-0.5)*10 for y in ys]
-    print(len(xs))
-    print(len(ys))
+    xAndY = []
+    for i in range(len(xSamples)):
+        for j in range(len(ySamples)):
+            xAndY.append([xSamples[i], ySamples[j]])
+            xs.append(xSamples[i])
+            ys.append(ySamples[j])
+
+    print(xSamples)
+    print(xAndY)
+    print(ySamples)
+    zs = [3 * x + 4 * y + (random.random()-0.5) * 5 for x,y in xAndY]
+
+
+
+
 
 
     # Generate the parameter range
@@ -180,9 +198,9 @@ if __name__ == "__main__":
     #
     # paramValues = []
     # for a in range(-50, 50, 2):
-    #     for b in range(-50, 50, 2):
-    #         for c in range(-50, 50, 2):
-    #             paramValues.append([a, b, c])
+    #      for b in range(-50, 50, 2):
+    #          for c in range(-50, 50, 2):
+    #              paramValues.append([a, b, c])
 
     # parameterizedFunc = oneDExponentialParametrizedFunction
     #
@@ -190,14 +208,19 @@ if __name__ == "__main__":
     # for k in range(2, 100, 1):
     #     paramValues.append([k])
 
+    # bestParams = performOptimization(xs, ys, parameterizedFunc, paramValues)
+
     parameterizedFunc = twoDLinearParametrizedFunction
 
     paramValues = []
     for a in range(-5, 5, 2):
-         for b in range(-5, 5, 2):
-            paramValues.append([a, b])
+         for b in range(-4, 5, 2):
+             for c in range(-4, 5, 2):
+                paramValues.append([a, b, c])
 
-    bestParams = performOptimization(ys, zs, parameterizedFunc, paramValues)
+    print(paramValues)
+
+    bestParams = performOptimization(xAndY, zs, parameterizedFunc, paramValues)
 
     ############################################################################
     # STEP 2
@@ -220,38 +243,42 @@ if __name__ == "__main__":
     zPredVals = []
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    print(len(xs))
-    print(len(test))
-    ax.scatter(xs, test, zs)
+    print(len(xSamples))
+    print(len(ySamples))
+    print("xs: ", xSamples)
+    print("ys: ", ySamples)
+    print("zs: ", zs)
+
+    ax.scatter(xs, ys, zs)
     func = parameterizedFunc(bestParams)
 
-    for y in ys:
-         zPredVals.append(func(y))
-    #print(zPredVals)
-    # X = np.arange(-0.5, 2, 0.25)
-    # print(X)
-    # Y = np.arange(-1, 1, 0.25)
-    # X, Y = np.meshgrid(X, Y)
-    # R = np.sqrt(X**2 + Y**2)
-    # Z = np.sin(R)
-    # print(Z)
 
+    print(zPredVals)
+    print(zs)
     xArr = []
-    for x in xs:
-        xArr.append(x[0])
+    for x in xSamples:
+        xArr.append(x)
     yArr = []
-    for y in test:
-        yArr.append(y[0])
+    for y in ySamples:
+        yArr.append(y)
     zArr = []
     for z in zPredVals:
         zArr.append([z])
-    X = np.array(xArr)
-    Y = np.array(yArr)
+    X = np.arange(0,1.1,0.1)
+    Y = np.arange(0,1.1,0.1)
+    #X = np.array(xs).reshape((-1, 1))
+    #Y = np.array(ys).reshape((-1, 1))
+    for x in X:
+        for y in Y:
+            zPredVals.append(func([x, y]))
     X, Y = np.meshgrid(X, Y)
-    R = np.sqrt(X**2 + Y**2)
-    Z = np.array(zArr)
-    ax.plot_wireframe(X, Y, Z, rstride=20, cstride=20)
-    plt.show()
+    Z = np.array(zPredVals).reshape(X.shape)
+    ax.plot_wireframe(X, Y, Z, rstride=1, cstride=1)
+    ax.set_xlabel('X axis')
+    ax.set_ylabel('Y axis')
+    ax.set_zlabel('Z axis')
+
+plt.show()
 
 ############################################################################
     # STEP 3
