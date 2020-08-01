@@ -367,25 +367,27 @@ function renderPlayerMovementAnimation(scene) {
 function processPlayerKeyPresses(scene) {
 
   // A developer shortcut to quickly end a game
-  if (scene.game.cursors.shift.isDown) {
-    if (scene.game.lastTimeShiftHeld != null) {
-      if (scene.game.shiftHeldSecs == 0) {
-        if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.SHIFT_PRESSED));
-      }
-      var currentTime = Date.now();
-      scene.game.shiftHeldSecs += (currentTime - scene.game.lastTimeShiftHeld)/1000;
-      scene.game.lastTimeShiftHeld = currentTime;
-      if (scene.game.shiftHeldSecs > 10) {
-        if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.SHIFT_GAME_KILL));
-        scene.game.isRunning = false;
-        createEndingScreen(scene);
+  if (!isDeployment) {
+    if (scene.game.cursors.shift.isDown) {
+      if (scene.game.lastTimeShiftHeld != null) {
+        if (scene.game.shiftHeldSecs == 0) {
+          if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.SHIFT_PRESSED));
+        }
+        var currentTime = Date.now();
+        scene.game.shiftHeldSecs += (currentTime - scene.game.lastTimeShiftHeld)/1000;
+        scene.game.lastTimeShiftHeld = currentTime;
+        if (scene.game.shiftHeldSecs > 10) {
+          if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.SHIFT_GAME_KILL));
+          scene.game.isRunning = false;
+          createEndingScreen(scene);
+        }
+      } else {
+        scene.game.lastTimeShiftHeld = Date.now();
       }
     } else {
-      scene.game.lastTimeShiftHeld = Date.now();
+      scene.game.shiftHeldSecs = 0
+      scene.game.lastTimeShiftHeld = null;
     }
-  } else {
-    scene.game.shiftHeldSecs = 0
-    scene.game.lastTimeShiftHeld = null;
   }
 
   var newAction = false;

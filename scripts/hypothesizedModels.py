@@ -75,35 +75,130 @@ def hypothesis3(busyness, prosociality):
         return likelihood
     return likelihoodOfHelping
 
-if __name__ == "__main__":
-    noProsocialityHypotheses = [hypothesis1, hypothesis2, hypothesis3]
+def allIndependentHypothesis(busyness, prosociality):
+    """
+    Busyness, Frequency, and
+    Prosociality are all independent
+    """
+    def likelihoodOfHelping(frequencyOfAsking):
+        if busyness == Busyness.HIGH:
+            busynessOffset = 0.7
+        elif busyness == Busyness.MEDIUM:
+            busynessOffset = 0.4
+        else:
+            busynessOffset = 0.0
 
+        if prosociality == prosociality.HIGH:
+            prosocialityOffset = 0.1
+        else:
+            prosocialityOffset = 0.0
+
+        return -0.2*frequencyOfAsking+0.2 + busynessOffset + prosocialityOffset
+
+    return likelihoodOfHelping
+
+def prosocialityIndependentHypothesis(busyness, prosociality):
+    """
+    Busyness and Frequency interact,
+    Prosociality is independent
+    """
+    def likelihoodOfHelping(frequencyOfAsking):
+        if busyness == Busyness.HIGH:
+            busynessMultiplier = 1.0
+        elif busyness == Busyness.MEDIUM:
+            busynessMultiplier = 0.5
+        else:
+            busynessMultiplier = 0.0
+
+        if prosociality == prosociality.HIGH:
+            prosocialityOffset = 0.1
+        else:
+            prosocialityOffset = 0.0
+
+        return busynessMultiplier*(-0.2*frequencyOfAsking+0.9) + prosocialityOffset
+
+    return likelihoodOfHelping
+
+def allInteractHypothesis(busyness, prosociality):
+    """
+    Busyness, Frequency, and
+    Prosociality interact
+    """
+    def likelihoodOfHelping(frequencyOfAsking):
+        if busyness == Busyness.HIGH:
+            busynessMultiplier = 1.0
+        elif busyness == Busyness.MEDIUM:
+            busynessMultiplier = 0.5
+        else:
+            busynessMultiplier = 0.0
+
+        if prosociality == prosociality.HIGH:
+            prosocialityMultiplier = 1.0
+        else:
+            prosocialityMultiplier = 0.7
+
+        return prosocialityMultiplier*busynessMultiplier*(-0.2*frequencyOfAsking+0.9)
+
+    return likelihoodOfHelping
+
+if __name__ == "__main__":
     colors = ["b", "r", "g", "m", "k"]
 
-    fig = plt.figure(figsize=(16,4))
-    axes = fig.subplots(1, len(noProsocialityHypotheses))
-    # if len(noProsocialityHypotheses) == 1:
-    #     axes = [axes]
+    # noProsocialityHypotheses = [hypothesis1, hypothesis2, hypothesis3]
+    #
+    # fig = plt.figure(figsize=(16,4))
+    # axes = fig.subplots(1, len(noProsocialityHypotheses))
+    # # if len(noProsocialityHypotheses) == 1:
+    # #     axes = [axes]
+    # fig.suptitle('Predicted Graphs Across Hypotheses')
+    # for i in range(len(noProsocialityHypotheses)):
+    #     hypothesis = noProsocialityHypotheses[i]
+    #     k = 0
+    #     for busyness in Busyness:
+    #         title = ""
+    #         title += hypothesis.__doc__#+"\n"
+    #         # title += "Busyness {}".format(busyness.name)
+    #         axes[i].set_title(title)
+    #
+    #         # j = 0
+    #         # for prosociality in Prosociality:
+    #         xs, ys = getXsAndYs(hypothesis(busyness, Prosociality.LOW), [x/100 for x in range(20, 105, 5)])
+    #         axes[i].plot(xs, ys, c=colors[k%len(colors)], label="Busy {}".format(busyness.name))
+    #         axes[i].set_xlim([-0.19,1.0])
+    #         axes[i].set_ylim([-0.1,1.1])
+    #         axes[i].set_xlabel("Frequency of Asking")
+    #         axes[i].set_ylabel("Likelihood of Helping")
+    #         axes[i].legend()
+    #             # j += 1
+    #         k += 1
+    # plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    # plt.savefig("../flask/ec2_outputs/hypotheses.png")
+
+    hypotheses = [allIndependentHypothesis, prosocialityIndependentHypothesis, allInteractHypothesis]
+
+    fig = plt.figure(figsize=(20,4))
+    axes = fig.subplots(1, len(hypotheses))
     fig.suptitle('Predicted Graphs Across Hypotheses')
-    for i in range(len(noProsocialityHypotheses)):
-        hypothesis = noProsocialityHypotheses[i]
+    for i in range(len(hypotheses)):
+        hypothesis = hypotheses[i]
         k = 0
         for busyness in Busyness:
-            title = ""
-            title += hypothesis.__doc__#+"\n"
-            # title += "Busyness {}".format(busyness.name)
-            axes[i].set_title(title)
+            for prosociality in Prosociality:
+                title = ""
+                title += hypothesis.__doc__#+"\n"
+                # title += "Busyness {}".format(busyness.name)
+                axes[i].set_title(title)
 
-            # j = 0
-            # for prosociality in Prosociality:
-            xs, ys = getXsAndYs(hypothesis(busyness, Prosociality.LOW), [x/100 for x in range(20, 105, 5)])
-            axes[i].plot(xs, ys, c=colors[k%len(colors)], label="Busy {}".format(busyness.name))
-            axes[i].set_xlim([-0.19,1.0])
-            axes[i].set_ylim([-0.1,1.1])
-            axes[i].set_xlabel("Frequency of Asking")
-            axes[i].set_ylabel("Likelihood of Helping")
-            axes[i].legend()
-                # j += 1
-            k += 1
+                # j = 0
+                # for prosociality in Prosociality:
+                xs, ys = getXsAndYs(hypothesis(busyness, prosociality), [x/100 for x in range(20, 105, 5)])
+                axes[i].plot(xs, ys, c=colors[k%len(colors)], label="Busy {}, Prosoc {}".format(busyness.name, prosociality.name))
+                axes[i].set_xlim([-0.0,1.0])
+                axes[i].set_ylim([-0.1,1.1])
+                axes[i].set_xlabel("Frequency of Asking")
+                axes[i].set_ylabel("Likelihood of Helping")
+                axes[i].legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+                    # j += 1
+                k += 1
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig("../flask/ec2_outputs/hypotheses.png")

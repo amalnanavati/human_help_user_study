@@ -116,6 +116,12 @@ class FlaskExample:
                     os.fsync(inProgressUUIDLogStateFiles[uuidTemp].fileno())
                     inProgressUUIDLogStateFiles[uuidTemp].close()
                     del inProgressUUIDLogStateFiles[uuidTemp]
+            uuidsToDelete = []
+            for uuidTemp in inProgressUUIDLogStateFiles:
+                if uuidTemp not in inProgressUUIDs:
+                    uuidsToDelete.append(uuidTemp)
+            for uuidTemp in uuidsToDelete:
+                del inProgressUUIDLogStateFiles[uuidTemp]
             logger.logPrint("inProgressUUIDs", inProgressUUIDs)
             logger.logPrint("inProgressUUIDLogStateFiles", inProgressUUIDLogStateFiles)
 
@@ -328,6 +334,12 @@ class FlaskExample:
 
             if uuid in inProgressUUIDs:
                 del inProgressUUIDs[uuid]
+            # TODO check that this works!!
+            if uuid in inProgressUUIDLogStateFiles:
+                inProgressUUIDLogStateFiles[uuid].flush()
+                os.fsync(inProgressUUIDLogStateFiles[uuid].fileno())
+                inProgressUUIDLogStateFiles[uuid].close()
+                del inProgressUUIDLogStateFiles[uuid]
 
             # Save the endTime
             timestamp = time.time()

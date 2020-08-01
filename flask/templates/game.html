@@ -37,10 +37,14 @@
         TUTORIAL: 1
       };
 
-      // Local Development
-      const baseURL = "http://0.0.0.0:8194/";
-      // AWS EC2 Deployment
-      // const baseURL = "http://ec2-18-236-122-235.us-west-2.compute.amazonaws.com:8194/";
+      const isDeployment = false;
+
+      var baseURL;
+      if (isDeployment) {
+        baseURL = "http://ec2-18-236-122-235.us-west-2.compute.amazonaws.com:8194/";
+      } else {
+        baseURL = "http://0.0.0.0:8194/";
+      }
 
       // Load game params
       const load = {{load|default("false", false)}};
