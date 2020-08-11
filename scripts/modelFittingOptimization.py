@@ -1,9 +1,21 @@
 import random
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
+import csv
+import pprint
+
+#filepath = "../flask/ec2_outputs/humanHelpUserStudyDataWithExclusionNumeric.csv"
+filepath = "../flask/ec2_outputs/humanHelpUserStudyPerResponseData.csv"
+dataset = []
+with open(filepath, "r") as f:
+    reader = csv.reader(f)
+    headers = next(reader, None)
+    for row in reader:
+        # busyness, frequency, prosociality, willingnessToHelp = row
+        # dataset.append([busyness, frequency, prosociality, willingnessToHelp])
+        uuid, busyness, pastFrequencyofAsking, pastFrequencyofHelpingAccurately, humanResponse, prosociality = row
+        dataset.append([uuid, busyness, pastFrequencyofAsking, pastFrequencyofHelpingAccurately, humanResponse, prosociality])
+#pprint.pprint(dataset)
 
 def oneDLinearParametrizedFunction(params):
     """
@@ -109,7 +121,7 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
     size = 0
     bestParams = None
     for params in paramValues:
-        print(params)
+        #print(params)
         func = parameterizedFuncion(params)
         for x in xs:
             #print(x)
@@ -121,8 +133,8 @@ def performOptimization(xs, ys, parameterizedFuncion, paramValues):
             index = index + 1
             sum = sum + sqredError
             size = len(xs)
-        print("meanSqrdError: ", sum/size)
-        print("params: ", params)
+        #print("meanSqrdError: ", sum/size)
+        #print("params: ", params)
         if minSumSqredError is None or sum/size < minSumSqredError:
             minSumSqredError = sum/size
             bestParams = params
@@ -162,23 +174,73 @@ if __name__ == "__main__":
 
 
 
-    numSamples = 10
-
-    xSamples = [x / numSamples for x in range(0, numSamples)]
+    # numSamples = 10
+    #
+    # xSamples = [x / numSamples for x in range(0, numSamples)]
+    # xs = []
+    # ySamples = [y / numSamples for y in range(0, numSamples)]
+    # ys = []
+    # xAndY = []
+    # for i in range(len(xSamples)):
+    #     for j in range(len(ySamples)):
+    #         xAndY.append([xSamples[i], ySamples[j]])
+    #         xs.append(xSamples[i])
+    #         ys.append(ySamples[j])
+    # zs = [3 * x + 4 * y + (random.random()-0.5) * 5 for x,y in xAndY]
     xs = []
-    ySamples = [y / numSamples for y in range(0, numSamples)]
     ys = []
     xAndY = []
-    for i in range(len(xSamples)):
-        for j in range(len(ySamples)):
-            xAndY.append([xSamples[i], ySamples[j]])
-            xs.append(xSamples[i])
-            ys.append(ySamples[j])
+    count = []
+    xAndYAndCount = []
+    for data in dataset:
+        #x = float(data[1])
+        x = float(data[3])
+        #y = float(data[3])
+        y = float(data[4])
+        if data[1] == "free time" and ([x, y] != [0.0, 0.0]):
+            xs.append([x])
+            ys.append(y)
+            xAndY.append([x, y])
+    # uniqueX = set(xs)
+    # print(uniqueX)
+    # uniqueXToYs = {}
+    # for x in uniqueX:
+    #     uniqueXToYs[x] = []
+    #for i in range(0, len(xs)):
 
-    print(xSamples)
-    print(xAndY)
-    print(ySamples)
-    zs = [3 * x + 4 * y + (random.random()-0.5) * 5 for x,y in xAndY]
+    for val in xAndY:
+        c = xAndY.count(val)
+        count.append(c)
+        if(val not in xAndYAndCount):
+            xAndYAndCount.append([val, c])
+    #print(xAndYAndCount)
+
+    unique_list = []
+    for x in xAndYAndCount:
+        # check if exists in unique_list or not
+        if x not in unique_list:
+            unique_list.append(x)
+            # print list
+    average_x_vals = []
+    for val in unique_list:
+        sum = val[0][0] * val[1]
+        if val[0][0] not in average_x_vals:
+            average_x_vals.append([val[0][0], sum])
+        else:
+            old_sum = average_x_vals[val[0][0]]
+            average_x_vals[val[0][0], ] = average_x_vals[val[0][0], sum]
+        #average =
+    print(unique_list)
+
+
+
+
+        # for i in range(len(xSamples)):
+    #     for j in range(len(ySamples)):
+    #         xAndY.append([xSamples[i], ySamples[j]])
+    #         xs.append(xSamples[i])
+    #         ys.append(ySamples[j])
+            #zs = [x * y for x,y in xAndY]
 
 
 
@@ -186,12 +248,12 @@ if __name__ == "__main__":
 
 
     # Generate the parameter range
-    # parameterizedFunc = oneDLinearParametrizedFunction
-    #
-    # paramValues = []
-    # for m in range(-100, 100, 1):
-    #     for b in range(-100, 100, 1):
-    #         paramValues.append([m, b])
+    parameterizedFunc = oneDLinearParametrizedFunction
+
+    paramValues = []
+    for m in range(-10, 10, 1):
+        for b in range(-10, 10, 1):
+            paramValues.append([m, b])
 
 
     # parameterizedFunc = quadraticParameterizedFunction
@@ -210,17 +272,20 @@ if __name__ == "__main__":
 
     # bestParams = performOptimization(xs, ys, parameterizedFunc, paramValues)
 
-    parameterizedFunc = twoDLinearParametrizedFunction
+    # parameterizedFunc = twoDLinearParametrizedFunction
+    #
+    # paramValues = []
+    # for a in range(-5, 5, 2):
+    #      for b in range(-4, 5, 2):
+    #          for c in range(-4, 5, 2):
+    #             paramValues.append([a, b, c])
+    #
+    # #print(paramValues)
 
-    paramValues = []
-    for a in range(-5, 5, 2):
-         for b in range(-4, 5, 2):
-             for c in range(-4, 5, 2):
-                paramValues.append([a, b, c])
+    #bestParams = performOptimization(xAndY, zs, parameterizedFunc, paramValues)
 
-    print(paramValues)
+    bestParams = performOptimization(xs, ys, parameterizedFunc, paramValues)
 
-    bestParams = performOptimization(xAndY, zs, parameterizedFunc, paramValues)
 
     ############################################################################
     # STEP 2
@@ -231,54 +296,62 @@ if __name__ == "__main__":
     #
     ############################################################################
 
-    # yPredVals = []
-    # plt.scatter(xs, ys)
-    # func = parameterizedFunc(bestParams)
-    # for x in xs:
-    #     yPredVals.append(func(x))
-    # plt.plot(xs, yPredVals)
-    # plt.show()
-
-
-    zPredVals = []
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    print(len(xSamples))
-    print(len(ySamples))
-    print("xs: ", xSamples)
-    print("ys: ", ySamples)
-    print("zs: ", zs)
-
-    ax.scatter(xs, ys, zs)
+    yPredVals = []
+    plt.scatter(xs, ys)
     func = parameterizedFunc(bestParams)
+    for x in xs:
+        yPredVals.append(func(x))
+    scatterplot = plt.scatter(xs, ys, c=count, vmin=0, vmax=50, s=35)
+    plt.colorbar(scatterplot)
+    plt.xlabel('X axis: Past Frequency of Helping Accurately')
+    plt.ylabel('Y axis: Human Response')
+    plt.title("Busyness: Free Time")
+    plt.show()
+    plt.plot(xs, yPredVals)
+    plt.show()
 
 
-    print(zPredVals)
-    print(zs)
-    xArr = []
-    for x in xSamples:
-        xArr.append(x)
-    yArr = []
-    for y in ySamples:
-        yArr.append(y)
-    zArr = []
-    for z in zPredVals:
-        zArr.append([z])
-    X = np.arange(0,1.1,0.1)
-    Y = np.arange(0,1.1,0.1)
-    #X = np.array(xs).reshape((-1, 1))
-    #Y = np.array(ys).reshape((-1, 1))
-    for x in X:
-        for y in Y:
-            zPredVals.append(func([x, y]))
-    X, Y = np.meshgrid(X, Y)
-    Z = np.array(zPredVals).reshape(X.shape)
-    ax.plot_wireframe(X, Y, Z, rstride=1, cstride=1)
-    ax.set_xlabel('X axis')
-    ax.set_ylabel('Y axis')
-    ax.set_zlabel('Z axis')
+#     zPredVals = []
+#     fig = plt.figure()
+#     ax = fig.add_subplot(111, projection='3d')
+#     #print(len(xSamples))
+#     #print(len(ySamples))
+#     #print("xs: ", xSamples)
+#     #print("ys: ", ySamples)
+#     #print("zs: ", zs)
+#
+#     ax.scatter(xs, ys, zs)
+#     func = parameterizedFunc(bestParams)
+#
+#
+#     #print(zPredVals)
+#     #print(zs)
+#     xArr = []
+#     for x in xSamples:
+#         xArr.append(x)
+#     yArr = []
+#     for y in ySamples:
+#         yArr.append(y)
+#     zArr = []
+#     for z in zPredVals:
+#         zArr.append([z])
+#     X = np.arange(0,1.1,0.1)
+#     Y = np.arange(0,1.1,0.1)
+#     #X = np.array(xs).reshape((-1, 1))
+#     #Y = np.array(ys).reshape((-1, 1))
+#     for x in X:
+#         for y in Y:
+#             zPredVals.append(func([x, y]))
+#     X, Y = np.meshgrid(X, Y)
+#     Z = np.array(zPredVals).reshape(X.shape)
+#     ax.plot_wireframe(X, Y, Z, rstride=1, cstride=1)
+#     ax.set_xlabel('X axis: Frequency of Ask')
+#     ax.set_ylabel('Y axis: Willingness to Help')
+#     axes.set_title("Free Time")
 
-plt.show()
+#     ax.set_zlabel('Z axis')
+#
+# plt.show()
 
 ############################################################################
     # STEP 3
