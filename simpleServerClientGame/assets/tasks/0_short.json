@@ -1,0 +1,50 @@
+{
+  "player_start_location": {
+    "x": 5,
+    "y": 5
+  },
+  "robot_offscreen_location": {
+    "x": -1,
+    "y": -1
+  },
+  "tasks": [
+    {
+      "semanticLabel": "Room 4",
+      "str": "Room 4",
+      "target": 1,
+      "timeLimit": 20
+    },
+    {
+      "semanticLabel": "Lounge",
+      "str": "the Lounge",
+      "target": 1,
+      "timeLimit": -1
+    },
+    {
+      "semanticLabel": "Restroom A",
+      "str": "Restroom A",
+      "target": 1,
+      "timeLimit": -1
+    }
+  ],
+  "robotActions": [
+    {
+      "afterHumanTaskIndex": -1,
+      "humanDistanceProportionToNextGoal": 0.25,
+      "robotAction": {
+        "query": "leadMe",
+        "targetStr": "Room 8",
+        "targetSemanticLabel": "Room 8"
+      }
+    },
+    {
+      "afterHumanTaskIndex": 0,
+      "humanDistanceProportionToNextGoal": 0.5,
+      "robotAction": {
+        "query": "amIHere",
+        "targetStr": "Room 10",
+        "targetSemanticLabel": "Room 10"
+      }
+    }
+  ]
+}

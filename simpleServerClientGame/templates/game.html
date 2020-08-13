@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bowser@latest/es5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+  </head>
+  <body>
+    <!-- <script src="{{ url_for('static', filename='game_src/titleScreen.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/map.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/player.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/robot.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/camera.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/TimeProgressBar.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/distractionTaskBar.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/header.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/helpButton.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/minimap.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/compass.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/highlightBox.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/pathToGoal.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/miscellaneous.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/endingScreen.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/tutorial.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/PriorityQueue.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/SpeechBubble.js') }}"></script> -->
+    <script src="{{ url_for('static', filename='game_src/planning.js') }}"></script>
+    <!-- <script src="{{ url_for('static', filename='game_src/logging.js') }}"></script> -->
+    <script>
+      // Screen size params
+      const tileSize = 64;
+      const screenSizeX = 12;
+      const screenSizeY = 11;
+
+      const playerMsPerStep = 200;
+
+      const gameModes = {
+        GAME: 0,
+        TUTORIAL: 1
+      };
+
+      const isDeployment = false;
+
+      var baseURL;
+      if (isDeployment) {
+        baseURL = "http://ec2-18-236-122-235.us-west-2.compute.amazonaws.com:8194/";
+      } else {
+        baseURL = "http://0.0.0.0:8194/";
+      }
+
+      // Load game params
+
+      // const load = {{load|default("false", false)}};
+      // dataToLoad = {{dataToLoad|default([], false)|tojson}};
+      // lastLoadedData = null;
+      const uuid = "{{ uuid }}";
+      // const gid = "{{gid|default(-1, false)}}";
+      // console.log("uuid", uuid, "gid", gid);
+      // const tutorial = {{tutorial|default("false", false)}};
+      // const starting_dtime = {{starting_dtime|default(0, false)}};
+      //
+      // const gameMode = tutorial ? gameModes.TUTORIAL : gameModes.GAME;
+
+      const load = false;
+      const tutorial = false;
+      // const uuid = 0;
+      const gid = 0;
+
+      const config = {
+        type: Phaser.AUTO, // Which renderer to use
+        width: tileSize*screenSizeX, // Canvas width in pixels; must be odd multipliers so the player starts centered
+        height: tileSize*screenSizeY, // Canvas height in pixels; must be odd multipliers so the player starts centered
+        parent: "game-container", // ID of the DOM element to add the canvas to
+        scene: {
+          preload: preload,
+          create: create,
+          update: update,
+        },
+        scale: {
+            mode: Phaser.Scale.FIT,
+            autoCenter: Phaser.Scale.CENTER_BOTH
+        },
+        physics: {
+          default: "arcade",
+          arcade: {
+            gravity: { y: 0 } // Top down game, so no gravity
+          },
+        },
+      };
+
+      const game = new Phaser.Game(config);
+
+      // tileSize is defined in game.html
+      function tileToGameXY(tile) {
+        return {x : (tile.x + 0.5) * tileSize, y : (tile.y + 0.5) * tileSize};
+      }
+
+      // tileSize is defined in game.html
+      function gameToTileXY(gameXY) {
+        return {x : Math.floor(gameXY.x / tileSize), y : Math.floor(gameXY.y / tileSize)};
+      }
+
+      function logDataSocketIO(scene) {
+        var data = {
+          uuid : uuid,
+          player : {
+            currentTile : scene.game.player.currentTile,
+            nextTile : scene.game.player.nextTile,
+            x : scene.game.player.x,
+            y : scene.game.player.y,
+          },
+          player_anim_key : scene.game.player.anims.getCurrentKey(),
+          player_anim_is_playing : scene.game.player.anims.isPlaying,
+        };
+        scene.socket.emit('log_game_state', data);
+      }
+
+      // Load the assets that will be used in this game
+      function preload() {
+        // Load the tiles and tile map (created in Tiled https://www.mapeditor.org/ )
+        this.load.image("tiles", "assets/tiles2.png");
+        this.load.tilemapTiledJSON("map", "assets/map.json");
+
+        // Load the character
+        this.load.spritesheet(
+          'characters',
+          'assets/character_64x96_spritesheet_bw.png',
+          {frameWidth: 64, frameHeight: 96},
+        );
+
+        // Load the robot
+        this.load.spritesheet(
+          'robot',
+          'assets/robot2_64x64_spritesheet_bw.png',
+          {frameWidth: 64, frameHeight: 64},
+        );
+      }
+
+      function createPlayer(scene) {
+        // Create the player
+        var player = scene.physics.add.sprite(scene.game.config.width/2, scene.game.config.width/2, 'characters');
+        player.setScale(0.80);
+        player.setDepth(5);
+        player.currentTile = {x : 1, y : 1};
+        player.previousTile = player.currentTile;
+        player.nextTile = player.currentTile;
+        var gameXY = tileToGameXY(player.currentTile);
+        player.x = gameXY.x;
+        player.y = gameXY.y;
+        player.enableBody();
+
+        player.anims.play('left', true);
+        player.anims.stop();
+
+        return player;
+      }
+
+      function create() {
+          this.game.isRunning = false;
+
+          // Create the map and its layers
+          this.game.map = this.make.tilemap({ key: "map" });
+          this.game.tileset = this.game.map.addTilesetImage("tiles2", "tiles");
+          this.game.belowLayer = this.game.map.createStaticLayer("Below Player", this.game.tileset, 0, 0);
+          this.game.worldLayer = this.game.map.createStaticLayer("World", this.game.tileset, 0, 0);
+
+          console.log(this);
+
+          this.game.player = createPlayer(this);
+          // Don't need a tint because you will be surrounded by a compass and
+          // the others won't
+          // this.game.player.tint = 0xffff00;
+
+          this.game.otherPlayers = {};
+
+          // Create the player animations
+          this.anims.create({
+              key: 'down',
+              frames: this.anims.generateFrameNumbers('characters', {start: 0, end: 3}),
+              frameRate: 10,
+              repeat: -1
+          });
+          this.anims.create({
+              key: 'up',
+              frames: this.anims.generateFrameNumbers('characters', {start: 4, end: 7}),
+              frameRate: 10,
+              repeat: -1
+          });
+          this.anims.create({
+              key: 'left',
+              frames: this.anims.generateFrameNumbers('characters', {start: 8, end: 11}),
+              frameRate: 10,
+              repeat: -1
+          });
+          this.anims.create({
+              key: 'right',
+              frames: this.anims.generateFrameNumbers('characters', {start: 12, end: 15}),
+              frameRate: 10,
+              repeat: -1
+          });
+
+          // Create the robot
+          this.game.robot = this.physics.add.sprite(this.game.config.width/2, this.game.config.width/2, 'robot');
+          this.game.robot.setDepth(5);
+          this.game.robot.currentTile = {x : 5, y : 5};
+          this.game.robot.nextTile = {x : 5, y : 5};
+          this.game.robot.previousTile = this.game.robot.currentTile;
+          this.game.robot.goalTile = this.game.robot.currentTile;
+          this.game.robot.plan = null;
+          gameXY = tileToGameXY(this.game.robot.currentTile);
+          this.game.robot.x = gameXY.x;
+          this.game.robot.y = gameXY.y;
+          // this.game.hasRobotStateChangedThisUpdate = false;
+          this.game.robot.isBeingLed = false;
+          this.game.robot.taskPlan = [];
+          this.game.robot.currentActionI = 0;
+          this.game.robot.actionInProgress = false;
+
+          // Create the player animations
+          this.anims.create({
+              key: 'robotDown',
+              frames: this.anims.generateFrameNumbers('robot', {start: 0, end: 3}),
+              frameRate: 5,
+              repeat: -1
+          });
+          this.anims.create({
+              key: 'robotUp',
+              frames: this.anims.generateFrameNumbers('robot', {start: 4, end: 7}),
+              frameRate: 5,
+              repeat: -1
+          });
+          this.anims.create({
+              key: 'robotLeft',
+              frames: this.anims.generateFrameNumbers('robot', {start: 8, end: 11}),
+              frameRate: 5,
+              repeat: -1
+          });
+          this.anims.create({
+              key: 'robotRight',
+              frames: this.anims.generateFrameNumbers('robot', {start: 12, end: 15}),
+              frameRate: 5,
+              repeat: -1
+          });
+          this.game.robot.anims.play('robotDown', true);
+          this.game.robot.anims.stop();
+
+          // Create the camera
+          this.game.camera = this.cameras.main;
+          this.game.camera.startFollow(this.game.player);
+          this.game.camera.setBounds(0, 0, this.game.map.widthInPixels, this.game.map.heightInPixels);
+
+          // Configure the keyboard input
+          this.game.cursors = this.input.keyboard.createCursorKeys();
+
+          // Configure the SocketIO Logging
+          this.socket = io(baseURL);
+          var scene = this;
+          this.socket.on('updateStates', function(data) {
+            scene.game.robot.currentTile = data.robot.currentTile;
+            scene.game.robot.nextTile = data.robot.nextTile;
+            var gameXY = tileToGameXY(data.robot.tileForRendering);
+            scene.game.robot.x = gameXY.x;
+            scene.game.robot.y = gameXY.y;
+            if (data.robot.animation) {
+              scene.game.robot.anims.play(data.robot.animation, true);
+            } else {
+              scene.game.robot.anims.stop();
+            }
+            for (otherUUID in scene.game.otherPlayers) {
+              if (otherUUID != uuid && !(otherUUID in data.users)) {
+                scene.game.otherPlayers[otherUUID].destroy();
+                delete scene.game.otherPlayers[otherUUID];
+              }
+            }
+            for (otherUUID in data.users) {
+              if (otherUUID != uuid) {
+                if (!(otherUUID in scene.game.otherPlayers)) {
+                  scene.game.otherPlayers[otherUUID] = createPlayer(scene);
+                }
+                scene.game.otherPlayers[otherUUID].currentTile = data.users[otherUUID].currentTile;
+                scene.game.otherPlayers[otherUUID].nextTile = data.users[otherUUID].nextTile;
+                scene.game.otherPlayers[otherUUID].x = data.users[otherUUID].x;
+                scene.game.otherPlayers[otherUUID].y = data.users[otherUUID].y;
+                if (data.users[otherUUID].animation) {
+                    scene.game.otherPlayers[otherUUID].anims.play(data.users[otherUUID].animation, true);
+                } else {
+                  scene.game.otherPlayers[otherUUID].anims.stop();
+                }
+                if (data.users[otherUUID].player_anim_is_playing == null || !data.users[otherUUID].player_anim_is_playing) {
+                  scene.game.otherPlayers[otherUUID].anims.stop();
+                }
+              }
+            }
+          });
+
+          // Start the game
+          this.game.isRunning = true;
+      }
+
+      function update(time, delta) {
+        if (this.game.isRunning) {
+          logDataSocketIO(this);
+
+          var wasInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
+          var p = this.game.player.movementTimer == null ? 0 : this.game.player.movementTimer.getOverallProgress();
+          var gameXY = tileToGameXY({
+            x : this.game.player.currentTile.x * (1-p) + this.game.player.nextTile.x * p,
+            y : this.game.player.currentTile.y * (1-p) + this.game.player.nextTile.y * p,
+          });
+          this.game.player.x = gameXY.x;
+          this.game.player.y = gameXY.y;
+          if (this.game.player.movementTimer == null) {
+            this.game.player.previousTile = this.game.player.currentTile;
+          }
+          if (this.game.player.movementTimer != null && this.game.player.movementTimer.getOverallProgress() == 1.0) {
+            this.game.player.currentTile = this.game.player.nextTile;
+            this.game.player.movementTimer = null;
+            // if (!load) {
+            //   // Log the game state
+            //   logDataSocketIO(this);
+            // }
+          }
+          var isInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
+
+          // If we are not in the middle of a player movement, then check key presses
+          if (!isInMiddleOfPlayerMotion) {
+            var newAction = false;
+            var shouldLogData = false;
+            if (this.game.cursors.left.isDown) {
+              this.game.player.nextTile = {
+                x : this.game.player.currentTile.x - 1,
+                y : this.game.player.currentTile.y,
+              };
+              this.game.player.anims.play('left', true);
+              newAction = isValidTile(this.game.player.nextTile, false, true);
+              shouldLogData = true;
+            } else if (this.game.cursors.right.isDown) {
+              this.game.player.nextTile = {
+                x : this.game.player.currentTile.x + 1,
+                y : this.game.player.currentTile.y,
+              };
+              this.game.player.anims.play('right', true);
+              newAction = isValidTile(this.game.player.nextTile, false, true);
+              shouldLogData = true;
+            } else if (this.game.cursors.up.isDown) {
+              this.game.player.nextTile = {
+                x : this.game.player.currentTile.x,
+                y : this.game.player.currentTile.y - 1,
+              };
+              this.game.player.anims.play('up', true);
+              newAction = isValidTile(this.game.player.nextTile, false, true);
+              shouldLogData = true;
+            } else if (this.game.cursors.down.isDown) {
+              this.game.player.nextTile = {
+                x : this.game.player.currentTile.x,
+                y : this.game.player.currentTile.y + 1,
+              };
+              this.game.player.anims.play('down', true);
+              newAction = isValidTile(this.game.player.nextTile, false, true);
+              shouldLogData = true;
+            } else {
+              if (this.game.player.anims.isPlaying) shouldLogData = true;
+              this.game.player.anims.stop();
+            }
+            if (newAction) {
+              this.game.player.movementTimer = this.time.addEvent({delay: playerMsPerStep});
+              // if (!load) logDataSocketIO(this);
+            }
+            // Log the game state
+            // if (shouldLogData && !load) logDataSocketIO(this);
+          }
+
+          // // Render the robot movement
+          // if (this.game.robot) {
+          //   renderRobotMovementAnimation(this);
+          //   var isInMiddleOfRobotMotion = this.game.robot.movementTimer != null;
+          //
+          //   if (!isInMiddleOfRobotMotion) {
+          //     // console.log("isInMiddleOfRobotMotion", isInMiddleOfRobotMotion, this.game.robot.actionInProgress);
+          //     if (this.game.robot.actionInProgress) {
+          //       executeRobotAction(this);
+          //     }
+          //
+          //     // Transition the robot's state
+          //     transitionRobotState(this);
+          //
+          //     // Move the robot according to the plan
+          //     moveRobotAlongPlan(this);
+          //   }
+          // }
+          game.player.previousTaskI = game.player.taskI;
+        }
+      }
+
+    </script>
+
+  </body>
+</html>

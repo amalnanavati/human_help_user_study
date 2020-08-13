@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  </head>
+  <body>
+    <script src="{{ url_for('static', filename='game_src/map.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/logging.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/planning.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/player.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/PriorityQueue.js') }}"></script>
+    <script>
+      // Screen size params
+      const tileSize = 64;
+      const screenSizeX = 13;
+      const screenSizeY = 11;
+
+      // Local Development
+      const baseURL = "http://0.0.0.0:8194/";
+      // AWS EC2 Deployment
+      // const baseURL = "http://ec2-52-14-97-33.us-east-2.compute.amazonaws.com:8194/";
+
+      const config = {
+        type: Phaser.AUTO, // Which renderer to use
+        width: tileSize*screenSizeX, // Canvas width in pixels; must be odd multipliers so the player starts centered
+        height: tileSize*screenSizeY, // Canvas height in pixels; must be odd multipliers so the player starts centered
+        parent: "game-container", // ID of the DOM element to add the canvas to
+        scene: {
+          preload: preload,
+          create: create,
+          update: update,
+        },
+        scale: {
+            mode: Phaser.Scale.FIT,
+            autoCenter: Phaser.Scale.CENTER_BOTH
+        },
+        physics: {
+          default: "arcade",
+          arcade: {
+            gravity: { y: 0 } // Top down game, so no gravity
+          },
+        },
+      };
+
+      const game = new Phaser.Game(config);
+
+      // Load the assets that will be used in this game
+      function preload() {
+        console.log("preload");
+        // Load the tiles and tile map (created in Tiled https://www.mapeditor.org/ )
+        this.load.image("tiles", "./assets/tiles2.png");
+        this.load.tilemapTiledJSON("map", "../assets/map3.json");
+
+        this.load.json('tasks', 'assets/tasks/0.json'); // any gid 0-4 is fine
+      }
+
+      function create() {
+        console.log("create");
+
+        // Load the tasks for this game ID
+        this.game.tasks = this.cache.json.get('tasks');
+
+        // Create the map
+        createMap(this);
+        console.log("created map");
+
+        var minTimes = [];
+
+        var currentLocation = this.game.tasks.player_start_location;
+        for (task of this.game.tasks.tasks) {
+          var goalSemanticLabel = task.semanticLabel + pointOfInterestString + task.target.toString();
+          var goalLocation = this.game.semanticLabelsToXY[goalSemanticLabel][0];
+          var distance = generatePlan(currentLocation, [goalLocation], goalLocation).length;
+          var minTime = playerMsPerStep*distance;
+          minTimes.push(minTime);
+          currentLocation = goalLocation;
+        }
+
+        console.log("minTimes", minTimes, minTimes.length);
+
+        // Send the distances to the Flask server, to be processed in Python
+        logData("get_min_task_time_finished", {
+          minTimes: minTimes,
+        });
+        console.log("logged data!");
+
+      }
+
+      function update(time, delta) {
+
+      }
+
+    </script>
+
+  </body>
+</html>

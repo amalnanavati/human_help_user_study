@@ -491,7 +491,6 @@ class FlaskExample:
                 traceback.print_exc()
                 return json.dumps({'status': 'failed', 'msg': 'error writing'}), 500
 
-        # Called when the tutorial is completed
         @app.route('/get_room_connection_graph')
         def get_room_connection_graph():
             return render_template('getRoomConnectionGraph.html')
@@ -503,6 +502,20 @@ class FlaskExample:
                 dataJSON = json.dumps(request.json)#, separators=(',', ':'))
                 f.write(dataJSON+"\n")
                 logger.logPrint("Wrote room connection graph to {}".format(fname))
+
+            return json.dumps({'status': 'success', 'msg': 'saved'})
+
+        @app.route('/get_min_task_time')
+        def get_min_task_time():
+            return render_template('getMinTaskTime.html')
+
+        @app.route('/get_min_task_time_finished', methods=['POST'])
+        def get_min_task_time_finished():
+            fname = "assets/min_task_time.json"
+            with open(fname, "w") as f:
+                dataJSON = json.dumps(request.json)#, separators=(',', ':'))
+                f.write(dataJSON+"\n")
+                logger.logPrint("Wrote minTaskTime to {}".format(fname))
 
             return json.dumps({'status': 'success', 'msg': 'saved'})
 
