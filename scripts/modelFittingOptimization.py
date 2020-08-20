@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import csv
 import pprint
+import math
 
 #filepath = "../flask/ec2_outputs/humanHelpUserStudyDataWithExclusionNumeric.csv"
 filepath = "../flask/ec2_outputs/humanHelpUserStudyPerResponseData.csv"
@@ -100,6 +101,40 @@ def twoDLinearParametrizedFunction(params):
         return output
     return twoDLinearFunction
 
+def newParametrizedFunction(params):
+    def newFunction(x):
+        u = params[0]
+        k = params[1]
+        b = params[2]
+        output = u/(1+math.exp(-k*(x[0]-b)))
+        return output
+    return newFunction
+
+def averageEachXValue(unique_list):
+    my_x_vals = []
+    new_dataset = []
+    x_count = 0
+    for i in range(len(unique_list)):
+        for j in range(i, len(unique_list)): # to prevent duplicates, j starts at i and goes up
+            datapoint0 = unique_list[i]
+            pastFreqOfHelping0 = datapoint0[0][0]
+            response0 = datapoint0[0][1]
+            count0 = datapoint0[1]
+            datapoint1 = unique_list[j]
+            pastFreqOfHelping1 = datapoint1[0][0]
+            response1 = datapoint1[0][1]
+            count1 = datapoint1[1]
+            if pastFreqOfHelping0 not in my_x_vals:
+                if pastFreqOfHelping0 == pastFreqOfHelping1:
+                    totalCount = count0 + count1
+                    avgResponse = (response0*count0 + response1*count1)/totalCount
+                    x_count = x_count + 1
+                    if(x_count > 1):
+                        my_x_vals.append(pastFreqOfHelping0)
+                        new_dataset.append([pastFreqOfHelping0, avgResponse])
+        x_count = 0
+    return new_dataset
+
 def performOptimization(xs, ys, parameterizedFuncion, paramValues):
     """
     Inputs:
@@ -194,10 +229,11 @@ if __name__ == "__main__":
     xAndYAndCount = []
     for data in dataset:
         #x = float(data[1])
-        x = float(data[3])
+        x = float(data[2])
         #y = float(data[3])
         y = float(data[4])
-        if data[1] == "free time" and ([x, y] != [0.0, 0.0]):
+        if data[1] == "free time":
+        #if ([x, y] != [0.0, 0.0]):
             xs.append([x])
             ys.append(y)
             xAndY.append([x, y])
@@ -221,18 +257,30 @@ if __name__ == "__main__":
         if x not in unique_list:
             unique_list.append(x)
             # print list
-    average_x_vals = []
-    for val in unique_list:
-        sum = val[0][0] * val[1]
-        if val[0][0] not in average_x_vals:
-            average_x_vals.append([val[0][0], sum])
-        else:
-            old_sum = average_x_vals[val[0][0]]
-            average_x_vals[val[0][0], ] = average_x_vals[val[0][0], sum]
+    # average_x_vals = []
+    # for val in unique_list:
+    #     sum = val[0][0] * val[1]
+    #     if val[0][0] not in average_x_vals:
+    #         average_x_vals.append([val[0][0], sum])
+    #     else:
+    #         old_sum = average_x_vals[val[0][0]]
+    #         average_x_vals[val[0][0], ] = average_x_vals[val[0][0], sum]
         #average =
-    print(unique_list)
+    print("Unique list: ", unique_list)
 
 
+    new_dataset = averageEachXValue(unique_list)
+
+                # Append the values to your new dataset(s).
+                # pastFreqOfHelping0 is x, avgResponse is y.
+                # No need to color it by count since count has been averaged away
+    #print(new_dataset)
+
+    x_vals = []
+    y_vals = []
+    for i in new_dataset:
+        x_vals.append([i[0]])
+        y_vals.append(i[1])
 
 
         # for i in range(len(xSamples)):
@@ -248,12 +296,24 @@ if __name__ == "__main__":
 
 
     # Generate the parameter range
-    parameterizedFunc = oneDLinearParametrizedFunction
-
+    parameterizedFunc = newParametrizedFunction
+    # parameterizedFunc = oneDLinearParametrizedFunction
+    #
     paramValues = []
-    for m in range(-10, 10, 1):
-        for b in range(-10, 10, 1):
-            paramValues.append([m, b])
+    # for u in range(-10, 10, 1):
+    #     for k in range(-100, 100, 1):
+    #             paramValues.append([u/100, k/100])
+
+    #paramValues = [[5, -50, 1]]
+    # for u in range(0, 10, 1):
+    #     for k in range(-100, 0, 1):
+    #         for b in range(-50, 50, 1):
+    #             paramValues.append([u/10, k, b/10])
+
+    for u in range(0, 10, 1):
+        for k in range(-100, 0, 1):
+            for b in range(-5, 5, 1):
+                paramValues.append([u/10, k, b])
 
 
     # parameterizedFunc = quadraticParameterizedFunction
@@ -296,19 +356,56 @@ if __name__ == "__main__":
     #
     ############################################################################
 
+    # yPredVals = []
+    # plt.scatter(xs, ys)
+    # func = parameterizedFunc(bestParams)
+    # for x in x:
+    #     yPredVals.append(func(x))
+    # scatterplot = plt.scatter(xs, ys, c=count, vmin=0, vmax=50, s=35)
+    # plt.colorbar(scatterplot)
+    # plt.xlabel('X axis: Past Frequency of Helping Accurately')
+    # plt.ylabel('Y axis: Human Response')
+    # plt.title("Busyness: Free Time")
+    # plt.show()
+    # plt.plot(xs, yPredVals)
+    # plt.show()
+
+
+
+    plt.scatter(x_vals, y_vals)
     yPredVals = []
-    plt.scatter(xs, ys)
+    xAndYPredVals = []
+    #countPred = []
+    #xAndYPredAndCount = []
     func = parameterizedFunc(bestParams)
+    xs.sort(key=lambda x: x[0])
     for x in xs:
-        yPredVals.append(func(x))
-    scatterplot = plt.scatter(xs, ys, c=count, vmin=0, vmax=50, s=35)
-    plt.colorbar(scatterplot)
-    plt.xlabel('X axis: Past Frequency of Helping Accurately')
-    plt.ylabel('Y axis: Human Response')
+        y = func(x)
+        yPredVals.append(y)
+        #xAndYPredVals.append([x, y])
+    #print(xAndYPredVals)
+    print("XS: ", xs)
+    print("yPredVals: ", yPredVals)
+    #plt.xticks(np.arange(0, 1, step=0.05))
+    plt.plot(xs, yPredVals)
+    plt.xlabel('X axis: Past Frequency of Asking')
+    plt.ylabel('Y axis: Average Human Response')
     plt.title("Busyness: Free Time")
     plt.show()
-    plt.plot(xs, yPredVals)
-    plt.show()
+
+
+    # for val in xAndYPredVals:
+    #     c = xAndYPredVals.count(val)
+    #     if(val not in xAndYAndCount):
+    #         xAndYPredAndCount.append([val, c])
+
+    # uniquePredlist = []
+    # for x in xAndYPredAndCount:
+    #     if x not in uniquePredlist:
+    #         uniquePredlist.append(x)
+
+
+
 
 
 #     zPredVals = []
