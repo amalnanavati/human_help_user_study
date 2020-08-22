@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pprint
 
-def decisionTree(trainX, trainY, testX, plot=False):
+def decisionTree(trainX, trainY, testX, testY, plot=False):
     decisionTree = sklearn.tree.DecisionTreeClassifier()#(max_depth=3)
     fittedDecisionTree = decisionTree.fit(trainX, trainY)
 
@@ -17,22 +17,57 @@ def decisionTree(trainX, trainY, testX, plot=False):
         plt.savefig("../flask/ec2_outputs/decisionTree.png")
 
     testYPred = fittedDecisionTree.predict(testX)
-    return testYPred
+    return testYPred, fittedDecisionTree
 
-def logisticRegression(trainX, trainY, testX):
-    logisticRegression = sklearn.linear_model.LogisticRegression()#(max_depth=3)
+def logisticRegression(trainX, trainY, testX, testY, plot=False):
+    logisticRegression = sklearn.linear_model.LogisticRegression()
     fittedLogisticRegression = logisticRegression.fit(trainX, trainY)
 
+    if plot:
+        # Generate the plot of frequency on the x, partitioned by busyness
+        fig = plt.figure()
+        ax = fig.subplots()
+
+        # Plot the predictor
+        busynessToColor = {}
+        busynessToLabel = {}
+        for busyness, color, label in [(0.0, "g", "free time"), (1/7.0, "b", "medium"), (1/3.0, "r", "high")]:
+            busynessToColor[busyness] = color
+            busynessToLabel[busyness] = label
+            frequencies = [i/100.0 for i in range(20, 101)]
+            X = np.array([[busyness, frequency] for frequency in frequencies])
+            Y = fittedLogisticRegression.predict_proba(X)
+            ax.plot(X[:,1], Y[:,1], c=color, label=label, linestyle="--")
+        # Plot the averages for the test datapoints
+        # TODO: add error bars!
+        busynessToFrequencyToMean = {}
+        for i in range(len(trainX)):
+            busyness, frequency = trainX[i]
+            if busyness not in busynessToFrequencyToMean:
+                busynessToFrequencyToMean[busyness] = {}
+            if frequency not in busynessToFrequencyToMean[busyness]:
+                busynessToFrequencyToMean[busyness][frequency] = []
+            y = trainY[i]
+            busynessToFrequencyToMean[busyness][frequency].append(y)
+        for busyness in busynessToFrequencyToMean:
+            xs, ys = [], []
+            for frequency in [0.2, 0.4, 0.6, 0.8, 1.0]:
+                xs.append(frequency)
+                ys.append(np.mean(busynessToFrequencyToMean[busyness][frequency]))
+            ax.plot(xs, ys, c=busynessToColor[busyness], label=busynessToLabel[busyness], marker="o")
+        # ax.legend()
+        plt.show()
+
     testYPred = fittedLogisticRegression.predict(testX)
-    return testYPred
+    return testYPred, fittedLogisticRegression
 
-def alwaysPredictNotHelp(trainX, trainY, testX):
+def alwaysPredictNotHelp(trainX, trainY, testX, testY, plot=False):
     testYPred = np.zeros(testY.shape)
-    return testYPred
+    return testYPred, None
 
-def alwaysPredictHelp(trainX, trainY, testX):
+def alwaysPredictHelp(trainX, trainY, testX, testY, plot=False):
     testYPred = np.ones(testY.shape)
-    return testYPred
+    return testYPred, None,
 
 if __name__ == "__main__":
     busynessListRaw, freqOfAskingList, freqOfHelpingAccuratelyList, responseNumberList = [], [], [], []
@@ -42,7 +77,7 @@ if __name__ == "__main__":
         reader = csv.reader(f)
         headers = next(reader, None)
         for row in reader:
-            uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, prosociality, slowness, busynessNumeric, numRecentTimesDidNotHelp = row
+            uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, prosociality, slowness, busynessNumeric, numRecentTimesDidNotHelp, age = row
             busynessListRaw.append(busyness)
             busynessList.append(busynessNumeric)#busynessMapping[busyness])
             freqOfAskingList.append(freqOfAsking)
@@ -53,12 +88,13 @@ if __name__ == "__main__":
     # busynessList = busynessEncoder.fit_transform(busynessListRaw)
     # print("busynessEncoder", busynessEncoder, busynessEncoder.get_params(), busynessEncoder.transform(["high", "medium", "free time"]))
 
-    X = np.zeros((len(busynessList), 3))
+    # X = np.zeros((len(busynessList), 3))
+    X = np.zeros((len(busynessList), 2))
     Y = np.zeros(len(busynessList))
     for i in range(len(busynessList)):
         X[i][0] = busynessList[i]
         X[i][1] = freqOfAskingList[i]
-        X[i][2] = freqOfHelpingAccuratelyList[i]
+        # X[i][2] = freqOfHelpingAccuratelyList[i]
         Y[i] = responseNumberList[i]
 
     trainingSetSize = int(0.80*len(busynessList))
@@ -87,8 +123,11 @@ if __name__ == "__main__":
         trainY = Y[trainIndices]
         testY = Y[testIndices]
 
+        # logisticRegression(trainX, trainY, testX, testY, True)
+        # raise Exception()
+
         for classifierName, classifierFn in classifiers.items():
-            testYPred = classifierFn(trainX, trainY, testX)
+            testYPred, _ = classifierFn(trainX, trainY, testX, testY)
 
             accuracy = sklearn.metrics.accuracy_score(testY, testYPred)
             accuracies[classifierName].append(accuracy)

@@ -55,7 +55,18 @@ class ResponseToHelpQuery(Enum):
 
 noRobotTaskI = [0,3,7,10,14,17,21,24]
 robotAppearsTaskI = [1,2,4,5,6,8,9,11,12,13,15,16,18,19,20,22,23,25,26,27]
+robotAppearsBusyness = ["free time", "high", "free time", "high", "medium", "high", "medium", "high", "medium", "free time", "medium", "free time", "medium", "free time", "high", "free time", "high", "free time", "high", "medium"]
 taskIForSlowness = [0,3,21,24] # All Medium Busyness
+lowestGIDToSharedTaskI = {
+    0 : [13,20,27],
+    1 : [ 9,13,16,20,23,27],
+    2 : [ 9,11,13,16,18,20,23,25,27],
+    3 : [ 8, 9,11,13,15,16,18,20,22,23,25,27],
+    4 : [ 8, 9,11,12,13,15,16,18,19,20,22,23,25,26,27],
+}
+lowestGIDToSharedRobotInteractionSeqI = {
+    gid : [robotAppearsTaskI.index(taskI) for taskI in lowestGIDToSharedTaskI[gid]] for gid in lowestGIDToSharedTaskI
+}
 
 busynessNumericRepresentation = {"high":1/3.0, "medium":1/7.0, "free time":0}
 
@@ -717,27 +728,43 @@ def makeGraphs(surveyData, descriptor=""):
     # 3D scatterplot
     markers = ["o", "^", "s", "+", "X"]
     markerToXYZ = {marker : [[], [], [], ""] for marker in markers}
+    markerToFreq = {}
+    freqToXYZ = {freq : [] for freq in freqs}
     for uuid in surveyData:
         gid = surveyData[uuid]["gid"]
+        freq = (gid+1)/5.0
         marker = markers[gid]
+        markerToFreq[marker] = freq
         x = surveyData[uuid]['helpGivingData']['high']
         y = surveyData[uuid]['helpGivingData']['medium']
         z = surveyData[uuid]['helpGivingData']['free time']
         markerToXYZ[marker][0].append(x)
         markerToXYZ[marker][1].append(y)
         markerToXYZ[marker][2].append(z)
-        markerToXYZ[marker][3] = "Freq: %.1f" % ((gid+1)/5.0)
+        markerToXYZ[marker][3] = "Freq: %.1f" % (freq)
+        freqToXYZ[freq].append([x,y,z])
+    freqToAvgXVY = {freq : np.mean(freqToXYZ[freq], axis=0) for freq in freqToXYZ}
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     for marker in markerToXYZ:
         ax.scatter(
-            markerToXYZ[marker][0],
-            markerToXYZ[marker][1],
-            markerToXYZ[marker][2],
+            markerToXYZ[marker][0]+[freqToAvgXVY[markerToFreq[marker]][0]],
+            markerToXYZ[marker][1]+[freqToAvgXVY[markerToFreq[marker]][1]],
+            markerToXYZ[marker][2]+[freqToAvgXVY[markerToFreq[marker]][2]],
             label=markerToXYZ[marker][3],
             marker=marker,
         )
+    freqOrder = [(gid+1)/5.0 for gid in range(5)]
+    xs = [freqToAvgXVY[freq][0] for freq in freqOrder]
+    ys = [freqToAvgXVY[freq][1] for freq in freqOrder]
+    zs = [freqToAvgXVY[freq][2] for freq in freqOrder]
+    ax.plot(
+        xs,
+        ys,
+        zs,
+        linestyle='-',
+    )
 
     ax.set_xlabel('Willingness to Help for High')
     ax.set_ylabel('Willingness to Help for Medium')
@@ -745,6 +772,7 @@ def makeGraphs(surveyData, descriptor=""):
     ax.legend()
 
     plt.savefig(baseDir + "fullScatter{}.png".format(descriptor))
+    # plt.show()
     plt.clf()
 
     # 3D scatterplot by count
@@ -975,7 +1003,7 @@ def makeGraphs(surveyData, descriptor=""):
     #
     # plt.show()
 
-def writeCSV(surveyData, taskDefinitions, filepath, numericFilepath):
+def writeCSV(surveyData, taskDefinitions, filepath, numericFilepath, separatedByTaskIFilepath):
     header = [
         "User ID",
         "Frequency",
@@ -1100,6 +1128,91 @@ def writeCSV(surveyData, taskDefinitions, filepath, numericFilepath):
             writer.writerow(row)
             i += 1
         print("wrote {} data rows".format(i))
+
+        for gid in range(5):
+            # freq = (gid+1)/5.0
+            with open(separatedByTaskIFilepath % gid, "w") as f:
+                writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
+                writer.writerow(header)
+                i = 0
+                for uuid in surveyData:
+                    if int(surveyData[uuid]["gid"]) < gid:
+                        if (gid == 0):
+                            raise Exception("Rejecting UUID {} from gid {} for data gid {}".format(uuid, gid, surveyData[uuid]["gid"]))
+                        continue
+                    responsesToConsider = [surveyData[uuid]['humanHelpSequence']['robot interaction sequence'][i] for i in lowestGIDToSharedRobotInteractionSeqI[gid]]
+                    responsesHigh = [responceToConsider[1].toNumber() for responceToConsider in responsesToConsider if responceToConsider[0] == "high"]
+                    responsesMedium = [responceToConsider[1].toNumber() for responceToConsider in responsesToConsider if responceToConsider[0] == "medium"]
+                    responsesFreeTime = [responceToConsider[1].toNumber() for responceToConsider in responsesToConsider if responceToConsider[0] == "free time"]
+                    responsesOverall = [responceToConsider[1].toNumber() for responceToConsider in responsesToConsider]
+
+                    row = [uuid]
+                    row.append((surveyData[uuid]["gid"]+1)/5.0)
+                    row.append(np.mean(responsesHigh))
+                    row.append(np.mean(responsesMedium))
+                    row.append(np.mean(responsesFreeTime))
+                    row.append(np.mean(responsesOverall))
+                    row.append(surveyData[uuid]['RoSAS']['Competence'])
+                    row.append(surveyData[uuid]['RoSAS']['Curiosity'])
+                    row.append(surveyData[uuid]['RoSAS']['Discomfort'])
+                    row.append(surveyData[uuid]['RoSAS']['Warmth'])
+                    row.append(surveyData[uuid]['NASA-TLX']['Effort'])
+                    row.append(surveyData[uuid]['NASA-TLX']['Frustration'])
+                    row.append(surveyData[uuid]['NASA-TLX']['Mental Demand'])
+                    row.append(surveyData[uuid]['NASA-TLX']['Performance'])
+                    row.append(surveyData[uuid]['NASA-TLX']['Physical Demand'])
+                    row.append(surveyData[uuid]['NASA-TLX']['Temporal Demand'])
+                    row.append(surveyData[uuid]['In your own words, describe what the robot was doing.'].replace("\n", "\\n"))
+                    row.append(surveyData[uuid]['In instances when the robot asked for help, why did you help or not help it?'].replace("\n", "\\n"))
+                    row.append(surveyData[uuid]['In what scenarios would it be acceptable for a real-world robot to ask people for help?'].replace("\n", "\\n"))
+                    row.append(surveyData[uuid]['Did you think the robot was curious? Why or why not?'].replace("\n", "\\n"))
+                    row.append(surveyData[uuid]['Is there anything else you would like us to know?'].replace("\n", "\\n"))
+                    row.append(surveyData[uuid]['Demography']['Age'])
+                    row.append(surveyData[uuid]['Demography']['Gender'])
+                    row.append(surveyData[uuid]['Demography']['Navigational Ability'])
+                    row.append(surveyData[uuid]['Demography']['Prosociality'])
+                    row.append(surveyData[uuid]['Demography']['Video Game Experience'])
+                    row.append(surveyData[uuid]['Demography']['Survey Duration'] if 'Survey Duration' in surveyData[uuid]['Demography'] else "")
+                    row.append(surveyData[uuid]['Demography']['Slowness'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Reliable'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Competent'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Knowledgeable'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Interactive'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Responsive'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Capable'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Organic'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Sociable'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Emotional'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Compassionate'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Happy'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Feeling'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Awkward'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Scary'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Strange'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Awful'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Dangerous'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Aggressive'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Investigative'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Inquisitive'])
+                    row.append(surveyData[uuid]['RoSAS Raw']['Curious'])
+                    row.append(surveyData[uuid]['Demography']['tutorialOverallHelping'])
+                    for i in range(len(taskDefinitions[0]["robotActions"])):
+                        if surveyData[uuid]['humanHelpSequence']['robot interaction sequence'][i] is None:
+                            response = None
+                        else:
+                            _, response = surveyData[uuid]['humanHelpSequence']['robot interaction sequence'][i]
+                        if response is None:
+                            if taskDefinitions[surveyData[uuid]["gid"]]["robotActions"][i]["robotAction"]["query"] == "walkPast":
+                                row.append("ROBOT_NOT_ASK_CONDITION")
+                            else:
+                                row.append("NEVER_SAW_ROBOT")
+                                print("Response none on not walkPast, uuid {}, i {}".format(uuid, i))
+                        else:
+                            row.append(response.name)
+
+                    writer.writerow(row)
+                    i += 1
+
         numericHeader = ["Busyness", "Frequency", "Prosociality", "Willingness To Help"]
         with open(numericFilepath, "w") as f:
             writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
@@ -1240,9 +1353,10 @@ def makePerResponseDataset(surveyData):
 
 def makePerResponseDatasetGraph(perResponseDataset, descriptor):
     freqOfAskingToNumRecentTimesDidNotHelp = {} # freqOfAsking -> [list of numRecentTimesDidNotHelp if responseNumber is 1]
+    taskIToFreqOfAskingToWillingnessAndBusyness = {} # taskI -> freqOfAsking -> [[list of responseNumber], busyness]
     dataToGraph = {} # busyness -> freqOfAsking -> freqOfHelpingAccurately -> [list of responseNumber]
     partitionKeys = []
-    for _, _, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, numRecentTimesDidNotHelp in perResponseDataset:
+    for _, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, numRecentTimesDidNotHelp in perResponseDataset:
         if busyness not in dataToGraph:
             dataToGraph[busyness] = {}
         if freqOfAsking not in dataToGraph[busyness]:
@@ -1254,6 +1368,11 @@ def makePerResponseDatasetGraph(perResponseDataset, descriptor):
         if freqOfAsking not in freqOfAskingToNumRecentTimesDidNotHelp:
             freqOfAskingToNumRecentTimesDidNotHelp[freqOfAsking] = []
         if responseNumber == 1: freqOfAskingToNumRecentTimesDidNotHelp[freqOfAsking].append(numRecentTimesDidNotHelp)
+        if taskI not in taskIToFreqOfAskingToWillingnessAndBusyness:
+            taskIToFreqOfAskingToWillingnessAndBusyness[taskI] = {}
+        if freqOfAsking not in taskIToFreqOfAskingToWillingnessAndBusyness[taskI]:
+            taskIToFreqOfAskingToWillingnessAndBusyness[taskI][freqOfAsking] = [[], busyness]
+        taskIToFreqOfAskingToWillingnessAndBusyness[taskI][freqOfAsking][0].append(responseNumber)
 
     # Overall per person response
     fig = plt.figure(figsize=(16,8))
@@ -1383,7 +1502,7 @@ def makePerResponseDatasetGraph(perResponseDataset, descriptor):
     # Constant for the Wilson Confidence Interval for Bernoulli random variables
     # https://brainder.org/2012/04/21/confidence-intervals-for-bernoulli-trials/
     alpha = 0.05
-    k = sklearn.stats.norm.ppf(1-alpha/2)
+    k = scipy.stats.norm.ppf(1-alpha/2)
 
     busynessOrder = ["free time", "medium", "high"]
     freqOrder = [(gid+1)/5.0 for gid in range(5)]
@@ -1424,16 +1543,74 @@ def makePerResponseDatasetGraph(perResponseDataset, descriptor):
     plt.savefig(baseDir + "perPersonResponse_numTimesHelped{}.png".format(descriptor))
     plt.clf()
 
+    # Make the graph with respect to taskI
+    fig = plt.figure(figsize=(16,16))
+    ax = fig.add_subplot(111, projection='3d')
 
-def writePerResponseCSV(perResponseDataset, filepath, surveyData):
-    header = ["UUID", "TaskI", "Busyness", "Past Frequency of Asking", "Past Frequency of Helping Accurately", "Human Response", "Prosociality", "Slowness", "Busyness Numeric", "Num Recent Times Did Not Help"]
+    for taskI in taskIToFreqOfAskingToWillingnessAndBusyness:
+        xs, ys, zs = [], [], []
+        for freqOfAsking in freqOrder:
+            if freqOfAsking not in taskIToFreqOfAskingToWillingnessAndBusyness[taskI]: continue
+            likelihoodOfHelping = np.mean(taskIToFreqOfAskingToWillingnessAndBusyness[taskI][freqOfAsking][0])
+            busyness = taskIToFreqOfAskingToWillingnessAndBusyness[taskI][freqOfAsking][1]
+            xs.append(taskI)
+            ys.append(freqOfAsking)
+            zs.append(likelihoodOfHelping)
+        ax.plot(xs, ys, zs, c=tuple(busynessToColor[busyness]), marker="o")
+
+    ax.set_xlabel('TaskI')
+    ax.set_ylabel('Frequency of Asking')
+    ax.set_zlabel('Likelihood of Helping')
+    ax.legend()
+    plt.savefig(baseDir + "perPersonResponseWithTaskI{}.png".format(descriptor))
+    # plt.show()
+    plt.clf()
+
+    # Make the graph with respect to taskI
+    fig = plt.figure(figsize=(16,16))
+    ax = fig.add_subplot()
+
+    for taskI in taskIToFreqOfAskingToWillingnessAndBusyness:
+        xs, ys, zs = [], [], []
+        for freqOfAsking in freqOrder:
+            if freqOfAsking not in taskIToFreqOfAskingToWillingnessAndBusyness[taskI]: continue
+            likelihoodOfHelping = np.mean(taskIToFreqOfAskingToWillingnessAndBusyness[taskI][freqOfAsking][0])
+            busyness = taskIToFreqOfAskingToWillingnessAndBusyness[taskI][freqOfAsking][1]
+            # xs.append(taskI)
+            ys.append(freqOfAsking)
+            zs.append(likelihoodOfHelping)
+        # ax.plot(xs, ys, zs, c=tuple(busynessToColor[busyness]), marker="o")
+        ax.plot(ys, zs, c=tuple(busynessToColor[busyness]), marker="o")
+    # ax.set_xlabel('TaskI')
+    ax.set_xlabel('Frequency of Asking')
+    ax.set_ylabel('Likelihood of Helping')
+    # ax.legend()
+    plt.savefig(baseDir + "perPersonResponse2DWithTaskI{}.png".format(descriptor))
+    # plt.show()
+    plt.clf()
+
+
+
+def writePerResponseCSV(perResponseDataset, filepath, surveyData, aboveGIDFilepath):
+    header = ["UUID", "TaskI", "Busyness", "Past Frequency of Asking", "Past Frequency of Helping Accurately", "Human Response", "Prosociality", "Slowness", "Busyness Numeric", "Num Recent Times Did Not Help", "Age"]
     with open(filepath, "w") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
         writer.writerow(header)
         i = 0
         for uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, numRecentTimesDidNotHelp in perResponseDataset:
-            row = [uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, surveyData[uuid]["Demography"]["Prosociality"], surveyData[uuid]["Demography"]["Slowness"], busynessNumericRepresentation[busyness], numRecentTimesDidNotHelp]
+            row = [uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, surveyData[uuid]["Demography"]["Prosociality"], surveyData[uuid]["Demography"]["Slowness"], busynessNumericRepresentation[busyness], numRecentTimesDidNotHelp, surveyData[uuid]["Demography"]["Age"]]
             writer.writerow(row)
+
+    for gid in range(5):
+        with open(aboveGIDFilepath%gid, "w") as f:
+            writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
+            writer.writerow(header)
+            i = 0
+            for uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, numRecentTimesDidNotHelp in perResponseDataset:
+                if freqOfAsking*5.0-1.0 < gid: continue
+                if taskI not in lowestGIDToSharedTaskI[gid]: continue
+                row = [uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, surveyData[uuid]["Demography"]["Prosociality"], surveyData[uuid]["Demography"]["Slowness"], busynessNumericRepresentation[busyness], numRecentTimesDidNotHelp, surveyData[uuid]["Demography"]["Age"]]
+                writer.writerow(row)
     pass
 
 def copyDataOver(surveyData, baseDir, copyDir):
@@ -1685,7 +1862,7 @@ if __name__ == "__main__":
 
     print("gidListForTutorialOnlyHelping", gidListForTutorialOnlyHelping, repr(gidListForTutorialOnlyHelping))
 
-    writeCSV(surveyDataTutorialOnlyHelping, taskDefinitions, baseDir+"humanHelpUserStudyDataWithExclusion.csv", baseDir+"humanHelpUserStudyDataWithExclusionNumeric.csv")
+    writeCSV(surveyDataTutorialOnlyHelping, taskDefinitions, baseDir+"humanHelpUserStudyDataWithExclusion.csv", baseDir+"humanHelpUserStudyDataWithExclusionNumeric.csv", baseDir+"humanHelpUserStudyDataWithExclusion%d.csv")
 
     makeGraphs(surveyDataTutorialOnlyHelping, "_tutorialOnlyHelping")
 
@@ -1694,7 +1871,7 @@ if __name__ == "__main__":
     # print("perResponseDataset")
     # pprint.pprint(perResponseDataset)
     makePerResponseDatasetGraph(perResponseDataset, "_tutorialOnlyHelping")
-    writePerResponseCSV(perResponseDataset, baseDir+"humanHelpUserStudyPerResponseData.csv", surveyDataTutorialOnlyHelping)
+    writePerResponseCSV(perResponseDataset, baseDir+"humanHelpUserStudyPerResponseData.csv", surveyDataTutorialOnlyHelping, baseDir+"humanHelpUserStudyPerResponseData%d.csv")
 
     # Make the entire history dataset
     entireHistoryDataset = makeEntrieHistoryDataset(surveyDataTutorialOnlyHelping)
@@ -1727,30 +1904,30 @@ if __name__ == "__main__":
     # print("surveyDataOnlyZeros")
     # pprint.pprint(surveyDataOnlyZeros)
 
-    # Remove the users that never help the robot
-    surveyDataTutorialOnlyHelpingAndNoZeros = {}
-    uuidsToDel = []
-    for uuid in surveyDataTutorialOnlyHelping:
-        if surveyDataTutorialOnlyHelping[uuid]["helpGivingData"]["overall"] > 0.0:
-            surveyDataTutorialOnlyHelpingAndNoZeros[uuid] = surveyDataTutorialOnlyHelping[uuid]
-
-    print("len(surveyDataTutorialOnlyHelpingAndNoZeros)", len(surveyDataTutorialOnlyHelpingAndNoZeros), "len(surveyDataTutorialOnlyHelping)", len(surveyDataTutorialOnlyHelping), "len(surveyData)", len(surveyData))
-    print("responseCountByType", responseCountByType(surveyDataTutorialOnlyHelpingAndNoZeros))
-
-    writeCSV(surveyDataTutorialOnlyHelpingAndNoZeros, taskDefinitions, baseDir+"humanHelpUserStudyDataWithExclusionNoZeros.csv", baseDir+"humanHelpUserStudyDataWithExclusionNoZerosNumeric.csv")
-
-    makeGraphs(surveyDataTutorialOnlyHelpingAndNoZeros, "_tutorialOnlyHelpingNoZeros")
-
-    # Make the per response dataset
-    perResponseDataset = makePerResponseDataset(surveyDataTutorialOnlyHelpingAndNoZeros)
-    # print("perResponseDataset")
-    # pprint.pprint(perResponseDataset)
-    makePerResponseDatasetGraph(perResponseDataset, "_tutorialOnlyHelpingNoZeros")
-    writePerResponseCSV(perResponseDataset, baseDir+"humanHelpUserStudyPerResponseDataNoZeros.csv", surveyDataTutorialOnlyHelpingAndNoZeros)
-
-    # Make the entire history dataset
-    entireHistoryDataset = makeEntrieHistoryDataset(surveyDataTutorialOnlyHelpingAndNoZeros)
-    makeEntireHistoryDatasetGraph(entireHistoryDataset, "_tutorialOnlyHelpingNoZeros")
-
-    # print("Copying data over to the final dataset folder")
-    # copyDataOver(surveyDataTutorialOnlyHelping, baseDir, copyDir="../flask/finalData/finalDataset/")
+    # # Remove the users that never help the robot
+    # surveyDataTutorialOnlyHelpingAndNoZeros = {}
+    # uuidsToDel = []
+    # for uuid in surveyDataTutorialOnlyHelping:
+    #     if surveyDataTutorialOnlyHelping[uuid]["helpGivingData"]["overall"] > 0.0:
+    #         surveyDataTutorialOnlyHelpingAndNoZeros[uuid] = surveyDataTutorialOnlyHelping[uuid]
+    #
+    # print("len(surveyDataTutorialOnlyHelpingAndNoZeros)", len(surveyDataTutorialOnlyHelpingAndNoZeros), "len(surveyDataTutorialOnlyHelping)", len(surveyDataTutorialOnlyHelping), "len(surveyData)", len(surveyData))
+    # print("responseCountByType", responseCountByType(surveyDataTutorialOnlyHelpingAndNoZeros))
+    #
+    # writeCSV(surveyDataTutorialOnlyHelpingAndNoZeros, taskDefinitions, baseDir+"humanHelpUserStudyDataWithExclusionNoZeros.csv", baseDir+"humanHelpUserStudyDataWithExclusionNoZerosNumeric.csv", baseDir+"humanHelpUserStudyDataWithExclusionNoZeros%d.csv")
+    #
+    # makeGraphs(surveyDataTutorialOnlyHelpingAndNoZeros, "_tutorialOnlyHelpingNoZeros")
+    #
+    # # Make the per response dataset
+    # perResponseDataset = makePerResponseDataset(surveyDataTutorialOnlyHelpingAndNoZeros)
+    # # print("perResponseDataset")
+    # # pprint.pprint(perResponseDataset)
+    # makePerResponseDatasetGraph(perResponseDataset, "_tutorialOnlyHelpingNoZeros")
+    # writePerResponseCSV(perResponseDataset, baseDir+"humanHelpUserStudyPerResponseDataNoZeros.csv", surveyDataTutorialOnlyHelpingAndNoZeros, baseDir+"humanHelpUserStudyPerResponseDataNoZeros%d.csv")
+    #
+    # # Make the entire history dataset
+    # entireHistoryDataset = makeEntrieHistoryDataset(surveyDataTutorialOnlyHelpingAndNoZeros)
+    # makeEntireHistoryDatasetGraph(entireHistoryDataset, "_tutorialOnlyHelpingNoZeros")
+    #
+    # # print("Copying data over to the final dataset folder")
+    # # copyDataOver(surveyDataTutorialOnlyHelping, baseDir, copyDir="../flask/finalData/finalDataset/")
