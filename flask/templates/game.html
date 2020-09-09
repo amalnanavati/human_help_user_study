@@ -31,6 +31,8 @@
       const tileSize = 64;
       const screenSizeX = 13;
       const screenSizeY = 11;
+      const numRooms = 31;
+      const num_busyness = 6;
 
       const gameModes = {
         GAME: 0,
@@ -40,10 +42,13 @@
       const isDeployment = false;
 
       var baseURL;
+      var basePolicyURL;
       if (isDeployment) {
         baseURL = "http://ec2-18-236-122-235.us-west-2.compute.amazonaws.com:8194/";
+        basePolicyURL = "http://ec2-18-236-122-235.us-west-2.compute.amazonaws.com:8094/";
       } else {
         baseURL = "http://0.0.0.0:8194/";
+        basePolicyURL = "http://0.0.0.0:8094/";
       }
 
       // Load game params
@@ -107,7 +112,7 @@
         if (tutorial) {
           this.load.json('tasks', 'assets/tasks/tutorial.json');
         } else {
-          this.load.json('tasks', 'assets/tasks/{{gid}}.json');
+          this.load.json('tasks', 'assets/tasks/evaluation.json');
         }
       }
 
@@ -140,6 +145,8 @@
 
               // Load the tasks for this game ID
               scene.game.tasks = scene.cache.json.get('tasks');
+              randomlyAssignBusyness(scene, 0);
+              randomlyAssignBusyness(scene, 1);
 
               // Create the player and the robot
               createPlayer(scene);
@@ -177,6 +184,7 @@
               createNegativeScoreOutline(scene);
 
               // Start the game
+              sendNewUserMsgToPolicyServer(scene);
               getCurrentTaskPlan(scene);
               scene.game.player.currentTaskDistance = scene.game.player.taskPlan.length;
               transitionToNewTask(scene);

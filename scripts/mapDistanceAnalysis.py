@@ -172,7 +172,7 @@ def generateTaskSequence(adjacencyList, semanticLabelToXYForTargets, n=100):
     nodesToNumTimesVisited = {node : 0 for node in adjacencyList}
     nodesToNumTimesVisited[startNode] += 1
     startFreeTimeI = 2
-    freeTimePeriod = 3
+    freeTimePeriod = 6
 
     def constructSequence(i, foundSequences):
         if (i == 29):
@@ -276,7 +276,7 @@ def generateRobotTargets(finalSequence, robotAppearsAfterTaskIndex, mapDistances
     for completedTaskI in robotAppearsAfterTaskIndex:
         # Get all the nodes for the (25, 35) change
         mergedNodes = set()
-        for distBucket in [35, 40]:
+        for distBucket in [35,40,45]:#[35, 40]:
             if distBucket in distanceBucketsToEdges[completedTaskI]:
                 for node in distanceBucketsToEdges[completedTaskI][distBucket]:
                     if node not in freeTimeNodes: mergedNodes.add(node) # The robot should never go to free time nodes
@@ -400,38 +400,110 @@ if __name__ == "__main__":
 
     adjacencyList = rangeToMergedAdjacencyList[(4,5)]
     avgNumDifferentRooms, foundSequences = generateTaskSequence(adjacencyList, semanticLabelToXYForTargets)
-    pprint.pprint(sorted(foundSequences, key=lambda x: len(set(x)), reverse=True)[0])
+
+    def similarityToDataCollection(x):
+        dataCollectionSequence = ['Room 1 Start',
+        'Room 10 Start',
+        'Lounge Start',
+        'Room 33 Start',
+        'Room 47 Start',
+        'Game Room Start',
+        'Room 7 Start',
+        'Room 3 Start',
+        'Restroom C Start',
+        'Room 34 Start',
+        'Room 41 Start',
+        'Restroom A Start',
+        'Room 30 Start',
+        'Room 2 Start',
+        'Restroom C Start',
+        'Room 21 Start',
+        'Room 31 Start',
+        'Restroom A Start',
+        'Room 6 Start',
+        'Room 20 Start',
+        'Lounge Start',
+        'Room 11 Start',
+        'Room 22 Start',
+        'Restroom B Start',
+        'Room 43 Start',
+        'Room 31 Start',
+        'Game Room Start',
+        'Room 8 Start',
+        'Room 4 Start']
+        similarity = 0
+        for i in range(len(x)):
+            if x[i] == dataCollectionSequence[i]:
+                similarity += 1
+        # print("similarity", similarity, len(set(x)))
+        return (similarity, len(set(x)))
+
+    pprint.pprint(sorted(foundSequences, key=similarityToDataCollection, reverse=True)[0:2])
+
+    print(tuple(sorted(foundSequences, key=similarityToDataCollection, reverse=True)[0]) == tuple(sorted(foundSequences, key=similarityToDataCollection, reverse=True)[1]))
+    print(similarityToDataCollection(sorted(foundSequences, key=similarityToDataCollection, reverse=True)[0]), similarityToDataCollection(sorted(foundSequences, key=similarityToDataCollection, reverse=True)[1]))
 
     # Based on that, this is the final sequence:
+    # Evaluation
     finalSequence = ['Room 1 Start',
     'Room 10 Start',
     'Lounge Start',
     'Room 33 Start',
     'Room 47 Start',
-    'Game Room Start',
-    'Room 7 Start',
+    'Room 41 Start',
+    'Room 30 Start',
     'Room 3 Start',
     'Restroom C Start',
     'Room 34 Start',
-    'Room 41 Start',
-    'Restroom A Start',
-    'Room 30 Start',
+    'Room 32 Start',
     'Room 2 Start',
-    'Restroom C Start',
-    'Room 21 Start',
-    'Room 31 Start',
-    'Restroom A Start',
     'Room 6 Start',
-    'Room 20 Start',
-    'Lounge Start',
-    'Room 11 Start',
-    'Room 22 Start',
+    'Room 21 Start',
     'Restroom B Start',
-    'Room 43 Start',
+    'Room 42 Start',
+    'Room 31 Start',
+    'Room 5 Start',
+    'Room 12 Start',
+    'Room 10 Start',
+    'Lounge Start',
+    'Room 20 Start',
+    'Room 22 Start',
+    'Room 44 Start',
+    'Room 21 Start',
     'Room 31 Start',
     'Game Room Start',
     'Room 8 Start',
     'Room 4 Start']
+    # # Data collection
+    # finalSequence = ['Room 1 Start',
+    # 'Room 10 Start',
+    # 'Lounge Start',
+    # 'Room 33 Start',
+    # 'Room 47 Start',
+    # 'Game Room Start',
+    # 'Room 7 Start',
+    # 'Room 3 Start',
+    # 'Restroom C Start',
+    # 'Room 34 Start',
+    # 'Room 41 Start',
+    # 'Restroom A Start',
+    # 'Room 30 Start',
+    # 'Room 2 Start',
+    # 'Restroom C Start',
+    # 'Room 21 Start',
+    # 'Room 31 Start',
+    # 'Restroom A Start',
+    # 'Room 6 Start',
+    # 'Room 20 Start',
+    # 'Lounge Start',
+    # 'Room 11 Start',
+    # 'Room 22 Start',
+    # 'Restroom B Start',
+    # 'Room 43 Start',
+    # 'Room 31 Start',
+    # 'Game Room Start',
+    # 'Room 8 Start',
+    # 'Room 4 Start']
     # # Old
     # ['Room 1 Start',
     # 'Room 10 Start',
@@ -476,6 +548,7 @@ if __name__ == "__main__":
             humanRobotSequence.append((finalSequence[i][:-6], None))
     pprint.pprint(humanRobotSequence)
 
+    # # data collection
     # # humanRobotSequence
     # [('Room 1', None),
     # ('Room 10', None),
@@ -506,11 +579,45 @@ if __name__ == "__main__":
     # ('Game Room', 'Room 44'),
     # ('Room 8', 'Room 4'),
     # ('Room 4', 'Room 32')]
+    # # evaluation
+    # [('Room 1', None),
+    # ('Room 10', None),
+    # ('Lounge', 'Room 30'),
+    # ('Room 33', 'Room 22'),
+    # ('Room 47', None),
+    # ('Room 41', 'Room 32'),
+    # ('Room 30', 'Room 5'),
+    # ('Room 3', 'Room 11'),
+    # ('Restroom C', None),
+    # ('Room 34', 'Room 45'),
+    # ('Room 32', 'Room 3'),
+    # ('Room 2', None),
+    # ('Room 6', 'Room 21'),
+    # ('Room 21', 'Room 12'),
+    # ('Restroom B', 'Room 44'),
+    # ('Room 42', None),
+    # ('Room 31', 'Room 34'),
+    # ('Room 5', 'Room 8'),
+    # ('Room 12', None),
+    # ('Room 10', 'Room 2'),
+    # ('Lounge', 'Room 6'),
+    # ('Room 20', 'Room 10'),
+    # ('Room 22', None),
+    # ('Room 44', 'Room 20'),
+    # ('Room 21', 'Room 42'),
+    # ('Room 31', None),
+    # ('Game Room', 'Room 43'),
+    # ('Room 8', 'Room 4'),
+    # ('Room 4', 'Room 33')]
 
     # Manually selected targets within the rooms in the sequence. "None" for the starting position "Room 1"
-    targets = [None,2,2,2,1,2,1,1,1,3,1,1,2,1,1,1,2,1,1,1,1,1,2,1,1,4,3,2,1]
+    # Evaluation
+    targets = [None,2,2,2,1,1,3,1,1,3,2,1,1,1,1,1,2,3,3,1,1,1,1,1,2,4,3,2,1]
+    # # Data collection
+    # targets = [None,2,2,2,1,2,1,1,1,3,1,1,2,1,1,1,2,1,1,1,1,1,2,1,1,4,3,2,1]
 
-    busynessLevels = ["high", "medium", "free time"]
+    # busynessLevels = ["high", "medium", "free time"]
+    busynessLevels = ["none", "none", "free time", "none", "none", "none"]
     jsonRetval = {
         "player_start_location": {
         "x": 4,
@@ -528,7 +635,7 @@ if __name__ == "__main__":
             "semanticLabel": finalSequence[taskI][:-6],
             "str": finalSequence[taskI][:-6],
             "target": targets[taskI],
-            "busyness": busynessLevels[taskI%3],
+            "busyness": busynessLevels[taskI%6],
         })
 
     specialProprtions = {
@@ -541,7 +648,7 @@ if __name__ == "__main__":
         26 : 0.6,
     }
 
-    for gameID in range(5):
+    for gameID in range(1):#range(5):
         jsonRetval["robotActions"] = [];
         for i in range(len(robotAppearsAfterTaskIndex)):
             afterTaskI = robotAppearsAfterTaskIndex[i]-1
@@ -555,16 +662,17 @@ if __name__ == "__main__":
                 "humanDistanceProportionToNextGoal": proportion,
             })
 
-            if gameID == 0:
-                timesToAsk = [4]
-            elif gameID == 1:
-                timesToAsk = [1,4]
-            elif gameID == 2:
-                timesToAsk = [1,2,4]
-            elif gameID == 3:
-                timesToAsk = [0,1,2,4]
-            elif gameID == 4:
-                timesToAsk = [0,1,2,3,4]
+            timesToAsk = []
+            # if gameID == 0:
+            #     timesToAsk = [4]
+            # elif gameID == 1:
+            #     timesToAsk = [1,4]
+            # elif gameID == 2:
+            #     timesToAsk = [1,2,4]
+            # elif gameID == 3:
+            #     timesToAsk = [0,1,2,4]
+            # elif gameID == 4:
+            #     timesToAsk = [0,1,2,3,4]
             if (i % 5) in timesToAsk:
                 jsonRetval["robotActions"][-1]["robotAction"] = {
                     "query": "leadMe",
@@ -574,7 +682,9 @@ if __name__ == "__main__":
             else:
                 jsonRetval["robotActions"][-1]["robotAction"] = {
                     "query": "walkPast",
+                    "targetStr": robotTargets[i][:-6],
+                    "targetSemanticLabel": robotTargets[i][:-6],
                 }
         # raise Exception()
-        with open("../flask/assets/tasks/{}.json".format(gameID), "w") as f:
+        with open("../flask/assets/tasks/evaluation.json", "w") as f:
             f.write(json.dumps(jsonRetval, indent=4))

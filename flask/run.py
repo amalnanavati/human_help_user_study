@@ -11,7 +11,7 @@ import datetime
 from flask import Flask, render_template, send_file, request, redirect
 from flask_cors import CORS
 
-numGIDs = 5
+numGIDs = 3
 completedGIDsFilename = "outputs/completedGIDs.json"
 
 completionCodesToUUIDFilename = "outputs/completionCodesToUUID.json"
@@ -199,7 +199,7 @@ class FlaskExample:
                 inProgressUUIDLogStateFiles[uuid] = open(fname, "w")
                 inProgressUUIDLogStateFiles[uuid].write("")
 
-                logger.logPrint("Wrote initial log_state for UUID {} GID {} to {}".format(uuid, gid, fname))
+                logger.logPrint("Wrote initial tutorial log_state for UUID {} GID {} to {}".format(uuid, gid, fname))
             except Exception as err:
                 logger.logPrint("tutorial failure to create state file for UUID {} GID {}: {}\n{}".format(uuid, gid, err, traceback.format_exc()))
                 gotError = True
@@ -234,7 +234,7 @@ class FlaskExample:
                 gidWithMinNumUsers = random.randint(0, 4)
             else:
                 gidAndUsersList = [] # (numRealAndInProgressUsers, numRealUsers, gid)
-                gidsToTest = ["2", "0", "4"] # completedGameIDs #
+                gidsToTest = ["0", "1", "2"] # completedGameIDs #
                 for i in range(len(gidsToTest)):
                     gid = gidsToTest[i]
                     numRealUsers = 0
@@ -536,7 +536,7 @@ class FlaskExample:
 
 
 if __name__ == '__main__':
-    minUUID = 100
+    minUUID = 600
 
     logger = Logger()
 
@@ -556,7 +556,7 @@ if __name__ == '__main__':
 
     inProgressUUIDs = {} # uuid -> [GID, lastTimestepGotGameState, isFinished]
     # maxBreaktime = 90 # Max time to wait for a game state log before reassigning the GID
-    maxWaitTimeBeforeDeletingUUID = 20*60 # if no new log states are received within this much time, delete this uuid from inProgressUUIDs
+    maxWaitTimeBeforeDeletingUUID = 40*60 # if no new log states are received within this much time, delete this uuid from inProgressUUIDs
     inProgressUUIDLogStateFiles = {}
 
     server = FlaskExample()

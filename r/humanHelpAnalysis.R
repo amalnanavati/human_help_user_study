@@ -34,55 +34,148 @@ print(data)
 
 # Pick the best model using the forward selecction technique of stepwise regression.
 baseline <- glmer(Human.Response ~ (1 | UUID), data = data, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
+
 # Step 1
-busynessM <- update(baseline, .~. + Busyness.Numeric)
+busynessM <- update(baseline, .~ Busyness.Numeric + .)
 anova(baseline, busynessM)
-freqOfAskingM <- update(baseline, .~. + Past.Frequency.of.Asking)
+freqOfAskingM <- update(baseline, .~ Past.Frequency.of.Asking + .)
 anova(baseline, freqOfAskingM)
-freqOfHelpingAccuratelyM <- update(baseline, .~. + Past.Frequency.of.Helping.Accurately)
+freqOfHelpingAccuratelyM <- update(baseline, .~ Past.Frequency.of.Helping.Accurately + .)
 anova(baseline, freqOfHelpingAccuratelyM)
-numRecentTimesDidNotHelpM <- update(baseline, .~. + Num.Recent.Times.Did.Not.Help)
+numRecentTimesDidNotHelpM <- update(baseline, .~ Num.Recent.Times.Did.Not.Help + .)
 anova(baseline, numRecentTimesDidNotHelpM)
+# prosocialityM <- update(baseline, .~ Prosociality + .)
+# anova(baseline, prosocialityM)
+# ageM <- update(baseline, .~ Age + .)
+# anova(baseline, ageM)
+
 # Step 2 -- build onto busynessM
-freqOfAskingM <- update(busynessM, .~. + Past.Frequency.of.Asking)
+freqOfAskingM <- update(busynessM, .~ Past.Frequency.of.Asking + .)
 anova(busynessM, freqOfAskingM)
-freqOfHelpingAccuratelyM <- update(busynessM, .~. + Past.Frequency.of.Helping.Accurately)
+freqOfHelpingAccuratelyM <- update(busynessM, .~ Past.Frequency.of.Helping.Accurately + .)
 anova(busynessM, freqOfHelpingAccuratelyM)
-numRecentTimesDidNotHelpM <- update(busynessM, .~. + Num.Recent.Times.Did.Not.Help)
+numRecentTimesDidNotHelpM <- update(busynessM, .~ Num.Recent.Times.Did.Not.Help + .)
 anova(busynessM, numRecentTimesDidNotHelpM)
+# prosocialityM <- update(busynessM, .~ Prosociality + .)
+# anova(busynessM, prosocialityM)
+# ageM <- update(busynessM, .~ Age + .)
+# anova(busynessM, ageM)
+
 # Step 3 -- build onto numRecentTimesDidNotHelpM
-freqOfAskingM <- update(numRecentTimesDidNotHelpM, .~. + Past.Frequency.of.Asking)
+freqOfAskingM <- update(numRecentTimesDidNotHelpM, .~ Past.Frequency.of.Asking + .)
 anova(numRecentTimesDidNotHelpM, freqOfAskingM)
-freqOfHelpingAccuratelyM <- update(numRecentTimesDidNotHelpM, .~. + Past.Frequency.of.Helping.Accurately)
+freqOfHelpingAccuratelyM <- update(numRecentTimesDidNotHelpM, .~ Past.Frequency.of.Helping.Accurately + .)
 anova(numRecentTimesDidNotHelpM, freqOfHelpingAccuratelyM)
-# Step 4 - Neither of the above are significant -- we will now move onto interaction effects and continue building onto numRecentTimesDidNotHelpM
-busyness_freqOfAskingI <- update(numRecentTimesDidNotHelpM, .~. + Busyness.Numeric:Past.Frequency.of.Asking)
+# prosocialityM <- update(numRecentTimesDidNotHelpM, .~ Prosociality + .)
+# anova(numRecentTimesDidNotHelpM, prosocialityM)
+# ageM <- update(numRecentTimesDidNotHelpM, .~ Age + .)
+# anova(numRecentTimesDidNotHelpM, ageM)
+
+# # Step 4 -- build on prosocialityM
+# freqOfAskingM <- update(prosocialityM, .~ Past.Frequency.of.Asking + .)
+# anova(prosocialityM, freqOfAskingM)
+# freqOfHelpingAccuratelyM <- update(prosocialityM, .~ Past.Frequency.of.Helping.Accurately + .)
+# anova(prosocialityM, freqOfHelpingAccuratelyM)
+# ageM <- update(prosocialityM, .~ Age + .)
+# anova(prosocialityM, ageM)
+
+# Step 4 - None of the above are significant -- we will now move onto interaction effects and continue building onto numRecentTimesDidNotHelpM
+busyness_freqOfAskingI <- update(numRecentTimesDidNotHelpM, .~ Busyness.Numeric:Past.Frequency.of.Asking + .)
 anova(numRecentTimesDidNotHelpM, busyness_freqOfAskingI)
-busyness_freqOfHelpingAccuratelyI <- update(numRecentTimesDidNotHelpM, .~. + Busyness.Numeric:Past.Frequency.of.Helping.Accurately)
+busyness_freqOfHelpingAccuratelyI <- update(numRecentTimesDidNotHelpM, .~ Busyness.Numeric:Past.Frequency.of.Helping.Accurately + .)
 anova(numRecentTimesDidNotHelpM, busyness_freqOfHelpingAccuratelyI)
-busyness_numRecentTimesDidNotHelpI <- update(numRecentTimesDidNotHelpM, .~. + Busyness.Numeric:Num.Recent.Times.Did.Not.Help)
+busyness_numRecentTimesDidNotHelpI <- update(numRecentTimesDidNotHelpM, .~ Busyness.Numeric:Num.Recent.Times.Did.Not.Help + .)
 anova(numRecentTimesDidNotHelpM, busyness_numRecentTimesDidNotHelpI)
-freqOfAsking_freqOfHelpingI <- update(numRecentTimesDidNotHelpM, .~. + Past.Frequency.of.Asking:Past.Frequency.of.Helping.Accurately)
+# busyness_prosocialityI <- update(numRecentTimesDidNotHelpM, .~ Busyness.Numeric:Prosociality + .)
+# anova(numRecentTimesDidNotHelpM, busyness_prosocialityI)
+# busyness_ageI <- update(numRecentTimesDidNotHelpM, .~ Busyness.Numeric:Age + .)
+# anova(numRecentTimesDidNotHelpM, busyness_ageI)
+freqOfAsking_freqOfHelpingI <- update(numRecentTimesDidNotHelpM, .~ Past.Frequency.of.Asking:Past.Frequency.of.Helping.Accurately + .)
 anova(numRecentTimesDidNotHelpM, freqOfAsking_freqOfHelpingI)
-freqOfAsking_numRecentTimesDidNotHelpI <- update(numRecentTimesDidNotHelpM, .~. + Past.Frequency.of.Asking:Num.Recent.Times.Did.Not.Help)
+freqOfAsking_numRecentTimesDidNotHelpI <- update(numRecentTimesDidNotHelpM, .~ Past.Frequency.of.Asking:Num.Recent.Times.Did.Not.Help + .)
 anova(numRecentTimesDidNotHelpM, freqOfAsking_numRecentTimesDidNotHelpI)
-freqOfHelping_numRecentTimesDidNotHelpI <- update(numRecentTimesDidNotHelpM, .~. + Past.Frequency.of.Helping.Accurately:Num.Recent.Times.Did.Not.Help)
+# freqOfAsking_prosocialityI <- update(numRecentTimesDidNotHelpM, .~ Past.Frequency.of.Asking:Prosociality + .)
+# anova(numRecentTimesDidNotHelpM, freqOfAsking_prosocialityI)
+# freqOfAsking_ageI <- update(numRecentTimesDidNotHelpM, .~ Past.Frequency.of.Asking:Age + .)
+# anova(numRecentTimesDidNotHelpM, freqOfAsking_ageI)
+freqOfHelping_numRecentTimesDidNotHelpI <- update(numRecentTimesDidNotHelpM, .~ Past.Frequency.of.Helping.Accurately:Num.Recent.Times.Did.Not.Help + .)
 anova(numRecentTimesDidNotHelpM, freqOfHelping_numRecentTimesDidNotHelpI)
+# freqOfHelping_prosocialityI <- update(numRecentTimesDidNotHelpM, .~ Past.Frequency.of.Helping.Accurately:Prosociality + .)
+# anova(numRecentTimesDidNotHelpM, freqOfHelping_prosocialityI)
+# freqOfHelping_ageI <- update(numRecentTimesDidNotHelpM, .~ Past.Frequency.of.Helping.Accurately:Age + .)
+# anova(numRecentTimesDidNotHelpM, freqOfHelping_ageI)
+
 # Step 5 -- build onto busyness_freqOfAskingI
-busyness_freqOfHelpingAccuratelyI <- update(busyness_freqOfAskingI, .~. + Busyness.Numeric:Past.Frequency.of.Helping.Accurately)
+busyness_freqOfHelpingAccuratelyI <- update(busyness_freqOfAskingI, .~ Busyness.Numeric:Past.Frequency.of.Helping.Accurately + .)
 anova(busyness_freqOfAskingI, busyness_freqOfHelpingAccuratelyI)
-busyness_numRecentTimesDidNotHelpI <- update(busyness_freqOfAskingI, .~. + Busyness.Numeric:Num.Recent.Times.Did.Not.Help)
+busyness_numRecentTimesDidNotHelpI <- update(busyness_freqOfAskingI, .~ Busyness.Numeric:Num.Recent.Times.Did.Not.Help + .)
 anova(busyness_freqOfAskingI, busyness_numRecentTimesDidNotHelpI)
-freqOfAsking_freqOfHelpingI <- update(busyness_freqOfAskingI, .~. + Past.Frequency.of.Asking:Past.Frequency.of.Helping.Accurately)
+# busyness_prosocialityI <- update(busyness_freqOfAskingI, .~ Busyness.Numeric:Prosociality + .)
+# anova(busyness_freqOfAskingI, busyness_prosocialityI)
+# busyness_ageI <- update(busyness_freqOfAskingI, .~ Busyness.Numeric:Age + .)
+# anova(busyness_freqOfAskingI, busyness_ageI)
+freqOfAsking_freqOfHelpingI <- update(busyness_freqOfAskingI, .~ Past.Frequency.of.Asking:Past.Frequency.of.Helping.Accurately + .)
 anova(busyness_freqOfAskingI, freqOfAsking_freqOfHelpingI)
-freqOfAsking_numRecentTimesDidNotHelpI <- update(busyness_freqOfAskingI, .~. + Past.Frequency.of.Asking:Num.Recent.Times.Did.Not.Help)
+freqOfAsking_numRecentTimesDidNotHelpI <- update(busyness_freqOfAskingI, .~ Past.Frequency.of.Asking:Num.Recent.Times.Did.Not.Help + .)
 anova(busyness_freqOfAskingI, freqOfAsking_numRecentTimesDidNotHelpI)
-freqOfHelping_numRecentTimesDidNotHelpI <- update(busyness_freqOfAskingI, .~. + Past.Frequency.of.Helping.Accurately:Num.Recent.Times.Did.Not.Help)
+# freqOfAsking_prosocialityI <- update(busyness_freqOfAskingI, .~ Past.Frequency.of.Asking:Prosociality + .)
+# anova(busyness_freqOfAskingI, freqOfAsking_prosocialityI)
+# freqOfAsking_ageI <- update(busyness_freqOfAskingI, .~ Past.Frequency.of.Asking:Age + .)
+# anova(busyness_freqOfAskingI, freqOfAsking_ageI)
+freqOfHelping_numRecentTimesDidNotHelpI <- update(busyness_freqOfAskingI, .~ Past.Frequency.of.Helping.Accurately:Num.Recent.Times.Did.Not.Help + .)
 anova(busyness_freqOfAskingI, freqOfHelping_numRecentTimesDidNotHelpI)
+# freqOfHelping_prosocialityI <- update(busyness_freqOfAskingI, .~ Past.Frequency.of.Helping.Accurately:Prosociality + .)
+# anova(busyness_freqOfAskingI, freqOfHelping_prosocialityI)
+# freqOfHelping_ageI <- update(busyness_freqOfAskingI, .~ Past.Frequency.of.Helping.Accurately:Age + .)
+# anova(busyness_freqOfAskingI, freqOfHelping_ageI)
+
+# # Build on busyness_ageI
+# busyness_freqOfHelpingAccuratelyI <- update(busyness_ageI, .~ Busyness.Numeric:Past.Frequency.of.Helping.Accurately + .)
+# anova(busyness_ageI, busyness_freqOfHelpingAccuratelyI)
+# busyness_numRecentTimesDidNotHelpI <- update(busyness_ageI, .~ Busyness.Numeric:Num.Recent.Times.Did.Not.Help + .)
+# anova(busyness_ageI, busyness_numRecentTimesDidNotHelpI)
+# busyness_prosocialityI <- update(busyness_ageI, .~ Busyness.Numeric:Prosociality + .)
+# anova(busyness_ageI, busyness_prosocialityI)
+# freqOfAsking_freqOfHelpingI <- update(busyness_ageI, .~ Past.Frequency.of.Asking:Past.Frequency.of.Helping.Accurately + .)
+# anova(busyness_ageI, freqOfAsking_freqOfHelpingI)
+# freqOfAsking_numRecentTimesDidNotHelpI <- update(busyness_ageI, .~ Past.Frequency.of.Asking:Num.Recent.Times.Did.Not.Help + .)
+# anova(busyness_ageI, freqOfAsking_numRecentTimesDidNotHelpI)
+# freqOfAsking_prosocialityI <- update(busyness_ageI, .~ Past.Frequency.of.Asking:Prosociality + .)
+# anova(busyness_ageI, freqOfAsking_prosocialityI)
+# freqOfAsking_ageI <- update(busyness_ageI, .~ Past.Frequency.of.Asking:Age + .)
+# anova(busyness_ageI, freqOfAsking_ageI)
+# freqOfHelping_numRecentTimesDidNotHelpI <- update(busyness_ageI, .~ Past.Frequency.of.Helping.Accurately:Num.Recent.Times.Did.Not.Help + .)
+# anova(busyness_ageI, freqOfHelping_numRecentTimesDidNotHelpI)
+# freqOfHelping_prosocialityI <- update(busyness_ageI, .~ Past.Frequency.of.Helping.Accurately:Prosociality + .)
+# anova(busyness_ageI, freqOfHelping_prosocialityI)
+# freqOfHelping_ageI <- update(busyness_ageI, .~ Past.Frequency.of.Helping.Accurately:Age + .)
+# anova(busyness_ageI, freqOfHelping_ageI)
+
+# # Build on freqOfAsking_numRecentTimesDidNotHelpI
+# busyness_freqOfHelpingAccuratelyI <- update(freqOfAsking_numRecentTimesDidNotHelpI, .~ Busyness.Numeric:Past.Frequency.of.Helping.Accurately + .)
+# anova(freqOfAsking_numRecentTimesDidNotHelpI, busyness_freqOfHelpingAccuratelyI)
+# busyness_numRecentTimesDidNotHelpI <- update(freqOfAsking_numRecentTimesDidNotHelpI, .~ Busyness.Numeric:Num.Recent.Times.Did.Not.Help + .)
+# anova(freqOfAsking_numRecentTimesDidNotHelpI, busyness_numRecentTimesDidNotHelpI)
+# busyness_prosocialityI <- update(freqOfAsking_numRecentTimesDidNotHelpI, .~ Busyness.Numeric:Prosociality + .)
+# anova(freqOfAsking_numRecentTimesDidNotHelpI, busyness_prosocialityI)
+# freqOfAsking_freqOfHelpingI <- update(freqOfAsking_numRecentTimesDidNotHelpI, .~ Past.Frequency.of.Asking:Past.Frequency.of.Helping.Accurately + .)
+# anova(freqOfAsking_numRecentTimesDidNotHelpI, freqOfAsking_freqOfHelpingI)
+# freqOfAsking_prosocialityI <- update(freqOfAsking_numRecentTimesDidNotHelpI, .~ Past.Frequency.of.Asking:Prosociality + .)
+# anova(freqOfAsking_numRecentTimesDidNotHelpI, freqOfAsking_prosocialityI)
+# freqOfAsking_ageI <- update(freqOfAsking_numRecentTimesDidNotHelpI, .~ Past.Frequency.of.Asking:Age + .)
+# anova(freqOfAsking_numRecentTimesDidNotHelpI, freqOfAsking_ageI)
+# freqOfHelping_numRecentTimesDidNotHelpI <- update(freqOfAsking_numRecentTimesDidNotHelpI, .~ Past.Frequency.of.Helping.Accurately:Num.Recent.Times.Did.Not.Help + .)
+# anova(freqOfAsking_numRecentTimesDidNotHelpI, freqOfHelping_numRecentTimesDidNotHelpI)
+# freqOfHelping_prosocialityI <- update(freqOfAsking_numRecentTimesDidNotHelpI, .~ Past.Frequency.of.Helping.Accurately:Prosociality + .)
+# anova(freqOfAsking_numRecentTimesDidNotHelpI, freqOfHelping_prosocialityI)
+# freqOfHelping_ageI <- update(freqOfAsking_numRecentTimesDidNotHelpI, .~ Past.Frequency.of.Helping.Accurately:Age + .)
+# anova(freqOfAsking_numRecentTimesDidNotHelpI, freqOfHelping_ageI)
+
 # Check whether we should add a random slope with busyness
-busyness_random_slope <- update(busyness_freqOfAskingI, .~. + (Busyness.Numeric | UUID))
+busyness_random_slope <- update(busyness_freqOfAskingI, .~ (Busyness.Numeric | UUID) + .)
 anova(busyness_freqOfAskingI, busyness_random_slope)
 summary(busyness_random_slope)
+
 # The busyness random slope model failed to converge, so we won't consider it.
 # Nothing achieved significance (although freqOfAsking_numRecentTimesDidNotHelpI got close) so we will use that as our final model
 finalModel <- busyness_freqOfAskingI
@@ -113,7 +206,18 @@ ranParam <- ranef(finalModel)$UUID
 summary(ranParam)
 boxplot(ranParam)
 summary(ranParam$`(Intercept)`)
-hist(ranParam$`(Intercept)`)
+quantile(ranParam$`(Intercept)`, c(0,.2,.4,.6,.8,1))
+quantile(ranParam$`(Intercept)`, c(1/12,3/12,5/12,7/12,9/12,11/12))
+h <- hist(ranParam$`(Intercept)`)
+xfit <- seq(min(ranParam$`(Intercept)`), max(ranParam$`(Intercept)`), length = 40) 
+yfit <- dnorm(xfit, mean = 0.0, sd = attr(summary(finalModel)$varcor$UUID, "stddev"))
+yfit <- yfit * diff(h$mids[1:2]) * length(ranParam$`(Intercept)`) 
+lines(xfit, yfit, col = "black", lwd = 2)
+h <- hist(ranParam$`(Intercept)`, breaks=quantile(ranParam$`(Intercept)`, c(0/6,1/6,2/6,3/6,4/6,5/6,6/6)))
+# curve(dnorm(x, mean=0.0, sd=1.65), 
+#       col="darkblue", lwd=2, add=TRUE, yaxt="n")
+print(fixParam)
+print(ranParam)
 params<-cbind(fixParam[1]+ranParam[1],fixParam[2], fixParam[3], fixParam[4])
 print(params)
 
@@ -137,7 +241,7 @@ for (frequency in unique_frequencies) {
   j <- j + 1
   num_recent_times_did_not_help <- mean(data$Num.Recent.Times.Did.Not.Help[which(data$Past.Frequency.of.Asking[indices] == frequency)])
   
-  logits <- fixParam[1] + fixParam[2]*busyness_range + fixParam[3]*num_recent_times_did_not_help + fixParam[4]*busyness_range*frequency
+  logits <- fixParam[1] + fixParam[2]*num_recent_times_did_not_help + fixParam[3]*busyness_range + fixParam[4]*busyness_range*frequency
   # print(logits)
   
   probs <- exp(logits)/(1 + exp(logits))
@@ -159,13 +263,17 @@ j <- 0
 for (i in indices) {
   j <- j + 1
   uuid <- data$UUID[i]
-  # print(uuid)
+  print(uuid)
   frequency <- data$Past.Frequency.of.Asking[i]
   # prosociality <- data$Prosociality[i]
   num_recent_times_did_not_help <- mean(data$Num.Recent.Times.Did.Not.Help[which(data$UUID == uuid)])
   
+  print(params[uuid, 1])
+  print(fixParam[2])
+  print(fixParam[3])
+  print(fixParam[4])
   
-  logits <- params[uuid, 1] + fixParam[2]*busyness_range + fixParam[3]*num_recent_times_did_not_help + fixParam[4]*busyness_range*frequency
+  logits <- params[uuid, 1] + fixParam[2]*num_recent_times_did_not_help + fixParam[3]*busyness_range + fixParam[4]*busyness_range*frequency
   # print(logits)
   
   probs <- exp(logits)/(1 + exp(logits))
@@ -206,7 +314,7 @@ for (i in indices) {
   num_recent_times_did_not_help <- mean(data$Num.Recent.Times.Did.Not.Help[which(data$UUID == uuid)])
   
   
-  logits <- params[uuid, 1] + fixParam[2]*busyness + fixParam[3]*num_recent_times_did_not_help + fixParam[4]*busyness*frequency_range
+  logits <- params[uuid, 1] + fixParam[3]*busyness + fixParam[2]*num_recent_times_did_not_help + fixParam[4]*busyness*frequency_range
   # print(logits)
   
   probs <- exp(logits)/(1 + exp(logits))
@@ -235,8 +343,8 @@ for (busyness in busyness_to_test) {
   # print(uuid)
   num_recent_times_did_not_help <- mean(data$Num.Recent.Times.Did.Not.Help[which(data$Busyness.Numeric == busyness)])
 
-  # logits <- fixParam[1] + fixParam[2]*busyness + fixParam[3]*frequency_range + fixParam[4]*prosociality + fixParam[5]*busyness*frequency_range
-  logits <- fixParam[1] + fixParam[2]*busyness + fixParam[3]*num_recent_times_did_not_help + fixParam[4]*busyness*frequency_range
+  # logits <- fixParam[1] + fixParam[3]*busyness + fixParam[2]*frequency_range + fixParam[4]*prosociality + fixParam[5]*busyness*frequency_range
+  logits <- fixParam[1] + fixParam[3]*busyness + fixParam[2]*num_recent_times_did_not_help + fixParam[4]*busyness*frequency_range
   # print(logits)
   
   probs <- exp(logits)/(1 + exp(logits))
@@ -268,8 +376,8 @@ for (busyness in busyness_to_test) {
   num_recent_times_did_not_help <- mean(data$Num.Recent.Times.Did.Not.Help[which(data$Busyness.Numeric == busyness)])
   frequency <- 0.6
   
-  # logits <- fixParam[1] + fixParam[2]*busyness + fixParam[3]*frequency_range + fixParam[4]*prosociality + fixParam[5]*busyness*frequency_range
-  logits <- fixParam[1] + fixParam[2]*busyness + fixParam[3]*num_recent_times_range + fixParam[4]*busyness*frequency
+  # logits <- fixParam[1] + fixParam[3]*busyness + fixParam[2]*frequency_range + fixParam[4]*prosociality + fixParam[5]*busyness*frequency_range
+  logits <- fixParam[1] + fixParam[3]*busyness + fixParam[2]*num_recent_times_range + fixParam[4]*busyness*frequency
   # print(logits)
   
   probs <- exp(logits)/(1 + exp(logits))
@@ -300,8 +408,8 @@ for (frequency in frequency_to_test) {
   num_recent_times_did_not_help <- mean(data$Num.Recent.Times.Did.Not.Help[which(data$Busyness.Numeric == busyness)])
   busyness <- 1.0/7
   
-  # logits <- fixParam[1] + fixParam[2]*busyness + fixParam[3]*frequency_range + fixParam[4]*prosociality + fixParam[5]*busyness*frequency_range
-  logits <- fixParam[1] + fixParam[2]*busyness + fixParam[3]*num_recent_times_range + fixParam[4]*busyness*frequency
+  # logits <- fixParam[1] + fixParam[3]*busyness + fixParam[2]*frequency_range + fixParam[4]*prosociality + fixParam[5]*busyness*frequency_range
+  logits <- fixParam[1] + fixParam[3]*busyness + fixParam[2]*num_recent_times_range + fixParam[4]*busyness*frequency
   # print(logits)
   
   probs <- exp(logits)/(1 + exp(logits))
@@ -410,5 +518,16 @@ exp(tab)/(1+exp(tab))
 # contrast(frequencyOfAskingPostHoc, "consec")
 # # contrast(frequencyOfAskingPostHoc, "poly")
 
+# Fit the Baseline Models (and the proposed as a sanity check)
+model <- glmer(Human.Response ~ Busyness.Numeric + Num.Recent.Times.Did.Not.Help + Busyness.Numeric:Past.Frequency.of.Asking + (1 | UUID), data = data, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
+summary(model)
 
+model_only_fixed <- glm(Human.Response ~ Busyness.Numeric + Num.Recent.Times.Did.Not.Help + Busyness.Numeric:Past.Frequency.of.Asking, data = data, family = binomial(link="logit"))
+coef(model_only_fixed)
+
+model_only_random <- glmer(Human.Response ~ (1 | UUID), data = data, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
+attr(summary(model_only_random)$varcor$UUID, "stddev")
+
+model_only_intercept <- glm(Human.Response ~ 1, data = data, family = binomial(link="logit"))
+summary(model_only_intercept)
 

@@ -62,24 +62,35 @@ function createPlayer(scene) {
 }
 
 function setTimeLimitFromBusyness(scene) {
-  // Compute the timeLimit for this task
-  if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "free time") {
+  console.log("setTimeLimitFromBusyness", scene.game.tasks.tasks[scene.game.player.taskI].busyness);
+  if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == 0.0) {
     scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = -1;
-  } else if (scene.game.tasks.tasks[scene.game.player.taskI].busyness != null) {
+  } else {
     var startLoc = scene.game.player.currentTile;
     var goalSemanticLabel = scene.game.tasks.tasks[scene.game.player.taskI].semanticLabel + pointOfInterestString + scene.game.tasks.tasks[scene.game.player.taskI].target.toString();
     var endLocs = scene.game.semanticLabelsToXY[goalSemanticLabel];
     var playerPlan = generatePlan(startLoc, endLocs, endLocs[0]);
     var distanceToGoal = playerPlan.length;
-    if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "high") {
-      // 2.0 is cutting it close for Amal
-      scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = distanceToGoal*3.0*playerMsPerStep/1000;
-    } else if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "medium") {
-      // 4.0 is cutting it close for Amal to help the robot *and* get to the goal
-      scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = distanceToGoal*7.0*playerMsPerStep/1000;
+    if ((typeof scene.game.tasks.tasks[scene.game.player.taskI].busyness) == "number") {
+      scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = distanceToGoal*playerMsPerStep/1000/scene.game.tasks.tasks[scene.game.player.taskI].busyness;
     } else {
-      console.log("Unknown busyness", scene.game.tasks.tasks[scene.game.player.taskI].busyness);
-      scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = -1;
+      if (!tutorial) {
+        console.log("During the game, the busyness is not a number...", scene.game.player.taskI, scene.game.tasks.tasks[scene.game.player.taskI].busyness);
+      }
+      if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "free time") {
+        scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = -1;
+      } else if (scene.game.tasks.tasks[scene.game.player.taskI].busyness != null) {
+        if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "high") {
+          // 2.0 is cutting it close for Amal
+          scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = distanceToGoal*3.0*playerMsPerStep/1000;
+        } else if (scene.game.tasks.tasks[scene.game.player.taskI].busyness == "medium") {
+          // 4.0 is cutting it close for Amal to help the robot *and* get to the goal
+          scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = distanceToGoal*7.0*playerMsPerStep/1000;
+        } else {
+          console.log("Unknown busyness", scene.game.tasks.tasks[scene.game.player.taskI].busyness);
+          scene.game.tasks.tasks[scene.game.player.taskI].timeLimit = -1;
+        }
+      }
     }
   }
 }
@@ -231,7 +242,24 @@ function inDistractionTask(scene) {
   }
 }
 
+function randomlyAssignBusyness(scene, taskI) {
+  // Randomly sample a busyness for the next-next taskI
+  if (taskI < scene.game.tasks.tasks.length && typeof(scene.game.tasks.tasks[taskI].busyness) == "string") {
+    if (scene.game.tasks.tasks[taskI].busyness == "free time") {
+      scene.game.tasks.tasks[taskI].busyness = 0.0
+    } else {
+      var busyness_int = Math.floor(Math.random() * (num_busyness-1)); // num in [0,num_busyness-2]
+      console.log("Setting busyness for taskI", taskI, "to ", 0.4*(busyness_int+1)/(num_busyness-1));
+      scene.game.tasks.tasks[taskI].busyness = 0.4*(busyness_int+1)/(num_busyness-1);
+    }
+  }
+}
+
 function completedDistractionTask(scene) {
+  if (!tutorial) {
+    randomlyAssignBusyness(scene, scene.game.player.taskI+2);
+  }
+
   if (scene.game.distractionTaskText) setDistractionTaskBarVisible(scene, false);
   scene.game.player.taskI++;
   transitionToNewTask(scene);

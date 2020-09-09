@@ -62,6 +62,14 @@ function createRobot(scene) {
   });
   scene.game.robot.anims.play('robotDown', true);
   scene.game.robot.anims.stop();
+
+  // Initialize the observation
+  scene.game.robot.observation = {
+    human_busyness_obs: 6,
+    human_num_recent_times_did_not_help_obs: 0,
+    robot_did_ask_obs: [false, false, false, false, false],
+    robot_room_obs: "obs_wrong_room",
+  }
 }
 
 function createRobotHelpBubble(scene) {
@@ -211,36 +219,36 @@ function logClick(scene, hitArea, x, y, button) {
 }
 
 var helpRequestButtonCallbacks = {
-  "amIHere" : {
-    "Yes" : function(scene) {
-      scene.game.robot.helpBubble.setText("Thank you.");
-      scene.game.robot.helpBubble.setButtons([]);
-      scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
-      setRobotActionInProgress(scene, false);
-      if (scene.game.minimap) destroyRobotGoalRect(scene);
-    },
-    "No" : function(scene) {
-      scene.game.robot.helpBubble.setText("Thank you.");
-      scene.game.robot.helpBubble.setButtons([]);
-      scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
-      setRobotActionInProgress(scene, false);
-      if (scene.game.minimap) destroyRobotGoalRect(scene);
-    },
-    // "Don't Know" : function(scene) {
-    //   scene.game.robot.helpBubble.setText("Thank you.");
-    //   scene.game.robot.helpBubble.setButtons([]);
-    //   scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
-    //   setRobotActionInProgress(scene, false);
-    //   if (scene.game.minimap) destroyRobotGoalRect(scene);
-    // },
-    "Can't Help" : function(scene) {
-      scene.game.robot.helpBubble.setText("That's okay.");
-      scene.game.robot.helpBubble.setButtons([]);
-      scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
-      setRobotActionInProgress(scene, false);
-      if (scene.game.minimap) destroyRobotGoalRect(scene);
-    },
-  },
+  // "amIHere" : {
+  //   "Yes" : function(scene) {
+  //     scene.game.robot.helpBubble.setText("Thank you.");
+  //     scene.game.robot.helpBubble.setButtons([]);
+  //     scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+  //     setRobotActionInProgress(scene, false);
+  //     if (scene.game.minimap) destroyRobotGoalRect(scene);
+  //   },
+  //   "No" : function(scene) {
+  //     scene.game.robot.helpBubble.setText("Thank you.");
+  //     scene.game.robot.helpBubble.setButtons([]);
+  //     scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+  //     setRobotActionInProgress(scene, false);
+  //     if (scene.game.minimap) destroyRobotGoalRect(scene);
+  //   },
+  //   // "Don't Know" : function(scene) {
+  //   //   scene.game.robot.helpBubble.setText("Thank you.");
+  //   //   scene.game.robot.helpBubble.setButtons([]);
+  //   //   scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+  //   //   setRobotActionInProgress(scene, false);
+  //   //   if (scene.game.minimap) destroyRobotGoalRect(scene);
+  //   // },
+  //   "Can't Help" : function(scene) {
+  //     scene.game.robot.helpBubble.setText("That's okay.");
+  //     scene.game.robot.helpBubble.setButtons([]);
+  //     scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+  //     setRobotActionInProgress(scene, false);
+  //     if (scene.game.minimap) destroyRobotGoalRect(scene);
+  //   },
+  // },
   "leadMe" : {
     "Yes" : function(scene) {
       setHelpBubbleToLeadMe(scene, true);
@@ -252,6 +260,9 @@ var helpRequestButtonCallbacks = {
       scene.game.robot.helpBubble.setText("That's okay.");
       scene.game.robot.helpBubble.setButtons([]);
       scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+      if (!tutorial && !("hasUpdatedObservation" in scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction)) {
+        updateObservation(scene, true, false); // Robot asked, human said no
+      }
       setRobotActionInProgress(scene, false);
       if (scene.game.minimap) destroyRobotGoalRect(scene);
     },
@@ -259,6 +270,13 @@ var helpRequestButtonCallbacks = {
       scene.game.robot.helpBubble.setText("Thank you.");
       scene.game.robot.helpBubble.setButtons([]);
       scene.game.robot.isBeingLed = false;
+      if (!tutorial && !("hasUpdatedObservation" in scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction)) {
+        if (scene.game.robot.taskPlan.length <= 8) {
+          updateObservation(scene, true, true); // Robot asked, human helped
+        } else {
+          updateObservation(scene, true, false); // Robot asked, human inaccurately / mistakenly
+        }
+      }
       scene.game.robot.taskPlan = [];
       var goalSemanticLabel = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.targetSemanticLabel + pointOfInterestString + "1";
       var goalLocs = scene.game.semanticLabelsToXY[goalSemanticLabel];
@@ -366,17 +384,144 @@ function setHelpBubbleToLeadMe(scene, hasSaidYes) {
   }
 }
 
+function sendNewUserMsgToPolicyServer(scene) {
+  var url = basePolicyURL + "new_user";
+
+  var data = {
+    uuid: parseInt(uuid),
+    gid: parseInt(gid),
+  }
+  // console.log("Send ", data)
+  $.ajax({
+    type : "POST",
+    url : url,
+    data: JSON.stringify(data, null, '\t'),
+    contentType: 'application/json;charset=UTF-8',
+    success: function(received_data, status) {
+        received_data = JSON.parse(received_data);
+        if ("action" in received_data) {
+          if (received_data["action"] == "ask") {
+            scene.game.tasks.robotActions[0].robotAction.query = "leadMe";
+            console.log("got ask scene.game.tasks.robotActions", scene.game.tasks.robotActions);
+          } else if (received_data["action"] == "walk_past") {
+            scene.game.tasks.robotActions[0].robotAction.query = "walkPast";
+          } else {
+            console.log("Received unknown action from policy server", received_data["action"]);
+          }
+          scene.game.tasks.robotActions[0].hasQueriedServer = true;
+          console.log("SUCCESS: got action from server", received_data["action"]);
+        }
+    },
+    error: function(received_data, status) {
+        // NOTE: For now I'm not going to log the number of errors and stuff for non-logging data because I'm hoping that the internet error will happen for the policy and logging equivalently
+        // Set the obs to the right busyness, so that when the server is queried with an obs, it is correct
+        randomlyAssignBusyness(scene, scene.game.tasks.robotActions[0].afterHumanTaskIndex+1);
+        var busyness_float = scene.game.tasks.tasks[scene.game.tasks.robotActions[0].afterHumanTaskIndex+1].busyness;
+        scene.game.robot.observation.human_busyness_obs = (busyness_float/0.4*(num_busyness-1))+1;
+
+        scene.game.tasks.robotActions[0].hasQueriedServer = false;
+    }
+  });
+  scene.game.tasks.robotActions[0].hasQueriedServer = true;
+}
+
+function queryPolicyServer(scene, robotActionI) {
+  var url = basePolicyURL + "received_obs";
+
+  var data = {
+    uuid: parseInt(uuid),
+    gid: parseInt(gid),
+    obs: scene.game.robot.observation,
+  }
+  // console.log("Send ", data)
+  $.ajax({
+    type : "POST",
+    url : url,
+    data: JSON.stringify(data, null, '\t'),
+    contentType: 'application/json;charset=UTF-8',
+    success: function(received_data, status) {
+        received_data = JSON.parse(received_data);
+        if ("action" in received_data) {
+          if (received_data["action"] == "ask") {
+            console.log("got ask robotActionI", robotActionI);
+            scene.game.tasks.robotActions[robotActionI].robotAction.query = "leadMe";
+          } else if (received_data["action"] == "walk_past") {
+            scene.game.tasks.robotActions[robotActionI].robotAction.query = "walkPast";
+          } else {
+            console.log("Received unknown action from policy server", received_data["action"]);
+          }
+          scene.game.tasks.robotActions[robotActionI].hasQueriedServer = true;
+          console.log("SUCCESS: got action from server", received_data["action"]);
+        }
+    },
+    error: function(received_data, status) {
+        // NOTE: For now I'm not going to log the number of errors and stuff for non-logging data because I'm hoping that the internet error will happen for the policy and logging equivalently
+        scene.game.tasks.robotActions[robotActionI].hasQueriedServer = false; // Hopefully this doesn't extend beyond one taskI
+    }
+  });
+  scene.game.tasks.robotActions[robotActionI].hasQueriedServer = true;
+}
+
+// NOTE: This function *MUST* be called BEFORE currentActionI has been incremented
+function updateObservation(scene, didRobotAsk, didHumanHelp=false) {
+  // Update busyness
+  var nextTaskIWhenTheRobotWillAppear = scene.game.tasks.robotActions[scene.game.robot.currentActionI+1].afterHumanTaskIndex+1;
+  if (nextTaskIWhenTheRobotWillAppear < scene.game.tasks.tasks.length) {
+    randomlyAssignBusyness(scene, nextTaskIWhenTheRobotWillAppear);
+    var busyness_float = scene.game.tasks.tasks[nextTaskIWhenTheRobotWillAppear].busyness;
+    scene.game.robot.observation.human_busyness_obs = Math.round((busyness_float/0.4*(num_busyness-1))+1);
+    console.log("updateObservation", busyness_float, scene.game.robot.observation.human_busyness_obs);
+  } // Otherwise, keep the observed busyness the same, because we won't execute the action anyway
+
+  // Update human_num_recent_times_did_not_help_obs
+  if (didRobotAsk) {
+    if (didHumanHelp) {
+      scene.game.robot.observation.human_num_recent_times_did_not_help_obs = 0;
+    } else {
+      scene.game.robot.observation.human_num_recent_times_did_not_help_obs += 1;
+    }
+  }
+
+  // Add an item to the end of robot_did_ask_obs and remove it from the beginning
+  scene.game.robot.observation.robot_did_ask_obs.push(didRobotAsk);
+  scene.game.robot.observation.robot_did_ask_obs.shift();
+
+  // Simulate randomly picking a room
+  if (didHumanHelp) {
+    scene.game.robot.observation.robot_room_obs = "obs_human_helped";
+  } else {
+    if (Math.random() <= 1.0/numRooms) {
+      scene.game.robot.observation.robot_room_obs = "obs_correct_room";
+    } else {
+      scene.game.robot.observation.robot_room_obs = "obs_wrong_room";
+    }
+  }
+
+  // NOTE: This function *MUST* be called BEFORE currentActionI has been incremented
+  // Query the policy server for the next action
+  if (scene.game.robot.currentActionI+1 < scene.game.tasks.robotActions.length) {
+    queryPolicyServer(scene, scene.game.robot.currentActionI+1);
+  }
+
+  scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.hasUpdatedObservation = true;
+}
+
 function initiateRobotActionIfApplicable(scene) {
   // Initiate the robot action, if applicable
   if (scene.game.robot.currentState == playerState.NAVIGATION_TASK) {
     // console.log("player navigation");
-    if (!scene.game.robot.actionInProgress && scene.game.robot.currentState == robotState.OFFSCREEN) {
-      // console.log("robot offscreen");
-      if (scene.game.robot.currentActionI < scene.game.tasks.robotActions.length) {
-        // console.log("robot action length fine");
-        var robotAction = scene.game.tasks.robotActions[scene.game.robot.currentActionI];
-        // Has the human completed the precondition task?
-        if (scene.game.player.taskI == robotAction.afterHumanTaskIndex + 1) {
+    if (scene.game.robot.currentActionI < scene.game.tasks.robotActions.length) {
+      // console.log("robot action length fine");
+      var robotAction = scene.game.tasks.robotActions[scene.game.robot.currentActionI];
+      // Has the human completed the precondition task?
+      if (scene.game.player.taskI == robotAction.afterHumanTaskIndex + 1) {
+        // If you have not queried the server yet, ask it for the robot action
+        if (!tutorial && !("hasQueriedServer" in robotAction && robotAction.hasQueriedServer)) {
+          queryPolicyServer(scene, scene.game.robot.currentActionI);
+        }
+
+        if (!scene.game.robot.actionInProgress && scene.game.robot.currentState == robotState.OFFSCREEN) {
+          // console.log("robot offscreen");
           var requiredDistanceToGoal = Math.ceil(scene.game.player.currentTaskDistance*(1.0-robotAction.humanDistanceProportionToNextGoal));
           var oldTaskPlanDistanceFromRequiredDistance = scene.game.player.taskPlan.length - requiredDistanceToGoal;
           // Has the player traversed enough distance to justify recalculating the plan?
@@ -468,6 +613,9 @@ function executeRobotAction(scene) {
         }
         if (scene.game.numTimesAskedForHelp >= numTimesToTryAskingForHelp) {
           console.log("human ignored the robot");
+          if (!tutorial && !("hasUpdatedObservation" in scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction)) {
+            updateObservation(scene, true, false); // Robot asked, human ignored
+          }
           setHelpBubbleVisible(scene, false);
           scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
           setRobotActionInProgress(scene, false);
@@ -492,6 +640,9 @@ function executeRobotAction(scene) {
     }
   } else if (scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query == "walkPast") {
     if (scene.game.robot.currentState == robotState.OFFSCREEN) {
+      if (!tutorial && !("hasUpdatedObservation" in scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction)) {
+        updateObservation(scene, false); // robot did not ask
+      }
       setRobotActionInProgress(scene, false);
     } else {
       scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
@@ -594,7 +745,7 @@ function transitionRobotState(scene) {
     case robotState.LEAVE_SCREEN:
       if (isOffCamera(scene, scene.game.robot.currentTile)) {
         setHelpBubbleVisible(scene, false);
-        setRobotState(robotState.OFFSCREEN);
+        scene.game.robot.currentState = robotState.OFFSCREEN;
       } else {
         // Have the robot move off-screen
         if (scene.game.robot.previousState != robotState.LEAVE_SCREEN || scene.game.robot.plan == null || scene.game.robot.plan.length == 0 || scene.game.player.previousTaskI != scene.game.player.taskI) {

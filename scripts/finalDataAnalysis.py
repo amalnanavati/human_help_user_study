@@ -8,6 +8,8 @@ import datetime
 import traceback
 import shutil
 import scipy.stats
+import random
+import time
 
 class PlayerState(Enum):
     NAVIGATION_TASK = 0
@@ -1591,7 +1593,8 @@ def makePerResponseDatasetGraph(perResponseDataset, descriptor):
 
 
 
-def writePerResponseCSV(perResponseDataset, filepath, surveyData, aboveGIDFilepath):
+def writePerResponseCSV(perResponseDataset, filepath, surveyData, aboveGIDFilepath=None):
+    print("writePerResponseCSV", filepath)
     header = ["UUID", "TaskI", "Busyness", "Past Frequency of Asking", "Past Frequency of Helping Accurately", "Human Response", "Prosociality", "Slowness", "Busyness Numeric", "Num Recent Times Did Not Help", "Age"]
     with open(filepath, "w") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
@@ -1601,17 +1604,73 @@ def writePerResponseCSV(perResponseDataset, filepath, surveyData, aboveGIDFilepa
             row = [uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, surveyData[uuid]["Demography"]["Prosociality"], surveyData[uuid]["Demography"]["Slowness"], busynessNumericRepresentation[busyness], numRecentTimesDidNotHelp, surveyData[uuid]["Demography"]["Age"]]
             writer.writerow(row)
 
-    for gid in range(5):
-        with open(aboveGIDFilepath%gid, "w") as f:
-            writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
-            writer.writerow(header)
-            i = 0
-            for uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, numRecentTimesDidNotHelp in perResponseDataset:
-                if freqOfAsking*5.0-1.0 < gid: continue
-                if taskI not in lowestGIDToSharedTaskI[gid]: continue
-                row = [uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, surveyData[uuid]["Demography"]["Prosociality"], surveyData[uuid]["Demography"]["Slowness"], busynessNumericRepresentation[busyness], numRecentTimesDidNotHelp, surveyData[uuid]["Demography"]["Age"]]
-                writer.writerow(row)
-    pass
+    # for gid in range(5):
+    #     with open(aboveGIDFilepath%gid, "w") as f:
+    #         writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
+    #         writer.writerow(header)
+    #         i = 0
+    #         for uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, numRecentTimesDidNotHelp in perResponseDataset:
+    #             if freqOfAsking*5.0-1.0 < gid: continue
+    #             if taskI not in lowestGIDToSharedTaskI[gid]: continue
+    #             row = [uuid, taskI, busyness, freqOfAsking, freqOfHelpingAccurately, responseNumber, surveyData[uuid]["Demography"]["Prosociality"], surveyData[uuid]["Demography"]["Slowness"], busynessNumericRepresentation[busyness], numRecentTimesDidNotHelp, surveyData[uuid]["Demography"]["Age"]]
+    #             writer.writerow(row)
+
+def generatePerResponseTrainingTestingData(perResponseDataset, filepath, partitions, surveyData):
+    """
+    Generates every training/testing set given the number of partitions
+    """
+    # Check that the num partitions is valid
+    uuids = set()
+    frequencies = []
+    freqToUUIDs = {}
+    uuidToI = {}
+    for i in range(len(perResponseDataset)):
+        data = perResponseDataset[i]
+        uuid = data[0]
+        freq = data[3]
+        uuids.add(uuid)
+        if freq not in freqToUUIDs:
+            freqToUUIDs[freq] = []
+            frequencies.append(freq)
+        if uuid not in uuidToI:
+            freqToUUIDs[freq].append(uuid)
+            uuidToI[uuid] = []
+        uuidToI[uuid].append(i)
+    if len(uuids) % partitions != 0:
+        raise Exception("Num partitions {} does not evenly divide num users {}".format(partitions, len(uuids)))
+
+    # Shuffle the order of users, balanced by frequency
+    random.seed(time.time())
+    random.shuffle(frequencies)
+    usersPerFrequency = None
+    for freq in frequencies:
+        random.shuffle(freqToUUIDs[freq])
+        usersPerFrequency = len(freqToUUIDs[freq])
+    print("freqToUUIDs", freqToUUIDs, {freq : len(freqToUUIDs[freq]) for freq in freqToUUIDs}, frequencies)
+    finalUUIDOrder = []
+    for i in range(usersPerFrequency):
+        for freq in frequencies:
+            finalUUIDOrder.append(freqToUUIDs[freq][i])
+
+    # Generate the training and test sets
+    sizeOfTestSet = len(finalUUIDOrder)//partitions
+    partitionI = -1
+    for startI in range(0, len(finalUUIDOrder), sizeOfTestSet):
+        partitionI += 1
+        testSetUUIDs = []
+        for i in range(startI, startI+sizeOfTestSet, 1):
+            testSetUUIDs.append(finalUUIDOrder[i])
+        trainSet, testSet = [], []
+        for uuid in uuidToI:
+            if uuid in testSetUUIDs:
+                for i in uuidToI[uuid]:
+                    testSet.append(perResponseDataset[i])
+            else:
+                for i in uuidToI[uuid]:
+                    trainSet.append(perResponseDataset[i])
+        # Save the CSVs
+        writePerResponseCSV(trainSet, filepath % (partitionI, "train"), surveyData)
+        writePerResponseCSV(testSet, filepath % (partitionI, "test"), surveyData)
 
 def copyDataOver(surveyData, baseDir, copyDir):
     for uuid in surveyData:
@@ -1872,6 +1931,8 @@ if __name__ == "__main__":
     # pprint.pprint(perResponseDataset)
     makePerResponseDatasetGraph(perResponseDataset, "_tutorialOnlyHelping")
     writePerResponseCSV(perResponseDataset, baseDir+"humanHelpUserStudyPerResponseData.csv", surveyDataTutorialOnlyHelping, baseDir+"humanHelpUserStudyPerResponseData%d.csv")
+    generatePerResponseTrainingTestingData(perResponseDataset, baseDir+"processedData/80-20/%d_%s.csv", partitions=5, surveyData=surveyData) # 80-20 split
+    generatePerResponseTrainingTestingData(perResponseDataset, baseDir+"processedData/hold-one-out/%d_%s.csv", partitions=140, surveyData=surveyData)
 
     # Make the entire history dataset
     entireHistoryDataset = makeEntrieHistoryDataset(surveyDataTutorialOnlyHelping)
