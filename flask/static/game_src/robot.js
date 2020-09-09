@@ -433,7 +433,7 @@ function queryPolicyServer(scene, robotActionI) {
     gid: parseInt(gid),
     obs: scene.game.robot.observation,
   }
-  // console.log("Send ", data)
+  console.log("queryPolicyServer ", data)
   $.ajax({
     type : "POST",
     url : url,
@@ -515,9 +515,15 @@ function initiateRobotActionIfApplicable(scene) {
       var robotAction = scene.game.tasks.robotActions[scene.game.robot.currentActionI];
       // Has the human completed the precondition task?
       if (scene.game.player.taskI == robotAction.afterHumanTaskIndex + 1) {
-        // If you have not queried the server yet, ask it for the robot action
-        if (!tutorial && !("hasQueriedServer" in robotAction && robotAction.hasQueriedServer)) {
-          queryPolicyServer(scene, scene.game.robot.currentActionI);
+        // If you have not updated the observation for the last action yet, do that
+        if (scene.game.robot.currentActionI == 0) {
+          if (!tutorial && !("hasQueriedServer" in robotAction && robotAction.hasQueriedServer)) {
+            queryPolicyServer(scene, scene.game.robot.currentActionI);
+          }
+        } else {
+          if (!tutorial && !("hasUpdatedObservation" in scene.game.tasks.robotActions[scene.game.robot.currentActionI-1].robotAction)) {
+            updateObservation(scene, scene.game.tasks.robotActions[scene.game.robot.currentActionI-1].robotAction.query == "leadMe", false); // Robot asked, human ignored
+          }
         }
 
         if (!scene.game.robot.actionInProgress && scene.game.robot.currentState == robotState.OFFSCREEN) {
