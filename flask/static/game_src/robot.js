@@ -70,6 +70,8 @@ function createRobot(scene) {
     robot_did_ask_obs: [false, false, false, false, false],
     robot_room_obs: "obs_wrong_room",
   }
+
+  scene.game.robot.numTimesHelped = 0;
 }
 
 function createRobotHelpBubble(scene) {
@@ -282,10 +284,13 @@ var helpRequestButtonCallbacks = {
       scene.game.robot.helpBubble.setText("Thank you.");
       scene.game.robot.helpBubble.setButtons([]);
       scene.game.robot.isBeingLed = false;
-      if (!tutorial && !("hasUpdatedObservation" in scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction)) {
-        if (scene.game.robot.taskPlan.length <= 8) {
+      if (scene.game.robot.taskPlan.length <= 8) {
+        scene.game.robot.numTimesHelped += 1;
+        if (!tutorial && !("hasUpdatedObservation" in scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction)) {
           updateObservation(scene, true, true); // Robot asked, human helped
-        } else {
+        }
+      } else {
+        if (!tutorial && !("hasUpdatedObservation" in scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction)) {
           updateObservation(scene, true, false); // Robot asked, human inaccurately / mistakenly
         }
       }

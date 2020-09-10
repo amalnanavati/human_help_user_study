@@ -8,13 +8,30 @@ function createEndingScreen(scene) {
   scene.game.endingScreen.fillRect(-scene.game.config.width/2, -scene.game.config.height/2, scene.game.config.width, scene.game.config.height); // White background
   scene.game.endingScreen.setDepth(16);
 
+  if (tutorial) {
+    if (scene.game.robot.numTimesHelped == 0) {
+      title = "ERROR: Did Not Follow Instructions";
+      titleColor = "rgba(255, 0, 0, 1.0)";
+      body = "You did not follow the tutorial instructions, which makes you ineligible for this HIT. Please exit and do not try again. You will not get paid.";
+    } else {
+      title = "Completed Tutorial";
+      titleColor = "rgba(0, 0, 0, 1.0)";
+      body = "Congratulations, you have succesfully completed the tutorial! \n\nPlease be patient as the game log gets saved. This can take several minutes. Wait until the \"Continue\" button appears.";
+    }
+  } else {
+    title = "Completed Tasks";
+    titleColor = "rgba(0, 0, 0, 1.0)";
+    body = "You have succesfully cleared all viruses. \n\nScore: "+scene.game.player.score.toString()+" / "+(scene.game.tasks.tasks.length*scorePerTask).toString()+"\n\nPlease be patient as the game log gets saved. This can take several minutes. Wait until the \"Continue\" button appears.";
+  }
+  console.log("titleColor", titleColor);
+
   scene.game.endingScreen.title = scene.add.text(
     scene.game.config.width/2,
     offset,
-    tutorial ? "Completed Tutorial" : "Completed Tasks",
+    title,
     {
       font: "32px monospace",
-      fill: "rgba(0, 0, 0, 1.0)",
+      fill: titleColor,
     },
   ).setOrigin(0.5, 1.0);
   scene.game.endingScreen.title.setDepth(16);
@@ -22,7 +39,7 @@ function createEndingScreen(scene) {
   scene.game.endingScreen.description = scene.add.text(
     scene.game.config.width/2,
     scene.game.config.height/2,
-    tutorial ? "Congratulations, you have succesfully completed the tutorial! Continue to the actual game." : "You have succesfully cleared all viruses. \n\nScore: "+scene.game.player.score.toString()+" / "+(scene.game.tasks.tasks.length*scorePerTask).toString()+"\n\nPlease be patient as the game log gets saved. This can take several minutes. Wait until the \"Continue\" button appears.",
+    body,
     {
       font: "24px monospace",
       fill: "rgba(0, 0, 0, 1.0)",
@@ -56,6 +73,9 @@ function createEndingScreen(scene) {
 }
 
 function updateEndingScreen(scene) {
+  if (tutorial && scene.game.robot.numTimesHelped == 0) {
+    return; // do not update the ending screen if the human never helped
+  }
   if (scene.game.endingScreen.oldNumReceivedLogs == null || numReceivedLogs != scene.game.endingScreen.oldNumReceivedLogs) {
     if (scene.game.endingScreen.timer) {
       scene.game.endingScreen.timer.destroy();
