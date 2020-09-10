@@ -263,8 +263,8 @@
                 renderRobotMovementAnimation(this);
                 var isInMiddleOfRobotMotion = this.game.robot.movementTimer != null;
 
+                // console.log("isInMiddleOfRobotMotion", isInMiddleOfRobotMotion, this.game.robot.actionInProgress);
                 if (!isInMiddleOfRobotMotion) {
-                  // console.log("isInMiddleOfRobotMotion", isInMiddleOfRobotMotion, this.game.robot.actionInProgress);
                   if (this.game.robot.actionInProgress) {
                     executeRobotAction(this);
                   }

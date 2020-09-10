@@ -66,7 +66,7 @@ function createRobot(scene) {
   // Initialize the observation
   scene.game.robot.observation = {
     human_busyness_obs: 6,
-    human_num_recent_times_did_not_help_obs: 0,
+    // human_num_recent_times_did_not_help_obs: 0,
     robot_did_ask_obs: [false, false, false, false, false],
     robot_room_obs: "obs_wrong_room",
   }
@@ -90,7 +90,19 @@ function createRobotHelpBubble(scene) {
 }
 
 function setRobotActionInProgress(scene, val) {
+  // console.log("setRobotActionInProgress", val);
   if (scene.game.robot.actionInProgress && !val) {
+    // console.log("action in progress transition");
+    // If you have not updated the observation for the last action yet, do that
+    // if (scene.game.robot.currentActionI == 0) {
+    //   if (!tutorial && !("hasQueriedServer" in scene.game.tasks.robotActions[scene.game.robot.currentActionI] && scene.game.tasks.robotActions[scene.game.robot.currentActionI].hasQueriedServer)) {
+    //     queryPolicyServer(scene, scene.game.robot.currentActionI);
+    //   }
+    // } else {
+    if (!tutorial && !("hasUpdatedObservation" in scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction)) {
+      updateObservation(scene, scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query == "leadMe", false); // Robot asked, human ignored
+    }
+    // }
     scene.game.robot.currentActionI++;
   }
   scene.game.robot.actionInProgress = val;
@@ -390,6 +402,7 @@ function sendNewUserMsgToPolicyServer(scene) {
   var data = {
     uuid: parseInt(uuid),
     gid: parseInt(gid),
+    robot_action_i: 0,
   }
   // console.log("Send ", data)
   $.ajax({
@@ -432,6 +445,7 @@ function queryPolicyServer(scene, robotActionI) {
     uuid: parseInt(uuid),
     gid: parseInt(gid),
     obs: scene.game.robot.observation,
+    robot_action_i: robotActionI,
   }
   console.log("queryPolicyServer ", data)
   $.ajax({
@@ -465,22 +479,24 @@ function queryPolicyServer(scene, robotActionI) {
 // NOTE: This function *MUST* be called BEFORE currentActionI has been incremented
 function updateObservation(scene, didRobotAsk, didHumanHelp=false) {
   // Update busyness
-  var nextTaskIWhenTheRobotWillAppear = scene.game.tasks.robotActions[scene.game.robot.currentActionI+1].afterHumanTaskIndex+1;
-  if (nextTaskIWhenTheRobotWillAppear < scene.game.tasks.tasks.length) {
-    randomlyAssignBusyness(scene, nextTaskIWhenTheRobotWillAppear);
-    var busyness_float = scene.game.tasks.tasks[nextTaskIWhenTheRobotWillAppear].busyness;
-    scene.game.robot.observation.human_busyness_obs = Math.round((busyness_float/0.4*(num_busyness-1))+1);
-    console.log("updateObservation", busyness_float, scene.game.robot.observation.human_busyness_obs);
-  } // Otherwise, keep the observed busyness the same, because we won't execute the action anyway
-
-  // Update human_num_recent_times_did_not_help_obs
-  if (didRobotAsk) {
-    if (didHumanHelp) {
-      scene.game.robot.observation.human_num_recent_times_did_not_help_obs = 0;
-    } else {
-      scene.game.robot.observation.human_num_recent_times_did_not_help_obs += 1;
-    }
+  if (scene.game.robot.currentActionI+1 < scene.game.tasks.robotActions.length) {
+    var nextTaskIWhenTheRobotWillAppear = scene.game.tasks.robotActions[scene.game.robot.currentActionI+1].afterHumanTaskIndex+1;
+    if (nextTaskIWhenTheRobotWillAppear < scene.game.tasks.tasks.length) {
+      randomlyAssignBusyness(scene, nextTaskIWhenTheRobotWillAppear);
+      var busyness_float = scene.game.tasks.tasks[nextTaskIWhenTheRobotWillAppear].busyness;
+      scene.game.robot.observation.human_busyness_obs = Math.round((busyness_float/0.4*(num_busyness-1))+1);
+      console.log("updateObservation", busyness_float, scene.game.robot.observation.human_busyness_obs);
+    } // Otherwise, keep the observed busyness the same, because we won't execute the action anyway
   }
+
+  // // Update human_num_recent_times_did_not_help_obs
+  // if (didRobotAsk) {
+  //   if (didHumanHelp) {
+  //     scene.game.robot.observation.human_num_recent_times_did_not_help_obs = 0;
+  //   } else {
+  //     scene.game.robot.observation.human_num_recent_times_did_not_help_obs += 1;
+  //   }
+  // }
 
   // Add an item to the end of robot_did_ask_obs and remove it from the beginning
   scene.game.robot.observation.robot_did_ask_obs.push(didRobotAsk);
@@ -515,17 +531,6 @@ function initiateRobotActionIfApplicable(scene) {
       var robotAction = scene.game.tasks.robotActions[scene.game.robot.currentActionI];
       // Has the human completed the precondition task?
       if (scene.game.player.taskI == robotAction.afterHumanTaskIndex + 1) {
-        // If you have not updated the observation for the last action yet, do that
-        if (scene.game.robot.currentActionI == 0) {
-          if (!tutorial && !("hasQueriedServer" in robotAction && robotAction.hasQueriedServer)) {
-            queryPolicyServer(scene, scene.game.robot.currentActionI);
-          }
-        } else {
-          if (!tutorial && !("hasUpdatedObservation" in scene.game.tasks.robotActions[scene.game.robot.currentActionI-1].robotAction)) {
-            updateObservation(scene, scene.game.tasks.robotActions[scene.game.robot.currentActionI-1].robotAction.query == "leadMe", false); // Robot asked, human ignored
-          }
-        }
-
         if (!scene.game.robot.actionInProgress && scene.game.robot.currentState == robotState.OFFSCREEN) {
           // console.log("robot offscreen");
           var requiredDistanceToGoal = Math.ceil(scene.game.player.currentTaskDistance*(1.0-robotAction.humanDistanceProportionToNextGoal));
@@ -645,6 +650,7 @@ function executeRobotAction(scene) {
       }
     }
   } else if (scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query == "walkPast") {
+    // console.log("executeRobotAction walkPast", scene.game.robot.currentState);
     if (scene.game.robot.currentState == robotState.OFFSCREEN) {
       if (!tutorial && !("hasUpdatedObservation" in scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction)) {
         updateObservation(scene, false); // robot did not ask
@@ -707,6 +713,7 @@ function transitionRobotState(scene) {
       }
       break;
     case robotState.WALK_PAST_HUMAN:
+      // console.log("WALK_PAST_HUMAN", scene.game.numTimesRobotOnScreen, isOffCamera(scene, scene.game.robot.currentTile));
       // If we just transitioned to WALK_PAST, set numTimesRobotOnScreen to 0
       if (scene.game.robot.previousState != robotState.WALK_PAST_HUMAN) {
         scene.game.numTimesRobotOnScreen = 0;

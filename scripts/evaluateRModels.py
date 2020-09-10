@@ -103,7 +103,7 @@ class Datapoint(object):
         self.age = int(row[10])
 
     def get_datapoint_numeric(self):
-        return np.array([1.0, self.busyness_numeric, self.num_recent_times_did_not_help, self.busyness_numeric*self.past_frequency_of_asking])
+        return np.array([1.0, self.busyness_numeric, self.busyness_numeric*self.past_frequency_of_asking])
 
 class UUIDDatapoint(object):
     def __init__(self):
