@@ -463,22 +463,32 @@ function queryPolicyServer(scene, robotActionI) {
         if ("action" in received_data) {
           if (received_data["action"] == "ask") {
             console.log("got ask robotActionI", robotActionI);
-            scene.game.tasks.robotActions[robotActionI].robotAction.query = "leadMe";
+            if (robotActionI < scene.game.tasks.robotActions.length) {
+              scene.game.tasks.robotActions[robotActionI].robotAction.query = "leadMe";
+            }
           } else if (received_data["action"] == "walk_past") {
-            scene.game.tasks.robotActions[robotActionI].robotAction.query = "walkPast";
+            if (robotActionI < scene.game.tasks.robotActions.length) {
+              scene.game.tasks.robotActions[robotActionI].robotAction.query = "walkPast";
+            }
           } else {
             console.log("Received unknown action from policy server", received_data["action"]);
           }
-          scene.game.tasks.robotActions[robotActionI].hasQueriedServer = true;
+          if (robotActionI < scene.game.tasks.robotActions.length) {
+            scene.game.tasks.robotActions[robotActionI].hasQueriedServer = true;
+          }
           console.log("SUCCESS: got action from server", received_data["action"]);
         }
     },
     error: function(received_data, status) {
         // NOTE: For now I'm not going to log the number of errors and stuff for non-logging data because I'm hoping that the internet error will happen for the policy and logging equivalently
-        scene.game.tasks.robotActions[robotActionI].hasQueriedServer = false; // Hopefully this doesn't extend beyond one taskI
+        if (robotActionI < scene.game.tasks.robotActions.length) {
+          scene.game.tasks.robotActions[robotActionI].hasQueriedServer = false; // Hopefully this doesn't extend beyond one taskI
+        }
     }
   });
-  scene.game.tasks.robotActions[robotActionI].hasQueriedServer = true;
+  if (robotActionI < scene.game.tasks.robotActions.length) {
+    scene.game.tasks.robotActions[robotActionI].hasQueriedServer = true;
+  }
 }
 
 // NOTE: This function *MUST* be called BEFORE currentActionI has been incremented
@@ -520,9 +530,9 @@ function updateObservation(scene, didRobotAsk, didHumanHelp=false) {
 
   // NOTE: This function *MUST* be called BEFORE currentActionI has been incremented
   // Query the policy server for the next action
-  if (scene.game.robot.currentActionI+1 < scene.game.tasks.robotActions.length) {
-    queryPolicyServer(scene, scene.game.robot.currentActionI+1);
-  }
+  // if (scene.game.robot.currentActionI+1 < scene.game.tasks.robotActions.length) {
+  queryPolicyServer(scene, scene.game.robot.currentActionI+1);
+  // }
 
   scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.hasUpdatedObservation = true;
 }
