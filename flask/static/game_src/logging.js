@@ -211,7 +211,8 @@ function loadUpdate(scene) {
           }
           break;
         case eventType.CLICK:
-          var queryType = scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query;
+          // We only have leadMe queries. 
+          var queryType = "leadMe";//scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query;
           console.log("click button", queryType, dataToLoad, dataToLoad[0].buttonName, helpRequestButtonCallbacks[queryType][dataToLoad[0].buttonName]);
           helpRequestButtonCallbacks[queryType][dataToLoad[0].buttonName](scene);
           break;

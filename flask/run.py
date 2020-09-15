@@ -229,12 +229,12 @@ class FlaskExample:
             # # Assign the user a game ID
             # gidWithMinNumUsers = 4
             if int(uuid) == 18:
-                gidWithMinNumUsers = 4
+                gidWithMinNumUsers = 0
             elif int(uuid) < 100:
-                gidWithMinNumUsers = random.randint(0, 4)
+                gidWithMinNumUsers = random.randint(0, 2)
             else:
                 gidAndUsersList = [] # (numRealAndInProgressUsers, numRealUsers, gid)
-                gidsToTest = ["0", "1", "2"] # completedGameIDs #
+                gidsToTest = ["0"]#, "2"] # completedGameIDs #
                 for i in range(len(gidsToTest)):
                     gid = gidsToTest[i]
                     numRealUsers = 0
@@ -359,7 +359,7 @@ class FlaskExample:
 
             dataToLoad = []
             # fname ="outputs/{}/{}_data.json".format(uuid, gid)
-            fname ="ec2_outputs/{}/{}_data.json".format(uuid, gid)
+            fname ="ec2_outputs_evaluation/{}/{}_data.json".format(uuid, gid)
             with open(fname, "r") as f:
                 for cnt, line in enumerate(f):
                     if len(line.strip()) == 0:

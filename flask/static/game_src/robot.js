@@ -446,11 +446,17 @@ function sendNewUserMsgToPolicyServer(scene) {
 function queryPolicyServer(scene, robotActionI) {
   var url = basePolicyURL + "received_obs";
 
+  // Get last busyness
+  var prevTaskIWhenTheRobotAppeared = scene.game.tasks.robotActions[robotActionI-1].afterHumanTaskIndex+1;
+  var last_busyness_float = scene.game.tasks.tasks[prevTaskIWhenTheRobotAppeared].busyness;
+  var last_human_busyness_obs = Math.round((last_busyness_float/0.4*(num_busyness-1))+1);
+
   var data = {
     uuid: parseInt(uuid),
     gid: parseInt(gid),
     obs: scene.game.robot.observation,
     robot_action_i: robotActionI,
+    last_human_busyness: last_human_busyness_obs,
   }
   console.log("queryPolicyServer ", data)
   $.ajax({
