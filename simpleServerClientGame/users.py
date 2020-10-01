@@ -22,6 +22,7 @@ class Users(object):
                 "nextTile" : self.states[uuid]["player"]["nextTile"],
                 "x" : self.states[uuid]["player"]["x"],
                 "y" : self.states[uuid]["player"]["y"],
+                "time" : self.states[uuid]["player"]["time"],
             }
             if "player_anim_key" in self.states[uuid]:
                 retval[uuid]["animation"] = self.states[uuid]["player_anim_key"]

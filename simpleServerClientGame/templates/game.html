@@ -46,7 +46,7 @@
       if (isDeployment) {
         baseURL = "http://ec2-18-236-122-235.us-west-2.compute.amazonaws.com:8194/";
       } else {
-        baseURL = "http://0.0.0.0:8194/";
+        baseURL = "http://localhost:8194/";
       }
 
       // Load game params
@@ -109,6 +109,7 @@
             nextTile : scene.game.player.nextTile,
             x : scene.game.player.x,
             y : scene.game.player.y,
+            time : Date.now(),
           },
           player_anim_key : scene.game.player.anims.getCurrentKey(),
           player_anim_is_playing : scene.game.player.anims.isPlaying,
@@ -217,7 +218,7 @@
           this.game.robot.currentActionI = 0;
           this.game.robot.actionInProgress = false;
 
-          // Create the player animations
+          // Create the robot animations
           this.anims.create({
               key: 'robotDown',
               frames: this.anims.generateFrameNumbers('robot', {start: 0, end: 3}),
@@ -257,6 +258,7 @@
           this.socket = io(baseURL);
           var scene = this;
           this.socket.on('updateStates', function(data) {
+            console.log("received server data: ", data);
             scene.game.robot.currentTile = data.robot.currentTile;
             scene.game.robot.nextTile = data.robot.nextTile;
             var gameXY = tileToGameXY(data.robot.tileForRendering);
@@ -280,6 +282,26 @@
                 }
                 scene.game.otherPlayers[otherUUID].currentTile = data.users[otherUUID].currentTile;
                 scene.game.otherPlayers[otherUUID].nextTile = data.users[otherUUID].nextTile;
+
+                if (data.users[otherUUID].nextTile.x == data.users[otherUUID].currentTile.x &&
+                        data.users[otherUUID].nextTile.y == data.users[otherUUID].currentTile.y){
+                    var gameXY = tileToGameXY(scene.game.otherPlayers[otherUUID].currentTile);
+                    scene.game.robot.x = gameXY.x;
+                    scene.game.robot.y = gameXY.y;
+                    if (scene.game.otherPlayers[otherUUID].movementTimer) {
+                      scene.game.otherPlayers[otherUUID].movementTimer.destroy();
+                      scene.game.otherPlayers[otherUUID].movementTimer = null;
+                    }
+                }
+                else {
+                    // compute the time that the animation will take
+                    endTime = data.users[otherUUID].time + playerMsPerStep;
+                    durationOfAnimation = endTime - Date.now();
+                    scene.game.otherPlayers[otherUUID].movementTimer = scene.time.addEvent({delay: durationOfAnimation});
+                }
+
+
+
                 scene.game.otherPlayers[otherUUID].x = data.users[otherUUID].x;
                 scene.game.otherPlayers[otherUUID].y = data.users[otherUUID].y;
                 if (data.users[otherUUID].animation) {
@@ -300,9 +322,9 @@
 
       function update(time, delta) {
         if (this.game.isRunning) {
-          logDataSocketIO(this);
+          //logDataSocketIO(this);
 
-          var wasInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
+          //var wasInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
           var p = this.game.player.movementTimer == null ? 0 : this.game.player.movementTimer.getOverallProgress();
           var gameXY = tileToGameXY({
             x : this.game.player.currentTile.x * (1-p) + this.game.player.nextTile.x * p,
@@ -316,10 +338,10 @@
           if (this.game.player.movementTimer != null && this.game.player.movementTimer.getOverallProgress() == 1.0) {
             this.game.player.currentTile = this.game.player.nextTile;
             this.game.player.movementTimer = null;
-            // if (!load) {
-            //   // Log the game state
-            //   logDataSocketIO(this);
-            // }
+            if (!load) {
+               // Log the game state (every time a movement is completed)
+               logDataSocketIO(this);
+            }
           }
           var isInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
 
@@ -365,7 +387,7 @@
             }
             if (newAction) {
               this.game.player.movementTimer = this.time.addEvent({delay: playerMsPerStep});
-              // if (!load) logDataSocketIO(this);
+              if (!load) logDataSocketIO(this); //log every time a movement has started
             }
             // Log the game state
             // if (shouldLogData && !load) logDataSocketIO(this);

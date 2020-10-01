@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 # Standard Library Imports
+import logging
 import os
 import json
 import random
@@ -22,11 +23,15 @@ from flask import Flask, render_template, send_file, request, redirect
 from flask_cors import CORS
 from flask_socketio import SocketIO, send, emit
 
+
+
 # Create the Server
 app = Flask(__name__, static_url_path='/static', template_folder='./templates')
 app.secret_key = 'example_secret_key_change_this_later'
 CORS(app, resources={r"*": {"origins": "*"}})
-socketio = SocketIO(app)
+socketio = SocketIO(app, logger = False, engineio_logger = False)
+
+
 
 # Enable to Logger
 logger = Logger()
@@ -63,7 +68,7 @@ def controlLoop():
                 "users" : userStatesToSend,
                 "robot" : robot.getDict(),
             }
-            print("dataToSend", dataToSend)
+            #logger.logPrint("dataToSend", dataToSend)
             socketio.emit("updateStates", dataToSend)
         else:
             isRunningLock.release()
@@ -98,7 +103,7 @@ def handle_log_game_state(msg):
     usersLock.acquire()
     users.addUserState(uuid, timestamp, msg)
     usersLock.release()
-    # print("msg", msg)
+    logger.logPrint("msg", msg)
 
 # Called to access files in the assets folder
 @app.route('/assets/<source>', methods=['GET'])
@@ -122,7 +127,7 @@ def run():
     controlLoopThread.start()
 
     app.debug = False
-    socketio.run(app, host='0.0.0.0', port=8194)#, threaded=True)
+    socketio.run(app, host='localhost', port=8194)# threaded=True)
 
 run()
 

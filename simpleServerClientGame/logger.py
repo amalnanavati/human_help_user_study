@@ -9,13 +9,13 @@ class Logger(object):
 [{}] BEGIN LOGGING
 ********************************************************************************
 """.format(self.datetimeFormatStr.format(datetime.datetime.now()))
-        print(beginningStr)
+        #print(beginningStr)
         self.f.write(beginningStr)
 
         self.timesSinceLastFlush = 0
         self.flushEveryNTimes = 3000 # roughly once every two minutes when there is one user playing the tutorial/game
 
-    def logPrint(self, *args, printToOutput=True, **kwargs):
+    def logPrint(self, *args, printToOutput=False, **kwargs):
         self.timesSinceLastFlush += 1
         headerStr = "[{}] ".format(self.datetimeFormatStr.format(datetime.datetime.now()))
         self.f.write(headerStr)

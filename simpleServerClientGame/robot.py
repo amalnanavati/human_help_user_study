@@ -56,7 +56,7 @@ class Robot(object):
     def update(self, userLocations):
         if self.isActionFinished: # Get the next action
             self.currentAction = self.getNextAction(userLocations)
-            print("Robot x {}, y {}, currentAction {}, userLocations {}".format(self.state.currentTile.x, self.state.currentTile.y, self.currentAction, userLocations))
+            #print("Robot x {}, y {}, currentAction {}, userLocations {}".format(self.state.currentTile.x, self.state.currentTile.y, self.currentAction, userLocations))
             self.currentActionStartTime = time.time()
             self.isActionFinished = False
         else: # Finish executing the current action
