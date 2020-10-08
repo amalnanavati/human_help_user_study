@@ -286,8 +286,8 @@
                 if (data.users[otherUUID].nextTile.x == data.users[otherUUID].currentTile.x &&
                         data.users[otherUUID].nextTile.y == data.users[otherUUID].currentTile.y){
                     var gameXY = tileToGameXY(scene.game.otherPlayers[otherUUID].currentTile);
-                    scene.game.robot.x = gameXY.x;
-                    scene.game.robot.y = gameXY.y;
+                    scene.game.otherPlayers[otherUUID].x = gameXY.x;
+                    scene.game.otherPlayers[otherUUID].y = gameXY.y;
                     if (scene.game.otherPlayers[otherUUID].movementTimer) {
                       scene.game.otherPlayers[otherUUID].movementTimer.destroy();
                       scene.game.otherPlayers[otherUUID].movementTimer = null;
@@ -301,9 +301,9 @@
                 }
 
 
-
                 scene.game.otherPlayers[otherUUID].x = data.users[otherUUID].x;
                 scene.game.otherPlayers[otherUUID].y = data.users[otherUUID].y;
+                console.log(scene.game.otherPlayers[otherUUID], otherUUID);
                 if (data.users[otherUUID].animation) {
                     scene.game.otherPlayers[otherUUID].anims.play(data.users[otherUUID].animation, true);
                 } else {
@@ -324,25 +324,11 @@
         if (this.game.isRunning) {
           //logDataSocketIO(this);
 
-          //var wasInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
-          var p = this.game.player.movementTimer == null ? 0 : this.game.player.movementTimer.getOverallProgress();
-          var gameXY = tileToGameXY({
-            x : this.game.player.currentTile.x * (1-p) + this.game.player.nextTile.x * p,
-            y : this.game.player.currentTile.y * (1-p) + this.game.player.nextTile.y * p,
-          });
-          this.game.player.x = gameXY.x;
-          this.game.player.y = gameXY.y;
-          if (this.game.player.movementTimer == null) {
-            this.game.player.previousTile = this.game.player.currentTile;
+          movement(this.game.player, true, this);
+          for (otherUUID in this.game.otherPlayers) {
+            movement(this.game.otherPlayers[otherUUID], false, this);
           }
-          if (this.game.player.movementTimer != null && this.game.player.movementTimer.getOverallProgress() == 1.0) {
-            this.game.player.currentTile = this.game.player.nextTile;
-            this.game.player.movementTimer = null;
-            if (!load) {
-               // Log the game state (every time a movement is completed)
-               logDataSocketIO(this);
-            }
-          }
+
           var isInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
 
           // If we are not in the middle of a player movement, then check key presses
@@ -412,6 +398,29 @@
           //   }
           // }
           game.player.previousTaskI = game.player.taskI;
+        }
+      }
+
+      function movement(player, shouldLog, scene){
+        //var wasInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
+        var p = player.movementTimer == null ? 0 : player.movementTimer.getOverallProgress();
+        var gameXY = tileToGameXY({
+          x : player.currentTile.x * (1-p) + player.nextTile.x * p,
+          y : player.currentTile.y * (1-p) + player.nextTile.y * p,
+        });
+        player.x = gameXY.x;
+        player.y = gameXY.y;
+        if (player.movementTimer == null) {
+          player.previousTile = player.currentTile;
+        }
+        if (player.movementTimer != null && player.movementTimer.getOverallProgress() == 1.0) {
+          player.currentTile = player.nextTile;
+          player.movementTimer = null;
+          if (!load && shouldLog) {
+            // Log the game state (every time a movement is completed)
+            //logDataSocketIO(this);
+            logDataSocketIO(scene);
+          }
         }
       }
 
