@@ -324,9 +324,9 @@
         if (this.game.isRunning) {
           //logDataSocketIO(this);
 
-          movement(this.game.player, true, this);
+          renderPlayerMovementSimple(this, this.game.player, true);
           for (otherUUID in this.game.otherPlayers) {
-            movement(this.game.otherPlayers[otherUUID], false, this);
+            renderPlayerMovementSimple(this, this.game.otherPlayers[otherUUID], false);
           }
 
           var isInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
@@ -401,7 +401,7 @@
         }
       }
 
-      function movement(player, shouldLog, scene){
+      function renderPlayerMovementSimple(scene, player, shouldLog){
         //var wasInMiddleOfPlayerMotion = this.game.player.movementTimer != null;
         var p = player.movementTimer == null ? 0 : player.movementTimer.getOverallProgress();
         var gameXY = tileToGameXY({
