@@ -48,6 +48,7 @@ users = Users()
 def controlLoop():
     loopDuration = 0.02 # sec
     currLoopStartTime, prevLoopStartTime = None, None
+    seqID = 0
     while (True):
         # Sync the loop duration
         currLoopStartTime = time.time()
@@ -65,9 +66,11 @@ def controlLoop():
             usersLock.release()
             robot.update(userLocations)
             dataToSend = {
+                "seqID" : seqID,
                 "users" : userStatesToSend,
                 "robot" : robot.getDict(),
             }
+            seqID += 1
             #logger.logPrint("dataToSend", dataToSend)
             socketio.emit("updateStates", dataToSend)
         else:
