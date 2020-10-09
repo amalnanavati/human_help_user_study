@@ -67,7 +67,7 @@ def alwaysPredictNotHelp(trainX, trainY, testX, testY, plot=False):
 
 def alwaysPredictHelp(trainX, trainY, testX, testY, plot=False):
     testYPred = np.ones(testY.shape)
-    return testYPred, None,
+    return testYPred, None
 
 if __name__ == "__main__":
     busynessListRaw, freqOfAskingList, freqOfHelpingAccuratelyList, responseNumberList = [], [], [], []

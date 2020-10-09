@@ -275,6 +275,7 @@ function completedDistractionTask(scene) {
       scene.game.player.currentTaskDistance = scene.game.player.taskPlan.length;
     }
   } else {
+    console.log("scene.game.player.taskI >= scene.game.tasks.tasks.length", scene.game.player.taskI, scene.game.tasks.tasks.length);
     scene.game.player.currentState = playerState.COMPLETED_TASKS;
     if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.PLAYER_STATE_CHANGE));
     scene.game.endGameDelayTimer = scene.time.addEvent({
@@ -407,6 +408,7 @@ function processPlayerKeyPresses(scene) {
         if (scene.game.shiftHeldSecs > 10) {
           if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.SHIFT_GAME_KILL));
           scene.game.isRunning = false;
+          console.log("create ending screen through shift key");
           createEndingScreen(scene);
         }
       } else {

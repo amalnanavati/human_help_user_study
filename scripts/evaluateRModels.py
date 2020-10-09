@@ -37,7 +37,7 @@ class ModelParams(object):
         prob = math.e**logit / (1 + math.e**logit)
         return prob
 
-    def get_optimal_random_effect(self, datapoints, start, end, method="mean_sq"):
+    def get_optimal_random_effect(self, datapoints, start, end, method="cross_entropy"):
 
         if len(datapoints) == 0:
             return np.array([0.0])
@@ -164,16 +164,17 @@ def random_predictor(train_x, train_y, train_weights, test_x, plot=False):
 
 if __name__ == "__main__":
 
-    raw_filepath = "/Users/amaln/Documents/PRL/human_help_user_study/flask/ec2_outputs/processedData/80-20/%d_%s.csv"
+    base_dir = "/Users/amaln/Documents/PRL/human_help_user_study/flask/ec2_outputs/processedData/80-20/"
+    raw_filepath = base_dir+"%d_%s.csv"
     num_partitions = 5
 
     # raw_filepath = "/Users/amaln/Documents/PRL/human_help_user_study/flask/ec2_outputs/processedData/hold-one-out/%d_%s.csv"
     # num_partitions = 140
 
     metrics_to_test = {
-        "accuracy" : sklearn.metrics.accuracy_score,
-        "f1" : sklearn.metrics.f1_score,
-        "mcc" : sklearn.metrics.matthews_corrcoef,
+        "Accuracy" : sklearn.metrics.accuracy_score,
+        "F1" : sklearn.metrics.f1_score,
+        "MCC" : sklearn.metrics.matthews_corrcoef,
 
         # "confusion_matrix" : sklearn.metrics.confusion_matrix,
     }
@@ -184,7 +185,7 @@ if __name__ == "__main__":
         # "Logistic Regression" : logistic_regression,
         # "Always Predict Not Help" : always_predict_not_help, # NOTE: Keeping this model produces a runtime error with sklearn.metrics.matthews_corrcoef
         # "Always Predict Help" : always_predict_help, # NOTE: Keeping this model produces a runtime error with sklearn.metrics.matthews_corrcoef
-        "Random" : random_predictor,
+        # "Random" : random_predictor,
         # "Fixed Effects" : None, # Will add per param
     }
     baseline_results = {
@@ -360,3 +361,37 @@ if __name__ == "__main__":
         print("   Proposed Model", metric, np.mean(results[metric], axis=0), np.std(results[metric], axis=0))
         for model_name in baseline_results:
             print("  ", model_name, np.mean(baseline_results[model_name][metric], axis=0), np.std(baseline_results[model_name][metric], axis=0))
+
+    # Write to CSV
+    header = ["Partition"]
+    for metric in metrics_to_test:
+        header += [metric+" Proposed"]
+        for model_name in baseline_results:
+            header += [metric+" "+model_name]
+    with open(base_dir+"results.csv", "w") as f:
+        writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
+        writer.writerow(header)
+        for i in range(num_partitions):
+            row = [i]
+            for metric in metrics_to_test:
+                row += [results[metric][i]]
+                for model_name in baseline_results:
+                    row += [baseline_results[model_name][metric][i]]
+            writer.writerow(row)
+
+    # Write to CSV
+    header = ["Partition", "Model", "Accuracy", "F1", "MCC"]
+    with open(base_dir+"results_long.csv", "w") as f:
+        writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
+        writer.writerow(header)
+        for i in range(num_partitions):
+            for model_name in list(baseline_results.keys())+["Proposed"]:
+                row = [i, model_name]
+                if model_name == "Proposed":
+                    for metric in metrics_to_test:
+                        row += [results[metric][i]]
+                else:
+                    for metric in metrics_to_test:
+                        row += [baseline_results[model_name][metric][i]]
+                writer.writerow(row)
+    print("Wrote CSV")

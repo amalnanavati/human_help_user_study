@@ -4,6 +4,10 @@ require(effects)
 require(languageR)
 require(tidyr)
 require(ggplot2)
+library(data.table)
+require(car)
+library(sjmisc)
+library(sjmisc)
 
 data <- read.csv("/Users/amaln/Documents/PRL/human_help_user_study/flask/ec2_outputs/humanHelpUserStudyPerResponseData.csv")
 
@@ -22,6 +26,7 @@ data <- within(data, {
   Busyness.Numeric <- as.numeric(Busyness.Numeric)
   Num.Recent.Times.Did.Not.Help <- as.integer(Num.Recent.Times.Did.Not.Help)
   Age <- as.integer(Age)
+  Navigational.Ability <- as.numeric(Navigational.Ability)
 })
 
 print(data)
@@ -180,6 +185,17 @@ summary(busyness_random_slope)
 # Nothing achieved significance (although freqOfAsking_numRecentTimesDidNotHelpI got close) so we will use that as our final model
 finalModel <- busyness_freqOfAskingI
 summary(finalModel)
+Anova(finalModel)
+fixParam <- fixef(finalModel)
+ranParam <- ranef(finalModel)$UUID
+n <- nrow(ranParam[1])
+replicatedFixParam <- data.frame(matrix(rep(t(as.matrix(fixParam)),each=n),nrow=n))
+params<-cbind(ranParam[1], replicatedFixParam)
+colnames(params) <- append("(Intercept).Random.Effects", names(fixParam))
+write.csv(setDT(params, keep.rownames="UUID")[], "/Users/amaln/Documents/PRL/human_help_user_study/flask/ec2_outputs/processedData/finalModel.csv", row.names=FALSE)
+
+prosocialityModel <- update(busyness_freqOfAskingI, .~ Prosociality + .)
+summary(prosocialityModel)
 
 # plot(allEffects(model))
 # plotLMER.fnc(model,linecolor="red",
@@ -220,6 +236,37 @@ print(fixParam)
 print(ranParam)
 params<-cbind(fixParam[1]+ranParam[1],fixParam[2], fixParam[3], fixParam[4])
 print(params)
+
+# Compute the correlation between prosociality and the random effect
+ranParamDataframe <- setDT(ranParam, keep.rownames = TRUE)
+colnames(ranParamDataframe)[1] <- "UUID"
+mergedData <- merge(data, ranParamDataframe)
+uniqueMergedData <- mergedData[!duplicated(mergedData$UUID),]
+cor.test(uniqueMergedData$`(Intercept)`, uniqueMergedData$Prosociality, method="pearson", alternative="two.sided")
+cor.test(uniqueMergedData$`(Intercept)`, uniqueMergedData$Navigational.Ability, method="pearson", alternative="two.sided")
+
+# Get the random effect bucket prior distribution
+prior <- c(
+  sum(ranParam$`(Intercept)` <= -1.6*attr(summary(finalModel)$varcor$UUID, "stddev")),
+  sum(ranParam$`(Intercept)` > -1.6*attr(summary(finalModel)$varcor$UUID, "stddev") & ranParam$`(Intercept)` <= -0.8*attr(summary(finalModel)$varcor$UUID, "stddev")),
+  sum(ranParam$`(Intercept)` > -0.8*attr(summary(finalModel)$varcor$UUID, "stddev") & ranParam$`(Intercept)` <= 0.0*attr(summary(finalModel)$varcor$UUID, "stddev")),
+  sum(ranParam$`(Intercept)` > 0.0*attr(summary(finalModel)$varcor$UUID, "stddev") & ranParam$`(Intercept)` <= 0.8*attr(summary(finalModel)$varcor$UUID, "stddev")),
+  sum(ranParam$`(Intercept)` > 0.8*attr(summary(finalModel)$varcor$UUID, "stddev") & ranParam$`(Intercept)` <= 1.6*attr(summary(finalModel)$varcor$UUID, "stddev")),
+  sum(ranParam$`(Intercept)` > 1.6*attr(summary(finalModel)$varcor$UUID, "stddev"))
+)
+prior <- prior# + 14 # exploration epsilon
+prior/sum(prior)
+ranParam_baseline <- ranef(baseline)$UUID
+prior <- c(
+  sum(ranParam_baseline$`(Intercept)` <= -1.6*attr(summary(baseline)$varcor$UUID, "stddev")),
+  sum(ranParam_baseline$`(Intercept)` > -1.6*attr(summary(baseline)$varcor$UUID, "stddev") & ranParam_baseline$`(Intercept)` <= -0.8*attr(summary(baseline)$varcor$UUID, "stddev")),
+  sum(ranParam_baseline$`(Intercept)` > -0.8*attr(summary(baseline)$varcor$UUID, "stddev") & ranParam_baseline$`(Intercept)` <= 0.0*attr(summary(baseline)$varcor$UUID, "stddev")),
+  sum(ranParam_baseline$`(Intercept)` > 0.0*attr(summary(baseline)$varcor$UUID, "stddev") & ranParam_baseline$`(Intercept)` <= 0.8*attr(summary(baseline)$varcor$UUID, "stddev")),
+  sum(ranParam_baseline$`(Intercept)` > 0.8*attr(summary(baseline)$varcor$UUID, "stddev") & ranParam_baseline$`(Intercept)` <= 1.6*attr(summary(baseline)$varcor$UUID, "stddev")),
+  sum(ranParam_baseline$`(Intercept)` > 1.6*attr(summary(baseline)$varcor$UUID, "stddev"))
+)
+prior <- prior# + 14 # exploration epsilon
+prior/sum(prior)
 
 # Plot busyness v likelihood of helping, partitioned by user ID
 indices <- which(!duplicated(data$UUID))
@@ -531,3 +578,29 @@ attr(summary(model_only_random)$varcor$UUID, "stddev")
 model_only_intercept <- glm(Human.Response ~ 1, data = data, family = binomial(link="logit"))
 summary(model_only_intercept)
 
+# Analysis as factors
+
+dataAsFactors <- read.csv("/Users/amaln/Documents/PRL/human_help_user_study/flask/ec2_outputs/humanHelpUserStudyPerResponseData.csv")
+
+dataAsFactors <- within(dataAsFactors, {
+  UUID <- factor(UUID)
+  TaskI <- factor(TaskI)
+  Busyness <- factor(Busyness, levels = c("free time", "medium", "high"))
+  Past.Frequency.of.Asking <- factor(Past.Frequency.of.Asking)
+  # Past.Frequency.of.Asking <- as.numeric(Past.Frequency.of.Asking)
+  # Past.Frequency.of.Helping.Accurately <- factor(Past.Frequency.of.Helping.Accurately)
+  Past.Frequency.of.Helping.Accurately <- as.numeric(Past.Frequency.of.Helping.Accurately)
+  Human.Response <- factor(Human.Response)
+  Prosociality <- as.numeric(Prosociality)
+  Slowness <- as.numeric(Slowness)
+  # Busyness.Numeric <- factor(Busyness.Numeric)
+  Busyness.Numeric <- as.numeric(Busyness.Numeric)
+  Num.Recent.Times.Did.Not.Help <- as.integer(Num.Recent.Times.Did.Not.Help)
+  Age <- as.integer(Age)
+})
+
+print(dataAsFactors)
+
+modelAsFactors <- glmer(Human.Response ~ Busyness + Past.Frequency.of.Asking + Prosociality + (1 | UUID), data = dataAsFactors, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
+summary(modelAsFactors)
+contrast(emmeans(modelAsFactors, ~ Past.Frequency.of.Asking))
