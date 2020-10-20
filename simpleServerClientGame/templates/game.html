@@ -23,8 +23,8 @@
     <script src="{{ url_for('static', filename='game_src/miscellaneous.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/endingScreen.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/tutorial.js') }}"></script>
-    <script src="{{ url_for('static', filename='game_src/PriorityQueue.js') }}"></script>
-    <script src="{{ url_for('static', filename='game_src/SpeechBubble.js') }}"></script> -->
+    <script src="{{ url_for('static', filename='game_src/PriorityQueue.js') }}"></script> -->
+    <script src="{{ url_for('static', filename='game_src/SpeechBubble.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/planning.js') }}"></script>
     <!-- <script src="{{ url_for('static', filename='game_src/logging.js') }}"></script> -->
     <script>
@@ -218,6 +218,9 @@
           this.game.robot.currentActionI = 0;
           this.game.robot.actionInProgress = false;
 
+
+          createRobotHelpBubble(this);
+
           // Create the robot animations
           this.anims.create({
               key: 'robotDown',
@@ -274,6 +277,21 @@
             } else {
               scene.game.robot.anims.stop();
             }
+
+            // if the robot's action is ask_for_help then set the position of the help bubble to the robot's head, line 438
+            // of robot.js is helpful
+            //set the help bubble is visible to true
+            //else set help bubble visible to false
+            console.log("current: ", data['robot']['currentAction'])
+            if(data['robot']['currentAction'].toString() === 'ASK_FOR_HELP'){
+              scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height/3);
+              scene.game.robot.helpBubble.setVisible(true);
+            }
+            else{
+              scene.game.robot.helpBubble.setVisible(false);
+            }
+
+
             for (otherUUID in scene.game.otherPlayers) {
               if (otherUUID != uuid && !(otherUUID in data.users)) {
                 scene.game.otherPlayers[otherUUID].destroy();
@@ -337,6 +355,23 @@
 
           // Start the game
           this.game.isRunning = true;
+      }
+
+      function createRobotHelpBubble(scene) {
+        var sampleQuestion = "Excuse me. Can you tell me if I'm in front of the Lounge?";
+        scene.game.robot.helpBubble = new SpeechBubble(scene, 225, 300, 300, sampleQuestion, [
+          {
+            text : "Yes",
+            rowI: 0,
+            callbackFunction : () => console.log("Yes button clicked"),
+          },
+          {
+            text : "No",
+            rowI: 1,
+            callbackFunction : () => console.log("No button clicked"),
+          },
+        ]);
+        scene.game.robot.helpBubble.setVisible(false);
       }
 
       function update(time, delta) {

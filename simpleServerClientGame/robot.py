@@ -16,9 +16,10 @@ class RobotAction(Enum):
     MOVE_DOWN = 1
     MOVE_LEFT = 2
     MOVE_RIGHT = 3
+    ASK_FOR_HELP = 4
 
     def toDxDy(self):
-        if self == RobotAction.NO_ACTION:
+        if self == RobotAction.NO_ACTION or self == RobotAction.ASK_FOR_HELP:
             return (0,0)
         if self == RobotAction.MOVE_UP:
             return (0,-1)
@@ -65,7 +66,8 @@ class Robot(object):
                 RobotAction.MOVE_UP,
                 RobotAction.MOVE_DOWN,
                 RobotAction.MOVE_LEFT,
-                RobotAction.MOVE_RIGHT]:
+                RobotAction.MOVE_RIGHT,
+                RobotAction.ASK_FOR_HELP]:
 
                 progress = min((time.time()-self.currentActionStartTime)/Robot.robotSecPerStep, 1.0)
                 dx, dy = self.currentAction.toDxDy()
@@ -81,6 +83,17 @@ class Robot(object):
         """
         The policy -- given the current state, predict the next action
         """
+        for locate in userLocations:
+            if self.state.currentTile.x - locate.x < 2 or self.state.currentTile.y - locate.y < 2:
+                if random.random() < 0.5:
+                    return RobotAction.ASK_FOR_HELP
+        #if the robot near a person (iterate over all the locations in user locations and calculate distance to robot, if the
+        # distance is less than 7, the robot is near a person)
+            # if with 50% chance
+                #ask them for help
+                #also need to return RobotAction.ASK_FOR_HELP
+
+
         # For now, pick NO_ACTION with likelihood 0.25, and the other legal
         # movement actions uniformly
         if random.random() < 0.25:
@@ -115,6 +128,7 @@ class Robot(object):
                 "x" : tileForRendering.x,
                 "y" : tileForRendering.y,
             },
+            "currentAction" : self.currentAction.name,
         }
         animString = self.currentAction.toAnimationString()
         if animString is not None:
