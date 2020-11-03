@@ -278,14 +278,30 @@
               scene.game.robot.anims.stop();
             }
 
-            // if the robot's action is ask_for_help then set the position of the help bubble to the robot's head, line 438
-            // of robot.js is helpful
-            //set the help bubble is visible to true
-            //else set help bubble visible to false
             console.log("current: ", data['robot']['currentAction'])
-            if(data['robot']['currentAction'].toString() === 'ASK_FOR_HELP'){
+            if(data['robot']['currentAction'].toString() === 'ASK_FOR_HELP' && data['robot']['currentActionUUID'] == uuid){ // put && data['robot']['currentActionUUID'] == uuid
               scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height/3);
               scene.game.robot.helpBubble.setVisible(true);
+              // scene.game.robot.helpBubble.setText("Excuse me. Can you lead me to the lounge?"); (10/27/20)
+            //   scene.game.robot.helpBubble.setButtons([
+            //   {
+            //     text : "Yes",
+            //             rowI: 0,
+            //           callbackFunction : function(hitArea, x, y) {
+            //             scene.socket.emit('button_clicked', {'button_type': 'Yes'});
+              //            setHelpBubbleToFollowing(scene);
+              //   },
+            //   },
+            //   {
+            //     text : "Can't Help",
+            //             rowI: 0,
+            //           callbackFunction : function(hitArea, x, y) {
+            //           scene.socket.emit('button_clicked', {'button_type': 'Can't Help'});
+            //   scene.game.robot.helpBubble.setText("That's okay!");
+            //   scene.game.robot.helpBubble.setButtons([]);
+              //   },
+            //   },
+            // ]);
             }
             else{
               scene.game.robot.helpBubble.setVisible(false);
@@ -357,18 +373,37 @@
           this.game.isRunning = true;
       }
 
+      function setHelpBubbleToFollowing(scene) {
+        scene.game.robot.helpBubble.setText("Thank you for leading me towards the lounge. Tell me when I should stop following you.");
+        scene.game.robot.helpBubble.setButtons([
+          {
+            text : "Stop Following",
+            rowI: 0,
+            callbackFunction : function(hitArea, x, y) {
+              scene.socket.emit('button_clicked', {'button_type': 'Stop Following'});
+              scene.game.robot.helpBubble.setText("Thank you!");
+              scene.game.robot.helpBubble.setButtons([]);
+            },
+          },
+        ]);
+      }
+
       function createRobotHelpBubble(scene) {
-        var sampleQuestion = "Excuse me. Can you tell me if I'm in front of the Lounge?";
+        var sampleQuestion = "Excuse me. Can you lead me to the Lounge?";
         scene.game.robot.helpBubble = new SpeechBubble(scene, 225, 300, 300, sampleQuestion, [
           {
             text : "Yes",
             rowI: 0,
-            callbackFunction : () => console.log("Yes button clicked"),
+            callbackFunction : function() {
+              console.log("Yes button clicked");
+            },
           },
           {
             text : "No",
             rowI: 1,
-            callbackFunction : () => console.log("No button clicked"),
+            callbackFunction : function() {
+              console.log("No button clicked");
+            },
           },
         ]);
         scene.game.robot.helpBubble.setVisible(false);

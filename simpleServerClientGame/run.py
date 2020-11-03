@@ -14,7 +14,7 @@ from threading import Lock, Timer, Thread
 
 # Local Imports
 from logger import Logger
-from robot import Robot
+from robot import Robot, RobotHighLevelState
 from users import Users
 from helpers import get_random_alpha_numeric_string
 
@@ -106,7 +106,20 @@ def handle_log_game_state(msg):
     usersLock.acquire()
     users.addUserState(uuid, timestamp, msg)
     usersLock.release()
-    logger.logPrint("msg", msg)
+    logger.logPrint("log_game_state_msg", msg)
+
+@socketio.on("button_clicked")
+def handle_button_clicked(msg):
+    # this is where we will change the state based on the button type (access it with msg["button_type"]) (10/27/2020)
+    logger.logPrint("button_clicked_msg", msg)
+    if(msg["button_type"] == 'Yes'):
+        robot.state.robotHighLevelState = RobotHighLevelState.FOLLOWING_HUMAN
+    elif(msg["button type"] == "Can't Help"):
+        robot.state.robotHighLevelState = RobotHighLevelState.AUTONOMOUS_MOTION
+    elif(msg["button type"] == "Stop Following"):
+        robot.state.robotHighLevelState = RobotHighLevelState.AUTONOMOUS_MOTION
+    else:
+        print("ERROR: Unknown Button Type ", msg["button type"])
 
 # Called to access files in the assets folder
 @app.route('/assets/<source>', methods=['GET'])

@@ -34,12 +34,17 @@ class Users(object):
         """
         Used to ensure the robot does not collide with a person
         """
-        locations = set()
+        locations = {}
         for uuid in self.states:
             currentTile = self.states[uuid]["player"]["currentTile"]
             nextTile = self.states[uuid]["player"]["nextTile"]
-            locations.add(Tile(currentTile["x"], currentTile["y"]))
-            locations.add(Tile(nextTile["x"], nextTile["y"]))
+            #locations.add(Tile(currentTile["x"], currentTile["y"])) # delete this
+            locations[uuid] = {}
+            #locations[uuid]["currentTile"] = Tile(currentTile["x"], currentTile["y"]))
+            locations[uuid]["currentTile"] = Tile(currentTile["x"], currentTile["y"])
+            locations[uuid]["nextTile"] = Tile(nextTile["x"], nextTile["y"])
+            #locations[uuid]["nextTile"] = Tile(nextTile["x"], nextTile["y"])
+            #locations.add(Tile(nextTile["x"], nextTile["y"])) # delete this
         return locations
 
     def removeUser(self, uuid):
