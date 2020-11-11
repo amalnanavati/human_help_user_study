@@ -77,29 +77,27 @@ class Robot(object):
             self.isActionFinished = False
         elif self.isActionFinished and self.state.robotHighLevelState == RobotHighLevelState.FOLLOWING_HUMAN:
             actions = [RobotAction.MOVE_LEFT, RobotAction.MOVE_RIGHT, RobotAction.MOVE_UP, RobotAction.MOVE_DOWN]
-            xDiff = self.state.currentTile.x - userLocations[self.currentAction.targetuuid]["currentTile"].x
-            yDiff = self.state.currentTile.y - userLocations[self.currentAction.targetuuid]["currentTile"].y
+            currentUuid = self.currentAction.targetuuid
+            xDiff = self.state.currentTile.x - userLocations[currentUuid]["currentTile"].x
+            yDiff = self.state.currentTile.y - userLocations[currentUuid]["currentTile"].y
             if(yDiff > xDiff):
                 if(yDiff < 0):
-                    self.currentAction = actions[3]
-                    #dx, dy = actions[3].toDxDy()
+                     self.currentAction = actions[3]
                 else:
-                    self.currentAction = actions[2]
-                    #dx, dy = actions[2].toDxDy()
+                     self.currentAction = actions[2]
             else:
                 if(xDiff < 0):
                     self.currentAction = actions[1]
-                    #dx, dy = actions[1].toDxDy()
                 else:
                     self.currentAction = actions[0]
-                    #dx, dy = actions[0].toDxDy()
+            self.currentAction.targetuuid = currentUuid;
+            # dx, dy = self.currentAction.toDxDy()
             # progress = min((time.time()-self.currentActionStartTime)/Robot.robotSecPerStep, 1.0)
             # self.state.tileForRendering.x = self.state.currentTile.x + progress*dx
             # self.state.tileForRendering.y = self.state.currentTile.y + progress*dy
             # if progress >= 1.0:
             #     self.state.currentTile.x += dx
             #     self.state.currentTile.y += dy
-            #     self.isActionFinished = True
             self.currentActionStartTime = time.time()
             self.isActionFinished = False
 

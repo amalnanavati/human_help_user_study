@@ -114,7 +114,7 @@ def handle_button_clicked(msg):
     logger.logPrint("button_clicked_msg", msg)
     if(msg["button_type"] == 'Yes'):
         robot.state.robotHighLevelState = RobotHighLevelState.FOLLOWING_HUMAN
-        robot.currentAction.targetuuid = int(msg["uuid"])
+        #robot.currentAction.targetuuid = int(msg["uuid"])
     elif(msg["button_type"] == "Can't Help"):
         robot.state.robotHighLevelState = RobotHighLevelState.AUTONOMOUS_MOTION
     elif(msg["button_type"] == "Stop Following"):
