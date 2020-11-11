@@ -279,9 +279,29 @@
             }
 
             console.log("current: ", data['robot']['currentAction'])
-            if(data['robot']['currentAction'].toString() === 'ASK_FOR_HELP' && data['robot']['currentActionUUID'] == uuid){ // put && data['robot']['currentActionUUID'] == uuid
+            if(data['robot']['isHelpBubbleVisible'] && data['robot']['currentActionUUID'] == uuid){
               scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height/3);
               scene.game.robot.helpBubble.setVisible(true);
+              scene.game.robot.helpBubble.setText("Excuse me. Can you lead me to the lounge?");
+              scene.game.robot.helpBubble.setButtons([
+                {
+                  text : "Yes",
+                  rowI: 0,
+                  callbackFunction : function(hitArea, x, y) {
+                    scene.socket.emit('button_clicked', {'button_type': 'Yes', 'uuid': uuid});
+                    setHelpBubbleToFollowing(scene);
+                },
+                },
+                {
+                  text : "Can't Help",
+                  rowI: 0,
+                  callbackFunction : function(hitArea, x, y) {
+                    scene.socket.emit('button_clicked', {'button_type': 'Can\'t Help'});
+                    scene.game.robot.helpBubble.setText("That's okay!");
+                    scene.game.robot.helpBubble.setButtons([]);
+                },
+                },
+              ]);
               // scene.game.robot.helpBubble.setText("Excuse me. Can you lead me to the lounge?"); (10/27/20)
             //   scene.game.robot.helpBubble.setButtons([
             //   {

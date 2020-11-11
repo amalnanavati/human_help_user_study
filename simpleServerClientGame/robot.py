@@ -65,15 +65,45 @@ class Robot(object):
         pass
 
     def update(self, userLocations):
-        if self.isActionFinished: # and self.state.robotHighLevelState == RobotHighLevelState.AUTONMOUS_MOTION (10/27/20 - step 1) # Get the next action
+        if self.isActionFinished and self.state.robotHighLevelState == RobotHighLevelState.AUTONOMOUS_MOTION: # and self.state.robotHighLevelState == RobotHighLevelState.AUTONMOUS_MOTION (10/27/20 - step 1) # Get the next action
             self.currentAction = self.getNextAction(userLocations)
+            if self.currentAction == RobotAction.ASK_FOR_HELP:
+                self.state.robotHighLevelState = RobotHighLevelState.ASKING_FOR_HELP
             #if self.currentAction == RobotAction.ASK_FOR_HELP (10/27/20)
                 #self.state.robotHighLevelState = RobotHighLevelState.ASKING_FOR_HELP
 
             #print("Robot x {}, y {}, currentAction {}, userLocations {}".format(self.state.currentTile.x, self.state.currentTile.y, self.currentAction, userLocations))
             self.currentActionStartTime = time.time()
             self.isActionFinished = False
-        #elif self.state.robotHighLevelState == RobotHighLevelState.FOLLOWING_HUMAN: (10/27/20)
+        elif self.isActionFinished and self.state.robotHighLevelState == RobotHighLevelState.FOLLOWING_HUMAN:
+            actions = [RobotAction.MOVE_LEFT, RobotAction.MOVE_RIGHT, RobotAction.MOVE_UP, RobotAction.MOVE_DOWN]
+            xDiff = self.state.currentTile.x - userLocations[self.currentAction.targetuuid]["currentTile"].x
+            yDiff = self.state.currentTile.y - userLocations[self.currentAction.targetuuid]["currentTile"].y
+            if(yDiff > xDiff):
+                if(yDiff < 0):
+                    self.currentAction = actions[3]
+                    #dx, dy = actions[3].toDxDy()
+                else:
+                    self.currentAction = actions[2]
+                    #dx, dy = actions[2].toDxDy()
+            else:
+                if(xDiff < 0):
+                    self.currentAction = actions[1]
+                    #dx, dy = actions[1].toDxDy()
+                else:
+                    self.currentAction = actions[0]
+                    #dx, dy = actions[0].toDxDy()
+            # progress = min((time.time()-self.currentActionStartTime)/Robot.robotSecPerStep, 1.0)
+            # self.state.tileForRendering.x = self.state.currentTile.x + progress*dx
+            # self.state.tileForRendering.y = self.state.currentTile.y + progress*dy
+            # if progress >= 1.0:
+            #     self.state.currentTile.x += dx
+            #     self.state.currentTile.y += dy
+            #     self.isActionFinished = True
+            self.currentActionStartTime = time.time()
+            self.isActionFinished = False
+
+        # elif self.state.robotHighLevelState == RobotHighLevelState.FOLLOWING_HUMAN: (10/27/20)
             # create something similar to isActionInProgress and currentActionStartTime, so you can gave smooth motion
             # figure out how to follow human - get the user location from the robotActioTargetuuid and get the x difference and y difference and move one unit
         else: # Finish executing the current action
@@ -99,15 +129,7 @@ class Robot(object):
         """
         The policy -- given the current state, predict the next action
         """
-        # for locate in userLocations: # this is uuid now
-        #     if self.state.currentTile.x - locate.x < 2 and self.state.currentTile.y - locate.y < 2: # userLocations[uuid]['currentTile'] - use appropriate paran (or nextTIle)
-        #         if random.random() < 0.5:
-        #             nextAction = RobotAction.ASK_FOR_HELP
-        #             nextAction.setActionTargetuuid(self, locate)
-        #             return nextAction
-        #             #return RobotAction.ASK_FOR_HELP
-
-        for uuid in userLocations: # this is uuid now
+        for uuid in userLocations:
             if ((self.state.currentTile.x - userLocations[uuid]["currentTile"].x < 2 and self.state.currentTile.y - userLocations[uuid]["currentTile"].y < 2) or
                 (self.state.currentTile.x - userLocations[uuid]["nextTile"].x < 2 and self.state.currentTile.y - userLocations[uuid]["nextTile"].y < 2)):
                 if random.random() < 0.5:
@@ -119,17 +141,14 @@ class Robot(object):
         # For now, pick NO_ACTION with likelihood 0.25, and the other legal
         # movement actions uniformly
         if random.random() < 0.25:
-            #return RobotAction.NO_ACTION
             nextAction = RobotAction.NO_ACTION
-            #nextAction.setActionTargetuuid(None)
+            nextAction.setActionTargetuuid(None)
             return nextAction
-            #return self.setActionTargetuuid(None)
         potentialActions = []
         for action in [RobotAction.MOVE_LEFT, RobotAction.MOVE_RIGHT, RobotAction.MOVE_UP, RobotAction.MOVE_DOWN]:
             dx, dy = action.toDxDy()
             nextTile = Tile(self.state.currentTile.x+dx, self.state.currentTile.y+dy)
             if (nextTile.x >= 1 and nextTile.x <= 10 and nextTile.y >= 1 and nextTile.y <= 10):
-                    #and nextTile not in userLocations): #remove the nextTile not in userLocations
                 is_in_collision = False
                 for uuid in userLocations:
                     if((nextTile.x == userLocations[uuid]["currentTile"].x and nextTile.y == userLocations[uuid]["currentTile"].y) or
@@ -143,22 +162,13 @@ class Robot(object):
                         nextAction = action
                         nextAction.setActionTargetuuid(uuid)
                         return nextAction
-                # add a for loop and iterate over every userID and it's current and next tile
-                    # if the robot's nextTile is either the users next tile or current tile
-                        #then isInCollision = True
-                        #break
-                # if isInCollision = False , then do potentialActions.append
-                #potentialActions.append(action)
 
         if len(potentialActions) > 0:
             return random.choice(potentialActions)
 
-        #set all of the returns to variables with settargetActionUUID(None) on line 118 and 121
-        #return RobotAction.NO_ACTION
         nextAction = RobotAction.NO_ACTION
         nextAction.setActionTargetuuid(None)
         return nextAction
-        #return self.setActionTargetuuid(None)
 
     def getDict(self):
         currentTile = self.state.currentTile
@@ -179,6 +189,8 @@ class Robot(object):
             },
             "currentAction" : self.currentAction.name,
             "currentActionUUID" : self.currentAction.targetuuid,
+            "isHelpBubbleVisible" : (self.currentAction == RobotAction.ASK_FOR_HELP or
+                                    self.state.robotHighLevelState != RobotHighLevelState.AUTONOMOUS_MOTION),
         }
         animString = self.currentAction.toAnimationString()
         if animString is not None:

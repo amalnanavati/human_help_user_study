@@ -114,9 +114,10 @@ def handle_button_clicked(msg):
     logger.logPrint("button_clicked_msg", msg)
     if(msg["button_type"] == 'Yes'):
         robot.state.robotHighLevelState = RobotHighLevelState.FOLLOWING_HUMAN
-    elif(msg["button type"] == "Can't Help"):
+        robot.currentAction.targetuuid = int(msg["uuid"])
+    elif(msg["button_type"] == "Can't Help"):
         robot.state.robotHighLevelState = RobotHighLevelState.AUTONOMOUS_MOTION
-    elif(msg["button type"] == "Stop Following"):
+    elif(msg["button_type"] == "Stop Following"):
         robot.state.robotHighLevelState = RobotHighLevelState.AUTONOMOUS_MOTION
     else:
         print("ERROR: Unknown Button Type ", msg["button type"])
