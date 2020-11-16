@@ -258,11 +258,12 @@
           this.game.cursors = this.input.keyboard.createCursorKeys();
 
           // Configure the SocketIO Logging
+          this.game.lastReceivedData = null;
           this.socket = io(baseURL);
           var scene = this;
           var lastSeqID = -1;
           this.socket.on('updateStates', function(data) {
-            console.log("received server data: ", data);
+            // console.log("received server data: ", data);
             if (data.seqID != lastSeqID+1) {
               console.log("seqID out of order", data.seqID, lastSeqID);
             }
@@ -278,30 +279,19 @@
               scene.game.robot.anims.stop();
             }
 
-            console.log("current: ", data['robot']['currentAction'])
-            if(data['robot']['isHelpBubbleVisible'] && data['robot']['currentActionUUID'] == uuid){
+            // console.log("current: ", data['robot']['currentAction'])
+            if (data['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION" && (scene.game.lastReceivedData == null || data['robot']['robotHighLevelState'] != scene.game.lastReceivedData['robot']['robotHighLevelState']) && data['robot']['currentActionUUID'] == uuid){
               scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height/3);
               scene.game.robot.helpBubble.setVisible(true);
-              scene.game.robot.helpBubble.setText("Excuse me. Can you lead me to the lounge?");
-              scene.game.robot.helpBubble.setButtons([
-                {
-                  text : "Yes",
-                  rowI: 0,
-                  callbackFunction : function(hitArea, x, y) {
-                    scene.socket.emit('button_clicked', {'button_type': 'Yes', 'uuid': uuid});
-                    setHelpBubbleToFollowing(scene);
-                },
-                },
-                {
-                  text : "Can't Help",
-                  rowI: 0,
-                  callbackFunction : function(hitArea, x, y) {
-                    scene.socket.emit('button_clicked', {'button_type': 'Can\'t Help'});
-                    scene.game.robot.helpBubble.setText("That's okay!");
-                    scene.game.robot.helpBubble.setButtons([]);
-                },
-                },
-              ]);
+
+              if (data['robot']['robotHighLevelState'] == "ASKING_FOR_HELP") {
+                setHelpBubbleToAsking(scene);
+              } else if (data['robot']['robotHighLevelState'] == "FOLLOWING_HUMAN") {
+                setHelpBubbleToFollowing(scene);
+              } else {
+                console.log("ERROR: got high level state that is not asking/following when the action is asking", data['robot']['robotHighLevelState'])
+              }
+
               // scene.game.robot.helpBubble.setText("Excuse me. Can you lead me to the lounge?"); (10/27/20)
             //   scene.game.robot.helpBubble.setButtons([
             //   {
@@ -322,8 +312,7 @@
               //   },
             //   },
             // ]);
-            }
-            else{
+            } else if (data['robot']['robotHighLevelState'] == "AUTONOMOUS_MOTION") {
               scene.game.robot.helpBubble.setVisible(false);
             }
 
@@ -387,6 +376,7 @@
                 }
               }
             }
+            scene.game.lastReceivedData = data;
           });
 
           // Start the game
@@ -404,6 +394,31 @@
               scene.game.robot.helpBubble.setText("Thank you!");
               scene.game.robot.helpBubble.setButtons([]);
             },
+          },
+        ]);
+      }
+
+      function setHelpBubbleToAsking(scene) {
+        scene.game.robot.helpBubble.setText("Excuse me. Can you lead me to the lounge?");
+        scene.game.robot.helpBubble.setButtons([
+          {
+            text : "Yes",
+            rowI: 0,
+            callbackFunction : function(hitArea, x, y) {
+              console.log("yes button clicked");
+              scene.socket.emit('button_clicked', {'button_type': 'Yes', 'uuid': uuid});
+              setHelpBubbleToFollowing(scene);
+          },
+          },
+          {
+            text : "Can't Help",
+            rowI: 0,
+            callbackFunction : function(hitArea, x, y) {
+              console.log("can't help button clicked");
+              scene.socket.emit('button_clicked', {'button_type': 'Can\'t Help'});
+              scene.game.robot.helpBubble.setText("That's okay!");
+              scene.game.robot.helpBubble.setButtons([]);
+          },
           },
         ]);
       }

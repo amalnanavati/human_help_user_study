@@ -219,7 +219,7 @@ class SpeechBubble {
 
     this.placeButtons();
 
-    console.log("setButtons", this.maxRowI, oldMaxRowI);
+    // console.log("setButtons", this.maxRowI, oldMaxRowI);
 
     if (((oldButtonsData.length > 0) ^ (buttonsData.length > 0)) || this.maxRowI != oldMaxRowI) {
       // Adjust the height for the new text

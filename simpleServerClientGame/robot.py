@@ -65,6 +65,7 @@ class Robot(object):
         pass
 
     def update(self, userLocations):
+        print("ROBOT update", self.isActionFinished, self.state.robotHighLevelState)
         if self.isActionFinished and self.state.robotHighLevelState == RobotHighLevelState.AUTONOMOUS_MOTION: # and self.state.robotHighLevelState == RobotHighLevelState.AUTONMOUS_MOTION (10/27/20 - step 1) # Get the next action
             self.currentAction = self.getNextAction(userLocations)
             if self.currentAction == RobotAction.ASK_FOR_HELP:
@@ -80,7 +81,10 @@ class Robot(object):
             currentUuid = self.currentAction.targetuuid
             xDiff = self.state.currentTile.x - userLocations[currentUuid]["currentTile"].x
             yDiff = self.state.currentTile.y - userLocations[currentUuid]["currentTile"].y
-            if(yDiff > xDiff):
+            print("ROBOT xDiff, yDiff", xDiff, yDiff)
+            if (xDiff == 0 and yDiff == 0):
+                self.currentAction = RobotAction.NO_ACTION
+            elif (abs(yDiff) > abs(xDiff)):
                 if(yDiff < 0):
                      self.currentAction = actions[3]
                 else:
@@ -187,8 +191,7 @@ class Robot(object):
             },
             "currentAction" : self.currentAction.name,
             "currentActionUUID" : self.currentAction.targetuuid,
-            "isHelpBubbleVisible" : (self.currentAction == RobotAction.ASK_FOR_HELP or
-                                    self.state.robotHighLevelState != RobotHighLevelState.AUTONOMOUS_MOTION),
+            "robotHighLevelState" : self.state.robotHighLevelState.name,
         }
         animString = self.currentAction.toAnimationString()
         if animString is not None:
