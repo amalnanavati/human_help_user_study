@@ -84,12 +84,12 @@ class Robot(object):
             print("ROBOT xDiff, yDiff", xDiff, yDiff)
             if (xDiff == 0 and yDiff == 0):
                 self.currentAction = RobotAction.NO_ACTION
-            elif (abs(yDiff) > abs(xDiff)):
+            elif (abs(yDiff) - abs(xDiff) > 2):
                 if(yDiff < 0):
                      self.currentAction = actions[3]
                 else:
                      self.currentAction = actions[2]
-            else:
+            elif (abs(yDiff) - abs(xDiff) < 2):
                 if(xDiff < 0):
                     self.currentAction = actions[1]
                 else:

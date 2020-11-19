@@ -279,6 +279,7 @@
               scene.game.robot.anims.stop();
             }
 
+            var waitToStopHelp = false;
             // console.log("current: ", data['robot']['currentAction'])
             if (data['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION" && (scene.game.lastReceivedData == null || data['robot']['robotHighLevelState'] != scene.game.lastReceivedData['robot']['robotHighLevelState']) && data['robot']['currentActionUUID'] == uuid){
               scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height/3);
@@ -312,8 +313,19 @@
               //   },
             //   },
             // ]);
-            } else if (data['robot']['robotHighLevelState'] == "AUTONOMOUS_MOTION") {
-              scene.game.robot.helpBubble.setVisible(false);
+            } else if (data['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION") {
+              waitToStopHelp = true;
+              scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height/3);
+              scene.game.robot.helpBubble.setVisible(true);
+            } else if (data['robot']['robotHighLevelState'] == "AUTONOMOUS_MOTION" && waitToStopHelp) {
+              endTime = data['uuid'].time + 10000;
+              durationOfAnimation = endTime - Date.now();
+              if(durationOfAnimation > 0) {
+                scene.game.robot.helpBubble.setVisible(true);
+              } else {
+                scene.game.robot.helpBubble.setVisible(false);
+              }
+              waitToStopHelp = false;
             }
 
 
