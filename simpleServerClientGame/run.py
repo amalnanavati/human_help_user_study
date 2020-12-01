@@ -76,7 +76,7 @@ def controlLoop():
         else:
             isRunningLock.release()
             break
-    logger.logPrint("in controlLoop out of while")
+    # logger.logPrint("in controlLoop out of while")
 
 def _check_and_send_file(filename, dirname):
     logger.logPrint("{}: _check_and_send_file({}, {})".format(request.remote_addr, filename, dirname), printToOutput=False)
@@ -116,9 +116,13 @@ def handle_button_clicked(msg):
         robot.state.robotHighLevelState = RobotHighLevelState.FOLLOWING_HUMAN
         #robot.currentAction.targetuuid = int(msg["uuid"])
     elif(msg["button_type"] == "Can't Help"):
+        # TODO (amal): I think there might be a race condition here if one of
+        # these is set before the other -- look into this!
         robot.state.robotHighLevelState = RobotHighLevelState.AUTONOMOUS_MOTION
+        robot.isActionFinished = True
     elif(msg["button_type"] == "Stop Following"):
         robot.state.robotHighLevelState = RobotHighLevelState.AUTONOMOUS_MOTION
+        robot.isActionFinished = True
     else:
         print("ERROR: Unknown Button Type ", msg["button type"])
 
