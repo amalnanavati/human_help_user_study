@@ -1,4 +1,5 @@
 import csv, pprint, os, json, pickle
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from mpl_toolkits.mplot3d import Axes3D
@@ -15,6 +16,7 @@ import math
 import pandas as pd
 import seaborn as sns
 sns.set(style="darkgrid", font="Palatino")
+mpl.rcParams['text.color'] = 'white'
 # sns.set(style="whitegrid")
 # sns.despine()
 # sns.set_style("white")
@@ -120,8 +122,9 @@ if __name__ == "__main__":
     busynessFrequencyProportionDataset = pd.DataFrame(busynessFrequencyProportionDataset, columns = ['Busyness', 'Frequency of Asking', 'Proportion Helping', "Type", "Busyness Numeric"])
 
     fig, ax = plt.subplots(1, 1, figsize=(6,4))
+    fig.patch.set_facecolor('k')
     sns.lineplot(data=busynessFrequencyProportionDataset, x="Frequency of Asking", y="Proportion Helping", hue="Busyness", style="Type", ax=ax, palette = pal)
-    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', facecolor='k', edgecolor='darkgrey')
     # for i in range(len(ax.lines)):
     #     ax.lines[i].set_linestyle("--")
     for i in range(len(busynesses)):
@@ -130,8 +133,13 @@ if __name__ == "__main__":
     fig.suptitle("Proportion Helping By Frequency of Asking")
     ax.set_xlabel("Frequency of Asking")
     ax.set_ylabel("Proportion of Times the Human Helped")
+    ax.xaxis.label.set_color('white')
+    ax.yaxis.label.set_color('white')
+    ax.tick_params(axis='x', colors='white')
+    ax.tick_params(axis='y', colors='white')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "frequency_busyness.png")
+    # plt.show()
+    plt.savefig(baseDir + "frequency_busyness_dark.png")
     plt.clf()
 
     # fig, ax = plt.subplots(1, 1, figsize=(6,4))
@@ -150,6 +158,7 @@ if __name__ == "__main__":
 
     # Add the model lines for UUID
     fig, axes = plt.subplots(1, 2, figsize=(6,4), sharey='row')
+    fig.patch.set_facecolor('k')
     fig.suptitle("Modeled Individual Differences")
     # Busyness on the x axis
     busynesses = [i/100 for i in range(101)]
@@ -179,10 +188,19 @@ if __name__ == "__main__":
     data = pd.DataFrame(data, columns = ['Busyness', 'Frequency of Asking', 'Proportion Helping', "UUID"])
     sns.lineplot(data=data, x="Frequency of Asking", y="Proportion Helping", hue="UUID", ax=axes[1], legend=False, alpha=0.25)
     axes[1].set_ylabel('')
+    axes[0].xaxis.label.set_color('white')
+    axes[1].xaxis.label.set_color('white')
+    axes[0].yaxis.label.set_color('white')
+    axes[1].yaxis.label.set_color('white')
+    axes[0].tick_params(axis='x', colors='white')
+    axes[1].tick_params(axis='x', colors='white')
+    axes[0].tick_params(axis='y', colors='white')
+    axes[1].tick_params(axis='y', colors='white')
     for j in range(len(axes)):
         for i in range(len(axes[j].lines)):
             axes[j].lines[i].set_linestyle("--")
             axes[j].lines[i].set_color(pal[0])
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "individual_factors.png")
+    # plt.show()
+    plt.savefig(baseDir + "individual_factors_dark.png")
     plt.clf()

@@ -1,4 +1,5 @@
 import csv, pprint, os, json, pickle
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from mpl_toolkits.mplot3d import Axes3D
@@ -14,6 +15,7 @@ import time
 import pandas as pd
 import seaborn as sns
 sns.set(style="darkgrid", font="Palatino")
+mpl.rcParams['text.color'] = 'white'
 # sns.set(style="whitegrid")
 # sns.set_style("white")
 # sns.set(style="whitegrid",font_scale=2)
@@ -1314,21 +1316,28 @@ def makePolicyGraphs(surveyData, descriptor=""):
         plt.clf()
 
     # Graph the num correct rooms, num asking, num helping, num helping rejected, on the same graph
-    fig = plt.figure(figsize=(20,6))
-    ax = fig.subplots(1, 4)
+    fig = plt.figure(figsize=(12,6))
+    fig.patch.set_facecolor('k')
+    ax = fig.subplots(2, 2)
     fig.suptitle("Policy Performance")
     pt.RainCloud(x = "Policy", y = "numCorrectRooms", data = metricsToData["numCorrectRooms"], palette = pal, bw = sigma,
-                     width_viol = .6, ax = ax[0], orient = "h", order=gid_to_policy_descriptor)
-    ax[0].set_xlabel(metricToYLabel["numCorrectRooms"])
+                     width_viol = .6, ax = ax[0][0], orient = "h", order=gid_to_policy_descriptor)
+    ax[0][0].set_xlabel(metricToYLabel["numCorrectRooms"])
     pt.RainCloud(x = "Policy", y = "numAsking", data = metricsToData["numAsking"], palette = pal, bw = sigma,
-                     width_viol = .6, ax = ax[1], orient = "h", order=gid_to_policy_descriptor)
-    ax[1].set_xlabel(metricToYLabel["numAsking"])
+                     width_viol = .6, ax = ax[0][1], orient = "h", order=gid_to_policy_descriptor)
+    ax[0][1].set_xlabel(metricToYLabel["numAsking"])
     pt.RainCloud(x = "Policy", y = "numHelping", data = metricsToData["numHelping"], palette = pal, bw = sigma,
-                     width_viol = .6, ax = ax[2], orient = "h", order=gid_to_policy_descriptor)
-    ax[2].set_xlabel(metricToYLabel["numHelping"])
+                     width_viol = .6, ax = ax[1][0], orient = "h", order=gid_to_policy_descriptor)
+    ax[1][0].set_xlabel(metricToYLabel["numHelping"])
     pt.RainCloud(x = "Policy", y = "numHelpingRejected", data = metricsToData["numHelpingRejected"], palette = pal, bw = sigma,
-                     width_viol = .6, ax = ax[3], orient = "h", order=gid_to_policy_descriptor)
-    ax[3].set_xlabel(metricToYLabel["numHelpingRejected"])
+                     width_viol = .6, ax = ax[1][1], orient = "h", order=gid_to_policy_descriptor)
+    ax[1][1].set_xlabel(metricToYLabel["numHelpingRejected"])
+    for i in range(2):
+        for j in range(2):
+            ax[i][j].xaxis.label.set_color('white')
+            ax[i][j].yaxis.label.set_color('white')
+            ax[i][j].tick_params(axis='x', colors='white')
+            ax[i][j].tick_params(axis='y', colors='white')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(baseDir + "policy_combined_{}.png".format(descriptor))
     plt.clf()
@@ -1355,15 +1364,22 @@ def makePolicyGraphs(surveyData, descriptor=""):
     plt.clf()
 
     fig = plt.figure(figsize=(4,4))
+    fig.patch.set_facecolor('k')
     ax = fig.subplots(1, 1)
     fig.suptitle("Num Times Asked / Helped Across Policies")
     sns.scatterplot(x = "Num Asking", y = "Num Helping", data = numAskingHelpingJitter, palette = pal, hue="Policy", style="Policy", style_order=['Contextual', 'Individual', 'Hybrid'], alpha=1,
                      ax = ax, hue_order=gid_to_policy_descriptor)
     handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles=handles[1:], labels=labels[1:])
+    l = ax.legend(handles=handles[1:], labels=labels[1:])#, facecolor='k', edgecolor='darkgrey')
+    for text in l.get_texts():
+        text.set_color("k")
     ax.set_xlabel('Number of Times the Robot Asked')
     ax.set_ylabel('Number of Times the Human Helped')
     ax.plot([0,20], [0,20], linewidth=2, linestyle='--', alpha=0.5)
+    ax.xaxis.label.set_color('white')
+    ax.yaxis.label.set_color('white')
+    ax.tick_params(axis='x', colors='white')
+    ax.tick_params(axis='y', colors='white')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(baseDir + "policy_num_asking_helping_jitter_{}.png".format(descriptor))
     plt.clf()
@@ -1522,12 +1538,19 @@ def makePolicyGraphs(surveyData, descriptor=""):
     plt.savefig(baseDir + "policies_num_asking{}.png".format(descriptor))
 
     fig, ax = plt.subplots(1, 1, figsize=(4,4))
+    fig.patch.set_facecolor('k')
     sns.lineplot(data=askingData, x="Busyness", y="Proportion", hue="Policy", ax=ax, palette = pal, hue_order=gid_to_policy_descriptor)
     fig.suptitle("Proportion of Times Asked By Busyness")
     ax.set_xlabel("Human Busyness")
     ax.set_ylabel("Proportion of Times the Robot Asked")
     handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles=handles[1:], labels=labels[1:], loc='lower left')
+    l = ax.legend(handles=handles[1:], labels=labels[1:], loc='lower left')#, facecolor='k', edgecolor='darkgrey')
+    for text in l.get_texts():
+        text.set_color("k")
+    ax.xaxis.label.set_color('white')
+    ax.yaxis.label.set_color('white')
+    ax.tick_params(axis='x', colors='white')
+    ax.tick_params(axis='y', colors='white')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(baseDir + "policies_pct_asking{}.png".format(descriptor))
 
