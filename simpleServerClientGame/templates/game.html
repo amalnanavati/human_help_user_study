@@ -7,21 +7,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
   </head>
   <body>
-    <!-- <script src="{{ url_for('static', filename='game_src/titleScreen.js') }}"></script>
+    <!--<script src="{{ url_for('static', filename='game_src/titleScreen.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/map.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/player.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/robot.js') }}"></script>
-    <script src="{{ url_for('static', filename='game_src/camera.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/camera.js') }}"></script>-->
     <script src="{{ url_for('static', filename='game_src/TimeProgressBar.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/distractionTaskBar.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/header.js') }}"></script>
-    <script src="{{ url_for('static', filename='game_src/helpButton.js') }}"></script>
-    <script src="{{ url_for('static', filename='game_src/minimap.js') }}"></script>
+    <!--<script src="{{ url_for('static', filename='game_src/helpButton.js') }}"></script>
+    <script src="{{ url_for('static', filename='game_src/minimap.js') }}"></script>-->
     <script src="{{ url_for('static', filename='game_src/compass.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/highlightBox.js') }}"></script>
-    <script src="{{ url_for('static', filename='game_src/pathToGoal.js') }}"></script>
+    <!--<script src="{{ url_for('static', filename='game_src/pathToGoal.js') }}"></script>-->
     <script src="{{ url_for('static', filename='game_src/miscellaneous.js') }}"></script>
-    <script src="{{ url_for('static', filename='game_src/endingScreen.js') }}"></script>
+    <!--<script src="{{ url_for('static', filename='game_src/endingScreen.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/tutorial.js') }}"></script>
     <script src="{{ url_for('static', filename='game_src/PriorityQueue.js') }}"></script> -->
     <script src="{{ url_for('static', filename='game_src/SpeechBubble.js') }}"></script>
@@ -33,7 +33,18 @@
       const screenSizeX = 12;
       const screenSizeY = 11;
 
+      const playerColor = 0xff0000
+      const playerColorStr = '#ff0000'
+      const robotColor = 0x00ffff;
+      const robotColorStr = '#0077ff';
+
       const playerMsPerStep = 200;
+
+      const playerState = {
+        NAVIGATION_TASK: 0,
+        DISTRACTION_TASK: 1,
+        COMPLETED_TASKS: 2,
+      }
 
       const gameModes = {
         GAME: 0,
@@ -121,7 +132,7 @@
       function preload() {
         // Load the tiles and tile map (created in Tiled https://www.mapeditor.org/ )
         this.load.image("tiles", "assets/tiles2.png");
-        this.load.tilemapTiledJSON("map", "assets/map.json");
+        this.load.tilemapTiledJSON("map", "assets/map3.json");
 
         // Load the character
         this.load.spritesheet(
@@ -136,6 +147,8 @@
           'assets/robot2_64x64_spritesheet_bw.png',
           {frameWidth: 64, frameHeight: 64},
         );
+
+        this.load.json('tasks', 'assets/tasks/{{gid}}.json');
       }
 
       function createPlayer(scene) {
@@ -149,12 +162,37 @@
         var gameXY = tileToGameXY(player.currentTile);
         player.x = gameXY.x;
         player.y = gameXY.y;
+
+        player.taskPlan = null;
+        player.taskI = 0;
+        player.previousTaskI = player.taskI;
+        player.score = 0;
+        //player.currentState = scene.game.tasks.tasks.length > 0 ? playerState.NAVIGATION_TASK : playerState.COMPLETED_TASKS;
+
         player.enableBody();
 
         player.anims.play('left', true);
         player.anims.stop();
 
         return player;
+      }
+
+      function getCurrentTaskPlan(scene) {
+        if (scene.game.player.taskI >= scene.game.tasks.tasks.length) {
+          scene.game.player.taskPlan = [];
+          return scene.game.player.taskPlan;
+        }
+        var goal = scene.game.tasks.tasks[scene.game.player.taskI].semanticLabel;
+        var currLoc = scene.game.player.currentTile;
+        var goalLocs = scene.game.semanticLabelsToXY[goal];
+        var heuristicGoal = goalLocs[Math.floor(Math.random() * goalLocs.length)];
+        if (scene.game.player.taskPlan != null && scene.game.player.taskPlan.length > 0) {
+          heuristicGoal = scene.game.player.taskPlan[scene.game.player.taskPlan.length - 1];
+        }
+        // var goalLocs = game.semanticLabelsToXY[goal+pointOfInterestString];
+        // var heuristicGoal = goalLocs[0];
+        scene.game.player.elapsedDistanceSinceComputingTaskPlan = 0;
+        scene.game.player.taskPlan = generatePlan(currLoc, goalLocs, heuristicGoal)
       }
 
       function create() {
@@ -167,11 +205,13 @@
           this.game.worldLayer = this.game.map.createStaticLayer("World", this.game.tileset, 0, 0);
 
           console.log(this);
+          this.game.tasks = this.cache.json.get('tasks');
 
           this.game.player = createPlayer(this);
           // Don't need a tint because you will be surrounded by a compass and
           // the others won't
-          // this.game.player.tint = 0xffff00;
+          //this.game.player.tint = 0xffff00;
+
 
           this.game.otherPlayers = {};
 
@@ -257,7 +297,34 @@
           // Configure the keyboard input
           this.game.cursors = this.input.keyboard.createCursorKeys();
 
-          // Configure the SocketIO Logging
+        // Create the window that is shown during the distraction task
+        createDistractionTaskBar(this);
+        setDistractionTaskBarVisible(this, false);
+
+        // Create the box that will highlight our goal location
+        createHighlightBox(this);
+
+        // Create the compass
+        createCompass(this);
+
+        // Create the header
+        createHeader(this);
+
+        // Create the negative score red outline
+        createNegativeScoreOutline(this);
+
+
+        // Start the game
+        // getCurrentTaskPlan(this);
+        // this.game.player.currentTaskDistance = this.game.player.taskPlan.length;
+        // transitionToNewTask(this);
+        // this.game.isRunning = true;
+        // this.game.start_time = Date.now(); // ms
+        // initializeGamePlayerTimer(this);
+
+
+
+        // Configure the SocketIO Logging
           this.game.lastReceivedData = null;
           this.socket = io(baseURL);
           var scene = this;
@@ -279,10 +346,18 @@
               scene.game.robot.anims.stop();
             }
 
-            var waitToStopHelp = false;
+            if(scene.game.robot.helpBubbleTimer != null) {
+              var helpBubbleProgress = scene.game.robot.helpBubbleTimer.getOverallProgress();
+              if (helpBubbleProgress == 1.0) {
+                scene.game.robot.helpBubbleTimer = null;
+                scene.game.robot.helpBubble.setVisible(false);
+              }
+            }
+            //var waitToStopHelp = false;
             // console.log("current: ", data['robot']['currentAction'])
-            if (data['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION" && (scene.game.lastReceivedData == null || data['robot']['robotHighLevelState'] != scene.game.lastReceivedData['robot']['robotHighLevelState']) && data['robot']['currentActionUUID'] == uuid){
-              scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height/3);
+            if (data['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION" && (scene.game.lastReceivedData == null || data['robot']['robotHighLevelState'] != scene.game.lastReceivedData['robot']['robotHighLevelState']) && data['robot']['currentActionUUID'] == uuid) {
+              scene.game.robot.helpBubbleTimer = null;
+              scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height / 3);
               scene.game.robot.helpBubble.setVisible(true);
 
               if (data['robot']['robotHighLevelState'] == "ASKING_FOR_HELP") {
@@ -294,38 +369,43 @@
               }
 
               // scene.game.robot.helpBubble.setText("Excuse me. Can you lead me to the lounge?"); (10/27/20)
-            //   scene.game.robot.helpBubble.setButtons([
-            //   {
-            //     text : "Yes",
-            //             rowI: 0,
-            //           callbackFunction : function(hitArea, x, y) {
-            //             scene.socket.emit('button_clicked', {'button_type': 'Yes'});
+              //   scene.game.robot.helpBubble.setButtons([
+              //   {
+              //     text : "Yes",
+              //             rowI: 0,
+              //           callbackFunction : function(hitArea, x, y) {
+              //             scene.socket.emit('button_clicked', {'button_type': 'Yes'});
               //            setHelpBubbleToFollowing(scene);
               //   },
-            //   },
-            //   {
-            //     text : "Can't Help",
-            //             rowI: 0,
-            //           callbackFunction : function(hitArea, x, y) {
-            //           scene.socket.emit('button_clicked', {'button_type': 'Can't Help'});
-            //   scene.game.robot.helpBubble.setText("That's okay!");
-            //   scene.game.robot.helpBubble.setButtons([]);
               //   },
-            //   },
-            // ]);
-            } else if (data['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION") {
-              waitToStopHelp = true;
-              scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height/3);
+              //   {
+              //     text : "Can't Help",
+              //             rowI: 0,
+              //           callbackFunction : function(hitArea, x, y) {
+              //           scene.socket.emit('button_clicked', {'button_type': 'Can't Help'});
+              //   scene.game.robot.helpBubble.setText("That's okay!");
+              //   scene.game.robot.helpBubble.setButtons([]);
+              //   },
+              //   },
+              // ]);
+              //} else if (data['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION") {
+            } else if (data['robot']['robotHighLevelState'] == "AUTONOMOUS_MOTION" && scene.game.lastReceivedData != null && scene.game.lastReceivedData['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION") {
+              //endTime = data['uuid'].time + 10000;
+              //console.log(data['uuid'].time);
+              //durationOfAnimation = 1;
+              scene.game.robot.helpBubbleTimer = scene.time.addEvent({delay: 3000});
               scene.game.robot.helpBubble.setVisible(true);
-            } else if (data['robot']['robotHighLevelState'] == "AUTONOMOUS_MOTION" && waitToStopHelp) {
-              endTime = data['uuid'].time + 10000;
-              durationOfAnimation = endTime - Date.now();
-              if(durationOfAnimation > 0) {
-                scene.game.robot.helpBubble.setVisible(true);
-              } else {
-                scene.game.robot.helpBubble.setVisible(false);
-              }
-              waitToStopHelp = false;
+              // if(durationOfAnimation > 0) {
+              //   scene.game.robot.helpBubble.setVisible(true);
+              // } else {
+              //   scene.game.robot.helpBubble.setVisible(false);
+              // }
+              //waitToStopHelp = false;
+            }
+            if (scene.game.robot.helpBubble.getVisible()) {
+              //waitToStopHelp = true;
+              scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height / 3);
+              scene.game.robot.helpBubble.setVisible(true);
             }
 
 

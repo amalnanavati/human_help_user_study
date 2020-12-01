@@ -132,8 +132,8 @@ class Robot(object):
         The policy -- given the current state, predict the next action
         """
         for uuid in userLocations:
-            if ((self.state.currentTile.x - userLocations[uuid]["currentTile"].x < 2 and self.state.currentTile.y - userLocations[uuid]["currentTile"].y < 2) or
-                (self.state.currentTile.x - userLocations[uuid]["nextTile"].x < 2 and self.state.currentTile.y - userLocations[uuid]["nextTile"].y < 2)):
+            if ((abs(self.state.currentTile.x - userLocations[uuid]["currentTile"].x) < 2 and abs(self.state.currentTile.y - userLocations[uuid]["currentTile"].y) < 2) or
+                (abs(self.state.currentTile.x - userLocations[uuid]["nextTile"].x) < 2 and abs(self.state.currentTile.y - userLocations[uuid]["nextTile"].y) < 2)):
                 if random.random() < 0.5:
                     nextAction = RobotAction.ASK_FOR_HELP
                     nextAction.setActionTargetuuid(uuid)
