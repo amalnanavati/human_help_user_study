@@ -15,51 +15,51 @@ const playerState = {
   COMPLETED_TASKS: 2,
 }
 
-function createPlayer(scene) {
-  scene.game.player = scene.physics.add.sprite(scene.game.config.width/2, scene.game.config.width/2, 'characters');
-  scene.game.player.setScale(0.80);
-  scene.game.player.setDepth(5);
-  scene.game.player.currentTile = {x : scene.game.tasks.player_start_location.x, y : scene.game.tasks.player_start_location.y};
-  scene.game.player.previousTile = scene.game.player.currentTile;
-  scene.game.player.nextTile = scene.game.player.currentTile;
-  var gameXY = tileToGameXY(scene.game.player.currentTile);
-  scene.game.player.x = gameXY.x;
-  scene.game.player.y = gameXY.y;
-  scene.game.player.taskPlan = null;
-  scene.game.player.taskI = 0;
-  scene.game.player.previousTaskI = scene.game.player.taskI;
-  scene.game.player.score = 0;
-  scene.game.player.currentState = scene.game.tasks.tasks.length > 0 ? playerState.NAVIGATION_TASK : playerState.COMPLETED_TASKS;
-  scene.game.player.enableBody();
-
-  // Create the player animations
-  scene.anims.create({
-      key: 'down',
-      frames: scene.anims.generateFrameNumbers('characters', {start: 0, end: 3}),
-      frameRate: 10,
-      repeat: -1
-  });
-  scene.anims.create({
-      key: 'up',
-      frames: scene.anims.generateFrameNumbers('characters', {start: 4, end: 7}),
-      frameRate: 10,
-      repeat: -1
-  });
-  scene.anims.create({
-      key: 'left',
-      frames: scene.anims.generateFrameNumbers('characters', {start: 8, end: 11}),
-      frameRate: 10,
-      repeat: -1
-  });
-  scene.anims.create({
-      key: 'right',
-      frames: scene.anims.generateFrameNumbers('characters', {start: 12, end: 15}),
-      frameRate: 10,
-      repeat: -1
-  });
-  scene.game.player.anims.play('left', true);
-  scene.game.player.anims.stop();
-}
+// function createPlayer(scene) {
+//   scene.game.player = scene.physics.add.sprite(scene.game.config.width/2, scene.game.config.width/2, 'characters');
+//   scene.game.player.setScale(0.80);
+//   scene.game.player.setDepth(5);
+//   scene.game.player.currentTile = {x : scene.game.tasks.player_start_location.x, y : scene.game.tasks.player_start_location.y};
+//   scene.game.player.previousTile = scene.game.player.currentTile;
+//   scene.game.player.nextTile = scene.game.player.currentTile;
+//   var gameXY = tileToGameXY(scene.game.player.currentTile);
+//   scene.game.player.x = gameXY.x;
+//   scene.game.player.y = gameXY.y;
+//   scene.game.player.taskPlan = null;
+//   scene.game.player.taskI = 0;
+//   scene.game.player.previousTaskI = scene.game.player.taskI;
+//   scene.game.player.score = 0;
+//   scene.game.player.currentState = scene.game.tasks.tasks.length > 0 ? playerState.NAVIGATION_TASK : playerState.COMPLETED_TASKS;
+//   scene.game.player.enableBody();
+//
+//   // Create the player animations
+//   scene.anims.create({
+//       key: 'down',
+//       frames: scene.anims.generateFrameNumbers('characters', {start: 0, end: 3}),
+//       frameRate: 10,
+//       repeat: -1
+//   });
+//   scene.anims.create({
+//       key: 'up',
+//       frames: scene.anims.generateFrameNumbers('characters', {start: 4, end: 7}),
+//       frameRate: 10,
+//       repeat: -1
+//   });
+//   scene.anims.create({
+//       key: 'left',
+//       frames: scene.anims.generateFrameNumbers('characters', {start: 8, end: 11}),
+//       frameRate: 10,
+//       repeat: -1
+//   });
+//   scene.anims.create({
+//       key: 'right',
+//       frames: scene.anims.generateFrameNumbers('characters', {start: 12, end: 15}),
+//       frameRate: 10,
+//       repeat: -1
+//   });
+//   scene.game.player.anims.play('left', true);
+//   scene.game.player.anims.stop();
+// }
 
 function setTimeLimitFromBusyness(scene) {
   // Compute the timeLimit for this task
@@ -273,14 +273,14 @@ function transitionPlayerState(scene) {
     }
 
     // }
-    if (scene.game.robot) {
-      setHelpBubbleVisible(scene, false);
-      setRobotActionInProgress(scene, false);
-      if (scene.game.minimap) destroyRobotGoalRect(scene);
-      if (scene.game.robot.currentState != robotState.OFFSCREEN && scene.game.robot.currentState != robotState.WALK_PAST_HUMAN) {
-        scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
-      }
-    }
+    // if (scene.game.robot) {
+    //   setHelpBubbleVisible(scene, false);
+    //   setRobotActionInProgress(scene, false);
+    //   if (scene.game.minimap) destroyRobotGoalRect(scene);
+    //   if (scene.game.robot.currentState != robotState.OFFSCREEN && scene.game.robot.currentState != robotState.WALK_PAST_HUMAN) {
+    //     scene.game.robot.currentState = robotState.WALK_PAST_HUMAN;
+    //   }
+    // }
   }
 
   // If we are in the distraction task, display the distraction task timer

@@ -126,6 +126,19 @@ def handle_button_clicked(msg):
     else:
         print("ERROR: Unknown Button Type ", msg["button type"])
 
+# Called to log the game state
+@app.route('/log_game_state', methods=['POST'])
+def log_game_state():
+    logger.logPrint("{}: log_game_state".format(request.remote_addr))
+    retval = json.dumps({
+        'status': 'success',
+        'msg': 'saved',
+        'largestGameStateID': int(request.json[-1]['gameStateID']),
+        'numReceivedLogs': len(request.json),
+    })
+    # time.sleep(5);
+    return retval
+
 # Called to access files in the assets folder
 @app.route('/assets/<source>', methods=['GET'])
 def get_file(source):
