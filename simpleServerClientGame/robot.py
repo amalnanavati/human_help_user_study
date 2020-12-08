@@ -97,18 +97,15 @@ class Robot(object):
 
     def update(self, userLocations):
         # print("ROBOT update", self.isActionFinished, self.state.robotHighLevelState)
-        if self.isActionFinished and self.state.robotHighLevelState == RobotHighLevelState.AUTONOMOUS_MOTION: # and self.state.robotHighLevelState == RobotHighLevelState.AUTONMOUS_MOTION (10/27/20 - step 1) # Get the next action
+        if self.isActionFinished and self.state.robotHighLevelState == RobotHighLevelState.AUTONOMOUS_MOTION:
             self.currentAction = self.getNextAction(userLocations)
             if self.currentAction == RobotAction.ASK_FOR_HELP:
                 self.state.robotHighLevelState = RobotHighLevelState.ASKING_FOR_HELP
-            #if self.currentAction == RobotAction.ASK_FOR_HELP (10/27/20)
-                #self.state.robotHighLevelState = RobotHighLevelState.ASKING_FOR_HELP
 
             #print("Robot x {}, y {}, currentAction {}, userLocations {}".format(self.state.currentTile.x, self.state.currentTile.y, self.currentAction, userLocations))
             self.currentActionStartTime = time.time()
             self.isActionFinished = False
         elif self.isActionFinished and self.state.robotHighLevelState == RobotHighLevelState.FOLLOWING_HUMAN:
-            actions = [RobotAction.MOVE_LEFT, RobotAction.MOVE_RIGHT, RobotAction.MOVE_UP, RobotAction.MOVE_DOWN]
             currentUuid = self.currentAction.targetuuid
             xDiff = userLocations[currentUuid]["currentTile"].x - self.state.currentTile.x
             yDiff = userLocations[currentUuid]["currentTile"].y - self.state.currentTile.y
@@ -116,6 +113,7 @@ class Robot(object):
             potentialActions = []
             for action in [RobotAction.MOVE_LEFT, RobotAction.MOVE_RIGHT, RobotAction.MOVE_UP, RobotAction.MOVE_DOWN]:
                 dx, dy = action.toDxDy()
+                # sets a route for the robot based on the user's position
                 if ((dx < 0 and xDiff < 0) or (dx > 0 and xDiff > 0) or
                     (dy < 0 and yDiff < 0) or (dy > 0 and yDiff > 0)):
                     nextTile = Tile(self.state.currentTile.x+dx, self.state.currentTile.y+dy)
@@ -129,20 +127,10 @@ class Robot(object):
             else:
                 self.currentAction = RobotAction.NO_ACTION
 
-            self.currentAction.targetuuid = currentUuid;
-            # dx, dy = self.currentAction.toDxDy()
-            # progress = min((time.time()-self.currentActionStartTime)/Robot.robotSecPerStep, 1.0)
-            # self.state.tileForRendering.x = self.state.currentTile.x + progress*dx
-            # self.state.tileForRendering.y = self.state.currentTile.y + progress*dy
-            # if progress >= 1.0:
-            #     self.state.currentTile.x += dx
-            #     self.state.currentTile.y += dy
+            self.currentAction.targetuuid = currentUuid
             self.currentActionStartTime = time.time()
             self.isActionFinished = False
 
-        # elif self.state.robotHighLevelState == RobotHighLevelState.FOLLOWING_HUMAN: (10/27/20)
-            # create something similar to isActionInProgress and currentActionStartTime, so you can gave smooth motion
-            # figure out how to follow human - get the user location from the robotActioTargetuuid and get the x difference and y difference and move one unit
         else: # Finish executing the current action
             if self.currentAction in [
                 RobotAction.NO_ACTION,
@@ -169,8 +157,10 @@ class Robot(object):
         # For now, if the human is within a square of 2 from the robot, it has a
         # 50% chance of asking for help.
         for uuid in userLocations:
-            if ((abs(self.state.currentTile.x - userLocations[uuid]["currentTile"].x) < 2 and abs(self.state.currentTile.y - userLocations[uuid]["currentTile"].y) < 2) or
-                (abs(self.state.currentTile.x - userLocations[uuid]["nextTile"].x) < 2 and abs(self.state.currentTile.y - userLocations[uuid]["nextTile"].y) < 2)):
+            if ((abs(self.state.currentTile.x - userLocations[uuid]["currentTile"].x) < 2
+                 and abs(self.state.currentTile.y - userLocations[uuid]["currentTile"].y) < 2) or
+                (abs(self.state.currentTile.x - userLocations[uuid]["nextTile"].x) < 2
+                 and abs(self.state.currentTile.y - userLocations[uuid]["nextTile"].y) < 2)):
                 if random.random() < 0.5:
                     nextAction = RobotAction.ASK_FOR_HELP
                     nextAction.setActionTargetuuid(uuid)

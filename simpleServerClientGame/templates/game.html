@@ -178,32 +178,10 @@
         return player;
       }
 
-      // function getCurrentTaskPlan(scene) {
-      //   if (scene.game.player.taskI >= scene.game.tasks.tasks.length) {
-      //     scene.game.player.taskPlan = [];
-      //     return scene.game.player.taskPlan;
-      //   }
-      //   var goal = scene.game.tasks.tasks[scene.game.player.taskI].semanticLabel;
-      //   var currLoc = scene.game.player.currentTile;
-      //   var goalLocs = scene.game.semanticLabelsToXY[goal];
-      //   var heuristicGoal = goalLocs[Math.floor(Math.random() * goalLocs.length)];
-      //   if (scene.game.player.taskPlan != null && scene.game.player.taskPlan.length > 0) {
-      //     heuristicGoal = scene.game.player.taskPlan[scene.game.player.taskPlan.length - 1];
-      //   }
-      //   // var goalLocs = game.semanticLabelsToXY[goal+pointOfInterestString];
-      //   // var heuristicGoal = goalLocs[0];
-      //   scene.game.player.elapsedDistanceSinceComputingTaskPlan = 0;
-      //   scene.game.player.taskPlan = generatePlan(currLoc, goalLocs, heuristicGoal)
-      // }
-
       function create() {
           this.game.isRunning = false;
 
           // Create the map and its layers
-          // this.game.map = this.make.tilemap({ key: "map" });
-          // this.game.tileset = this.game.map.addTilesetImage("tiles2", "tiles");
-          // this.game.belowLayer = this.game.map.createStaticLayer("Below Player", this.game.tileset, 0, 0);
-          // this.game.worldLayer = this.game.map.createStaticLayer("World", this.game.tileset, 0, 0);
           createMap(this);
 
           console.log(this);
@@ -359,9 +337,11 @@
                 scene.game.robot.helpBubble.setVisible(false);
               }
             }
-            //var waitToStopHelp = false;
-            // console.log("current: ", data['robot']['currentAction'])
-            if (data['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION" && (scene.game.lastReceivedData == null || data['robot']['robotHighLevelState'] != scene.game.lastReceivedData['robot']['robotHighLevelState']) && data['robot']['currentActionUUID'] == uuid) {
+            console.log("current: ", data['robot']['currentAction'])
+            if (data['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION" && (scene.game.lastReceivedData == null
+                    || data['robot']['robotHighLevelState'] != scene.game.lastReceivedData['robot']['robotHighLevelState'])
+                    && data['robot']['currentActionUUID'] == uuid) {
+              //sets help bubbles if the robot is asking for help or following the human
               scene.game.robot.helpBubbleTimer = null;
               scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height / 3);
               scene.game.robot.helpBubble.setVisible(true);
@@ -373,47 +353,16 @@
               } else {
                 console.log("ERROR: got high level state that is not asking/following when the action is asking", data['robot']['robotHighLevelState'])
               }
-
-              // scene.game.robot.helpBubble.setText("Excuse me. Can you lead me to the lounge?"); (10/27/20)
-              //   scene.game.robot.helpBubble.setButtons([
-              //   {
-              //     text : "Yes",
-              //             rowI: 0,
-              //           callbackFunction : function(hitArea, x, y) {
-              //             scene.socket.emit('button_clicked', {'button_type': 'Yes'});
-              //            setHelpBubbleToFollowing(scene);
-              //   },
-              //   },
-              //   {
-              //     text : "Can't Help",
-              //             rowI: 0,
-              //           callbackFunction : function(hitArea, x, y) {
-              //           scene.socket.emit('button_clicked', {'button_type': 'Can't Help'});
-              //   scene.game.robot.helpBubble.setText("That's okay!");
-              //   scene.game.robot.helpBubble.setButtons([]);
-              //   },
-              //   },
-              // ]);
-              //} else if (data['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION") {
-            } else if (data['robot']['robotHighLevelState'] == "AUTONOMOUS_MOTION" && scene.game.lastReceivedData != null && scene.game.lastReceivedData['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION") {
-              //endTime = data['uuid'].time + 10000;
-              //console.log(data['uuid'].time);
-              //durationOfAnimation = 1;
+            } else if (data['robot']['robotHighLevelState'] == "AUTONOMOUS_MOTION" && scene.game.lastReceivedData != null
+                    && scene.game.lastReceivedData['robot']['robotHighLevelState'] != "AUTONOMOUS_MOTION") {
               scene.game.robot.helpBubbleTimer = scene.time.addEvent({delay: 3000});
               scene.game.robot.helpBubble.setVisible(true);
-              // if(durationOfAnimation > 0) {
-              //   scene.game.robot.helpBubble.setVisible(true);
-              // } else {
-              //   scene.game.robot.helpBubble.setVisible(false);
-              // }
-              //waitToStopHelp = false;
             }
             if (scene.game.robot.helpBubble.getVisible()) {
               //waitToStopHelp = true;
               scene.game.robot.helpBubble.setPosition(scene.game.robot.x + scene.game.robot.width / 3, scene.game.robot.y - scene.game.robot.height / 3);
               scene.game.robot.helpBubble.setVisible(true);
             }
-
 
             for (otherUUID in scene.game.otherPlayers) {
               if (otherUUID != uuid && !(otherUUID in data.users)) {
@@ -459,8 +408,6 @@
                         }
                     }
                 }
-
-
                 scene.game.otherPlayers[otherUUID].x = data.users[otherUUID].x;
                 scene.game.otherPlayers[otherUUID].y = data.users[otherUUID].y;
                 // console.log("otherPlayers", scene.game.otherPlayers[otherUUID], otherUUID);

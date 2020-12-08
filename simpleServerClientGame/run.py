@@ -114,7 +114,6 @@ def handle_button_clicked(msg):
     logger.logPrint("button_clicked_msg", msg)
     if(msg["button_type"] == 'Yes'):
         robot.state.robotHighLevelState = RobotHighLevelState.FOLLOWING_HUMAN
-        #robot.currentAction.targetuuid = int(msg["uuid"])
     elif(msg["button_type"] == "Can't Help"):
         # TODO (amal): I think there might be a race condition here if one of
         # these is set before the other -- look into this!
