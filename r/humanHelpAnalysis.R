@@ -237,6 +237,10 @@ print(ranParam)
 params<-cbind(fixParam[1]+ranParam[1],fixParam[2], fixParam[3], fixParam[4])
 print(params)
 
+# Get the residuals
+residuals <- residuals(finalModel)
+hist(residuals)
+
 # Compute the correlation between prosociality and the random effect
 ranParamDataframe <- setDT(ranParam, keep.rownames = TRUE)
 colnames(ranParamDataframe)[1] <- "UUID"
@@ -604,3 +608,8 @@ print(dataAsFactors)
 modelAsFactors <- glmer(Human.Response ~ Busyness + Past.Frequency.of.Asking + Prosociality + (1 | UUID), data = dataAsFactors, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
 summary(modelAsFactors)
 contrast(emmeans(modelAsFactors, ~ Past.Frequency.of.Asking))
+
+# Model the Errors
+data$data_ID <- seq.int(nrow(data))
+print(data)
+model_width_errors <- glmer(Human.Response ~ Busyness.Numeric + Busyness.Numeric:Past.Frequency.of.Asking + (1 | UUID) + (1 | data_ID), data = data, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))

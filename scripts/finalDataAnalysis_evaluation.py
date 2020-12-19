@@ -151,6 +151,9 @@ def processGameLog(gameLog, taskDefinition, afterTaskI=-1):
     breakTimeDuringTask = 0.0 # Time the user spent away from the tab
     breakTimeThreshold = 30000 # if consecutive dtimes jump by more than this, view it as a break. To account for the 10 sec pressing space
     hasPressedSpaceForThisTaskI = False
+    hasScoreDecreasedForThisTaskI = False
+    humanDidArriveOnTime = []
+    userTookBreak = False
 
     slownessesPerTask = []
     gidFirstEntry = int(gameLog[0]["gid"])
@@ -171,6 +174,7 @@ def processGameLog(gameLog, taskDefinition, afterTaskI=-1):
         if int(logEntry["dtime"]) - int(previousLogEntry["dtime"]) >= breakTimeThreshold:
             print("User took a break between dtime {} and dtime {}".format(previousLogEntry["dtime"], logEntry["dtime"]))
             breakTimeDuringTask += int(logEntry["dtime"]) - int(previousLogEntry["dtime"])
+            userTookBreak = True
 
         if "taskI" in logEntry["player"]:
             playerTaskI = int(logEntry["player"]["taskI"])
@@ -180,6 +184,13 @@ def processGameLog(gameLog, taskDefinition, afterTaskI=-1):
                 playerTaskI += 1
                 isRobotHelpQueryActive = False
                 print("taskI changed", playerTaskI, logEntry["dtime"])
+
+        if playerTaskI == int(previousLogEntry["player"]["taskI"]):
+            if int(logEntry["player"]["score"]) < int(previousLogEntry["player"]["score"]):
+                hasScoreDecreasedForThisTaskI = True
+        else:
+            humanDidArriveOnTime.append(not hasScoreDecreasedForThisTaskI)
+            hasScoreDecreasedForThisTaskI = False
 
         # print("playerTaskI", playerTaskI, taskDefinition["tasks"])
         if (not hasPressedSpaceForThisTaskI):
@@ -312,9 +323,11 @@ def processGameLog(gameLog, taskDefinition, afterTaskI=-1):
 
         previousLogEntry = logEntry
 
+    score = gameLog[-1]["player"]["score"]
+
     print("humanHelpSequence", humanHelpSequence)
 
-    return {descriptor : getAverageHelpRate(humanHelpSequence[descriptor]) for descriptor in humanHelpSequence}, humanHelpSequence, slownessesPerTask
+    return {descriptor : getAverageHelpRate(humanHelpSequence[descriptor]) for descriptor in humanHelpSequence}, humanHelpSequence, slownessesPerTask, score, humanDidArriveOnTime, userTookBreak
 
 def processPolicyLog(policyLog):
     """
@@ -1220,6 +1233,10 @@ def makePolicyGraphs(surveyData, descriptor=""):
         "numAsking" : "Num Asks",
         "numHelping" : "Num Help",
         "numHelpingRejected" : "Num Refused Help",
+        "averagePerformance" : "Average Performance",
+        "robotPerformance" : "Robot Performance",
+        "humanPerformance" : "Human Performance",
+        "rewardAdjusted" : "Reward Adjusted",
     }
 
     metricToTitle = {
@@ -1232,6 +1249,10 @@ def makePolicyGraphs(surveyData, descriptor=""):
         "numAsking" : "Num Asks Across Policies",
         "numHelping" : "Num Help Across Policies",
         "numHelpingRejected" : "Num Refused Help Across Policies",
+        "averagePerformance" : "Average Performance Across Policies",
+        "robotPerformance" : "Robot Performance Across Policies",
+        "humanPerformance" : "Human Performance Across Policies",
+        "rewardAdjusted" : "Reward Adjusted Across Policies",
     }
 
     # metricsToData = {
@@ -1252,10 +1273,15 @@ def makePolicyGraphs(surveyData, descriptor=""):
         "pctHelping" : [],
         "pctHelpingRejected" : [],
         "pctHelping_pctAsking" : [],
+        "averagePerformance" : [],
+        "robotPerformance" : [],
+        "humanPerformance" : [],
+        "rewardAdjusted" : [],
     }
     pctAskingHelping = []
     numAskingHelping = []
     numAskingHelpingJitter = []
+    humanRobotPerformanceJitter = []
     pctAskingHelpingOfAsking = []
     pctAskingHelpingNoType = []
     jitterNoiseStd = 0.5
@@ -1278,6 +1304,7 @@ def makePolicyGraphs(surveyData, descriptor=""):
         numAskingHelping.append([policy, surveyData[uuid]["policyResults"]["metrics"]["pctAsking"]*20, surveyData[uuid]["policyResults"]["metrics"]["pctHelping"]*20])
         # numAskingHelpingJitter.append([policy, surveyData[uuid]["policyResults"]["metrics"]["pctAsking"]*20+np.random.normal(loc=0, scale=jitterNoiseStd), surveyData[uuid]["policyResults"]["metrics"]["pctHelping"]*20+np.random.normal(loc=0, scale=jitterNoiseStd)])
         numAskingHelpingJitter.append([policy, surveyData[uuid]["policyResults"]["metrics"]["pctAsking"]*20+(random.random()-0.5)*jitterNoiseStd, surveyData[uuid]["policyResults"]["metrics"]["pctHelping"]*20+(random.random()-0.5)*jitterNoiseStd])
+        humanRobotPerformanceJitter.append([policy, surveyData[uuid]["policyResults"]["metrics"]["humanPerformance"]+(random.random()-0.5)*jitterNoiseStd/20, surveyData[uuid]["policyResults"]["metrics"]["robotPerformance"]+(random.random()-0.5)*jitterNoiseStd/20])
         numAskingHelpingVal = (surveyData[uuid]["policyResults"]["metrics"]["pctAsking"]*20, surveyData[uuid]["policyResults"]["metrics"]["pctHelping"]*20)
         if numAskingHelpingVal not in numAskingHelpingCountDict[policy]:
             numAskingHelpingCountDict[policy][numAskingHelpingVal] = 0
@@ -1298,6 +1325,7 @@ def makePolicyGraphs(surveyData, descriptor=""):
     pctAskingHelpingNoType = pd.DataFrame(pctAskingHelpingNoType, columns = ['Policy', 'Pct Asking', 'Pct Helping'])
     numAskingHelping = pd.DataFrame(numAskingHelping, columns = ['Policy', 'Num Asking', 'Num Helping'])
     numAskingHelpingJitter = pd.DataFrame(numAskingHelpingJitter, columns = ['Policy', 'Num Asking', 'Num Helping'])
+    humanRobotPerformanceJitter = pd.DataFrame(humanRobotPerformanceJitter, columns = ['Policy', 'Human Performance', 'Robot Performance'])
     numAskingHelpingCount = pd.DataFrame(numAskingHelpingCount, columns = ['Policy', 'Num Asking', 'Num Helping', 'Count'])
 
     # Generate boxplots for each of the four metrics
@@ -1382,6 +1410,27 @@ def makePolicyGraphs(surveyData, descriptor=""):
     ax.tick_params(axis='y', colors='white')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(baseDir + "policy_num_asking_helping_jitter_{}.png".format(descriptor))
+    plt.clf()
+
+    fig = plt.figure(figsize=(6,4))
+    fig.patch.set_facecolor('k')
+    ax = fig.subplots(1, 1)
+    fig.suptitle("Human / Robot Performance")
+    sns.scatterplot(x = "Robot Performance", y = "Human Performance", data = humanRobotPerformanceJitter, palette = pal, hue="Policy", style="Policy", style_order=['Contextual', 'Individual', 'Hybrid'], alpha=1,
+                     ax = ax, hue_order=gid_to_policy_descriptor)
+    handles, labels = ax.get_legend_handles_labels()
+    l = ax.legend(handles=handles[:], labels=labels[:], bbox_to_anchor=(1.05, 1), loc='upper left')#, facecolor='k', edgecolor='darkgrey')
+    for text in l.get_texts():
+        text.set_color("k")
+    ax.set_xlabel('Robot Performance')
+    ax.set_ylabel('Human Performance')
+    ax.plot([0,1], [1,0], linewidth=2, linestyle='--', alpha=0.5)
+    ax.xaxis.label.set_color('white')
+    ax.yaxis.label.set_color('white')
+    ax.tick_params(axis='x', colors='white')
+    ax.tick_params(axis='y', colors='white')
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(baseDir + "policy_human_robot_performance_jitter_{}.png".format(descriptor))
     plt.clf()
 
     fig = plt.figure(figsize=(4,4))
@@ -1683,6 +1732,16 @@ def writeCSV(surveyData, taskDefinitions, filepath, numericFilepath, separatedBy
         "Slowness",
         "Tutorial Overall Willingness to Help",
         "Average Busyness",
+        "Human Score",
+        "Human Performance",
+        "Robot Performance",
+        "Average Performance",
+        "Reward Adjusted",
+        "User Took Break",
+        "Robot Asked on First Round",
+        "Human Helped on First Round",
+        "Human Busyness When Robot First Asked",
+        "Human Response When Robot First Asked",
     ]# + ["Human Response %d" % i for i in range(len(taskDefinitions[0]["robotActions"]))]
     with open(filepath, "w") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
@@ -1732,6 +1791,16 @@ def writeCSV(surveyData, taskDefinitions, filepath, numericFilepath, separatedBy
             row.append(surveyData[uuid]['Demography']['Slowness'])
             row.append(surveyData[uuid]['Demography']['tutorialOverallHelping'])
             row.append(surveyData[uuid]["averageBusyness"])
+            row.append(surveyData[uuid]["score"])
+            row.append(surveyData[uuid]["policyResults"]["metrics"]["humanPerformance"])
+            row.append(surveyData[uuid]["policyResults"]["metrics"]["robotPerformance"])
+            row.append(surveyData[uuid]["policyResults"]["metrics"]["averagePerformance"])
+            row.append(surveyData[uuid]["policyResults"]["metrics"]["rewardAdjusted"])
+            row.append(1 if surveyData[uuid]["userTookBreak"] else 0)
+            row.append(1 if surveyData[uuid]["policyResults"]["robotAskedOnFirstRound"] else 0)
+            row.append(1 if surveyData[uuid]["policyResults"]["humanHelpedOnFirstRound"] else 0)
+            row.append(surveyData[uuid]["policyResults"]["humanBusynessAtRobotFirstAsk"])
+            row.append(surveyData[uuid]["policyResults"]["humanHelpedAtRobotFirstAsk"])
             # for i in range(len(taskDefinitions[0]["robotActions"])):
             #     if surveyData[uuid]['humanHelpSequence']['robot interaction sequence'][i] is None:
             #         response = None
@@ -2251,6 +2320,14 @@ def makeEntireHistoryDatasetGraph(entireHistoryDataset, descriptor):
     # plt.show()
     plt.clf()
 
+def getHumanPerformance(humanDidArriveOnTime):
+    assert(len(humanDidArriveOnTime) == 28)
+    numTimesHumanArrivedOnTime = 0
+    for robotIndex in [1,2,4,5,6,8,9,11,12,13,15,16,18,19,20,22,23,25,26,27]:
+        if humanDidArriveOnTime[robotIndex]:
+            numTimesHumanArrivedOnTime += 1
+    return numTimesHumanArrivedOnTime
+
 if __name__ == "__main__":
     numGIDs = 3
 
@@ -2370,7 +2447,7 @@ if __name__ == "__main__":
 
         if uuid not in [966, 599]:
             tutorialLog = loadGameLog(baseDir + "{}/0_tutorial_data.json".format(uuid))
-            tutorialHelpGivingData, tutorialHumanHelpSequence, _ = processGameLog(tutorialLog, tutorialTaskDefinition)
+            tutorialHelpGivingData, tutorialHumanHelpSequence, _, _, _, _ = processGameLog(tutorialLog, tutorialTaskDefinition)
             surveyData[uuid]["Demography"]["tutorialOverallHelping"] = tutorialHelpGivingData["overall"]
         else:
             surveyData[uuid]["Demography"]["tutorialOverallHelping"] = 999
@@ -2390,7 +2467,29 @@ if __name__ == "__main__":
             numTimesAtBusyness = len(surveyData[uuid]["policyResults"]["metricsByBusyness"][busyness]['asking'])
             surveyData[uuid]["averageBusyness"] += busyness*numTimesAtBusyness/20.0
 
-        surveyData[uuid]["helpGivingData"], surveyData[uuid]["humanHelpSequence"], surveyData[uuid]["slownessesPerTask"] = processGameLog(gameLog, taskDefinitions[gid])#, afterTaskI=6)
+        surveyData[uuid]["helpGivingData"], surveyData[uuid]["humanHelpSequence"], surveyData[uuid]["slownessesPerTask"], surveyData[uuid]["score"], surveyData[uuid]["humanDidArriveOnTime"], surveyData[uuid]["userTookBreak"] = processGameLog(gameLog, taskDefinitions[gid])#, afterTaskI=6)
+        surveyData[uuid]["policyResults"]["metrics"]["humanPerformance"] = getHumanPerformance(surveyData[uuid]["humanDidArriveOnTime"])/20 # surveyData[uuid]["score"]/280
+        surveyData[uuid]["policyResults"]["metrics"]["robotPerformance"] = surveyData[uuid]['policyResults']['metrics']['numCorrectRooms']/20
+        surveyData[uuid]["policyResults"]["metrics"]["averagePerformance"] = 0.5*surveyData[uuid]["policyResults"]["metrics"]["humanPerformance"] + 0.5*surveyData[uuid]["policyResults"]["metrics"]["robotPerformance"]
+        surveyData[uuid]["policyResults"]["metrics"]["rewardAdjusted"] = surveyData[uuid]["policyResults"]["metrics"]["numCorrectRooms"] - 0.5*surveyData[uuid]['policyResults']['metrics']['pctAsking']*20
+
+        surveyData[uuid]["policyResults"]["robotAskedOnFirstRound"] = (surveyData[uuid]["policyResults"]["rawData"][1] == 'ask')
+        surveyData[uuid]["policyResults"]["humanHelpedOnFirstRound"] = (surveyData[uuid]["policyResults"]["rawData"][2]['robot_room_obs'] == 'obs_human_helped')
+
+        lastBusynessFromRawData = -1
+        surveyData[uuid]["policyResults"]["humanBusynessAtRobotFirstAsk"] = lastBusynessFromRawData
+        surveyData[uuid]["policyResults"]["humanHelpedAtRobotFirstAsk"] = 0
+        for i in range(len(surveyData[uuid]["policyResults"]["rawData"])):
+            if (i % 4) == 1: # action
+                if surveyData[uuid]["policyResults"]["rawData"][i] == 'ask':
+                    if lastBusynessFromRawData == -1:
+                        lastBusynessFromRawData = 1 # first round
+                    surveyData[uuid]["policyResults"]["humanBusynessAtRobotFirstAsk"] = lastBusynessFromRawData
+                    surveyData[uuid]["policyResults"]["humanHelpedAtRobotFirstAsk"] = 1 if surveyData[uuid]["policyResults"]["rawData"][i+1]['robot_room_obs'] == 'obs_human_helped' else 0
+                    break
+            elif (i % 4) == 2: # obs
+                lastBusynessFromRawData = int(surveyData[uuid]["policyResults"]["rawData"][i]['human_busyness_obs'])
+
         assert len(surveyData[uuid]["slownessesPerTask"]) == 28
         surveyData[uuid]["Demography"]["Slowness"] = 0.0
         for taskI in taskIForSlowness:
@@ -2498,13 +2597,6 @@ if __name__ == "__main__":
     # # Make the entire history dataset
     # entireHistoryDataset = makeEntrieHistoryDataset(surveyDataTutorialOnlyHelping)
     # makeEntireHistoryDatasetGraph(entireHistoryDataset, "_tutorialOnlyHelping")
-
-
-
-
-
-
-
 
     # surveyDataOnlyZeros = {}
     # surveyDataNoZeros = {}

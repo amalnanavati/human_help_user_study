@@ -5,12 +5,15 @@ require(languageR)
 require(tidyr)
 require(ggplot2)
 library(emmeans)
+library(walrus)
+library(pgirmess)
 
 dataNoBusyness <- read.csv("/Users/amaln/Documents/PRL/human_help_user_study/flask/ec2_outputs_evaluation/humanHelpUserStudyDataWithExclusion.csv")
 
 dataNoBusyness <- within(dataNoBusyness, {
   User.ID <- factor(User.ID)
   Policy <- factor(Policy, levels = c("Hybrid", "Contextual", "Individual"))
+  Cumulative.Reward <- as.numeric(Cumulative.Reward)
   Num.Correct.Rooms <- as.integer(Num.Correct.Rooms)
   Num.Asking <- as.integer(Num.Asking)
   Num.Helping <- as.integer(Num.Helping)
@@ -24,9 +27,21 @@ dataNoBusyness <- within(dataNoBusyness, {
   Slowness <- as.numeric(Slowness)
   Tutorial.Overall.Willingness.to.Help <- as.numeric(Tutorial.Overall.Willingness.to.Help)
   Average.Busyness <- as.numeric(Average.Busyness)
+  Reward.Adjusted <- as.numeric(Reward.Adjusted)
 })
 
 print(dataNoBusyness)
+
+ranova(dataNoBusyness,
+       dep = 'Cumulative.Reward',
+       factors = c('Policy'))
+
+ranova(dataNoBusyness,
+       dep = 'Reward.Adjusted',
+       factors = c('Policy'))
+
+kruskal.test(Reward.Adjusted ~ Policy, data=dataNoBusyness)
+kruskalmc(Reward.Adjusted ~ Policy, data=dataNoBusyness)
 
 finalModelCorrectRoomsNoBusyness <- glm(Num.Correct.Rooms ~ Policy , data = dataNoBusyness, family = poisson(link = "log"))
 summary(finalModelCorrectRoomsNoBusyness)
