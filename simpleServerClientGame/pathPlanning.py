@@ -29,9 +29,6 @@ def shortestPath(map, start, goal):
     """
     frontier = PriorityQueue()
     frontier.put(start, False)
-    # open_list = []
-    # closed_list = []
-    # open_list.insert(start, 0)
 
     came_from = {}
     cost_so_far = {}
@@ -41,12 +38,12 @@ def shortestPath(map, start, goal):
 
     # check if start is a valid position using same three checks, if not valid, return empty list
     # remove all types from file including heuristic function types
-    # if not start[0] < 0 or start[0] >= map.shape[0]: # returns a tuple of nxm and gives us n
-    #     return []
-    # if not start[1] < 0 or start[1] >= map.shape[1]:
-    #     return []
-    # if not map[start[0], start[1]]:
-    #     return []
+    if start[0] < 0 or start[0] >= map.shape[0]: # returns a tuple of nxm and gives us n
+        return []
+    if start[1] < 0 or start[1] >= map.shape[1]:
+        return []
+    if map[start[0], start[1]]:
+        return []
 
     while not frontier.empty():
         current = frontier.get()
@@ -176,6 +173,10 @@ def testShortestPath():
     assert(len(path) == 9)
     # start and goal are in different quadrants
     path = shortestPath(map, (9,9), (0,9))
+    assert(len(path) == 0)
+
+    # invalid start
+    path = shortestPath(map, (6,6), (9,0))
     assert(len(path) == 0)
 
 if __name__ == "__main__":
