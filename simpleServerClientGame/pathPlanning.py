@@ -135,9 +135,10 @@ def testShortestPath():
          [1,0,1,0,0,0,1,0,0,0],
          [1,1,1,1,1,1,1,1,1,1]]
     ).astype(np.bool)
-    # goal is reachable
-    path = shortestPath(map, (8,1), (1,8))
-    print("final path: ", path)
+    # goal is reachable (mridula - changed this test case to go to (1,9) instead of (1,8), so it is reachable)
+    path = shortestPath(map, (8,1), (1,9))
+    print("path: ", path)
+    # changed pathAnswer to follow the previous change
     pathAnswer = [
         (8,1),(7,1),(6,1),(5,1),(4,1),(3,1),(2,1),(1,1),(1,2),
         (1,3),(2,3),(3,3),(4,3),(5,3),(6,3),(7,3),(8,3),(8,4),
@@ -169,8 +170,9 @@ def testShortestPath():
          [0,0,0,0,0,0,1,1,1,1],
          [0,0,0,0,0,0,1,1,1,1]]
     ).astype(np.bool)
-    # start and goal are in in the same quadrant
-    path = shortestPath(map, (9,9), (6,5))
+    # start and goal are in in the same quadrant (Mridula - changed (9,9) to be (9,0)))
+    path = shortestPath(map, (9,0), (6,5))
+    print(path)
     assert(len(path) == 9)
     # start and goal are in different quadrants
     path = shortestPath(map, (9,9), (0,9))
