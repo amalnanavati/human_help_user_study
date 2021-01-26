@@ -10,7 +10,7 @@ function createDistractionTaskBar(scene) {
   scene.game.distractionTaskBar.lineStyle(4, 0x000000, 0.9);
   scene.game.distractionTaskBar.strokeRoundedRect(x, y, w, h, 16);
   scene.game.distractionTaskBar.fillRoundedRect(x, y, w, h, 16);
-  scene.game.distractionTaskBar.setDepth(13);
+  scene.game.distractionTaskBar.setDepth(20);//13);//
   scene.game.distractionTaskText = scene.add.text(scene.game.distractionTaskBar.x, w/40, "", {
     font: "18px monospace",
     fill: "rgba(0, 0, 0, 0.9)",
@@ -45,5 +45,5 @@ function drawDistractionTaskBarProgress(scene) {
   scene.game.distractionTaskBar.progressBar.fillStyle(0x898989, 0.9);
   // scene.game.distractionTaskBar.progressBar.fillRoundedRect(0, 0, w*scene.game.distractionTaskTimer.getOverallProgress(), h, 4);
   scene.game.distractionTaskBar.progressBar.fillRoundedRect(0, 0, w*scene.game.distractionTaskTimerSecs/timeForDistractionTask, h, 4);
-  scene.game.distractionTaskBar.progressBar.setDepth(13);
+  scene.game.distractionTaskBar.progressBar.setDepth(20);//13);//
 }
