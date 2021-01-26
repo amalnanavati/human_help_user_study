@@ -6,12 +6,12 @@ function createCompass(scene) {
   scene.game.compass.circle.fillStyle(0x000000, 0.5);
   scene.game.compass.circle.lineStyle(4, 0xececec, 0.5);
   scene.game.compass.circle.fillCircle(0, 0, scene.game.compass.radius);
-  scene.game.compass.circle.setDepth(3);
+  scene.game.compass.circle.setDepth(13);//3);//
 
   scene.game.compass.playerArrow = scene.add.graphics({ x: 0, y: 0 });
   scene.game.compass.playerArrow.lineStyle(4, playerColor, 0.5);
   scene.game.compass.playerArrow.lineBetween(0, 0, scene.game.compass.radius, 0);
-  scene.game.compass.playerArrow.setDepth(4);
+  scene.game.compass.playerArrow.setDepth(14);//4);//
   scene.game.compass.playerGoalText = scene.add.text(scene.game.compass.radius, 0, "", {
     font: "24px monospace",
     fill: playerColorStr,
@@ -19,12 +19,12 @@ function createCompass(scene) {
     align: "center",
     backgroundColor: "rgba(236, 236, 236, 0.75)",
   });
-  scene.game.compass.playerGoalText.setDepth(4);
+  scene.game.compass.playerGoalText.setDepth(14);//4);//
 
   scene.game.compass.robotArrow = scene.add.graphics({ x: 0, y: 0 });
   scene.game.compass.robotArrow.lineStyle(4, robotColor, 0.5);
   scene.game.compass.robotArrow.lineBetween(0, 0, scene.game.compass.radius, 0);
-  scene.game.compass.robotArrow.setDepth(4);
+  scene.game.compass.robotArrow.setDepth(14);//4);//
   scene.game.compass.robotGoalText = scene.add.text(scene.game.compass.radius, 0, "", {
     font: "24px monospace",
     fill: robotColorStr,
@@ -32,7 +32,7 @@ function createCompass(scene) {
     align: "center",
     backgroundColor: "#ececec",
   });
-  scene.game.compass.robotGoalText.setDepth(4);
+  scene.game.compass.robotGoalText.setDepth(14);//4);/
 }
 
 function updateCompass(scene) {

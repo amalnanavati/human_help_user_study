@@ -191,6 +191,7 @@ class SpeechBubble {
           backgroundColor: 'rgba(255,0,0,0.5)',
         },
       );
+      // button.alpha = 0.75;
       this.totalButtonWidth[rowI] = this.totalButtonWidth[rowI] + button.width;
       this.buttonsPerRow[rowI] += 1;
       button.setInteractive();
@@ -249,6 +250,7 @@ class SpeechBubble {
           },
         },
       );
+      // this._speech.alpha = 0.75;
       this._speech.setDepth(11);
 
       // Create the button(s)
@@ -275,10 +277,10 @@ class SpeechBubble {
       // this._bubble.fillRoundedRect(6, 6, bubbleWidth, bubbleHeight, 16);
 
       //  Bubble color
-      this._bubble.fillStyle(0xffffff, 1);
+      this._bubble.fillStyle(0xffffff, 1);//0.75);//
 
       //  Bubble outline line style
-      this._bubble.lineStyle(4, 0x565656, 1);
+      this._bubble.lineStyle(4, 0x565656, 1);//0.75);//
 
       //  Bubble shape and outline
       this._bubble.strokeRoundedRect(0, 0, bubbleWidth, bubbleHeight, 16);
@@ -299,7 +301,7 @@ class SpeechBubble {
 
         //  Bubble arrow fill
         this._bubble.fillTriangle(point1X, point1Y, point2X, point2Y, point3X, point3Y);
-        this._bubble.lineStyle(2, 0x565656, 1);
+        this._bubble.lineStyle(2, 0x565656, 1);//0.75);//
         this._bubble.lineBetween(point2X, point2Y, point3X, point3Y);
         this._bubble.lineBetween(point1X, point1Y, point3X, point3Y);
       }

@@ -12,6 +12,8 @@ from flask import Flask, render_template, send_file, request, redirect
 from flask_cors import CORS
 
 numGIDs = 3
+gidsToTest = ["0", "2"]
+minUUID = 2000
 completedGIDsFilename = "outputs/completedGIDs.json"
 
 completionCodesToUUIDFilename = "outputs/completionCodesToUUID.json"
@@ -170,6 +172,23 @@ class FlaskExample:
 
             return render_template('consent.html', uuid=uuid)
 
+        # The progression image for user with uuid
+        @app.route('/progression', methods=['POST'])
+        def progression():
+            uuid = request.form['uuid']
+
+            logger.logPrint("{}: Showing the progression page to UUID {}".format(request.remote_addr, uuid))
+
+            updateInProgressUUIDs()
+
+            # Save the startTime
+            timestamp = time.time()
+            fname = "outputs/{}/progressionTime.txt".format(uuid)
+            with open(fname, "w") as f:
+                f.write(str(timestamp))
+
+            return render_template('progression.html', uuid=uuid)
+
         # Called when the consent form is submitted
         @app.route('/tutorial', methods=['POST'])
         def tutorial():
@@ -179,7 +198,7 @@ class FlaskExample:
 
             updateInProgressUUIDs()
 
-            # Save the startTime
+            # Save the tutorialTime
             timestamp = time.time()
             fname = "outputs/{}/tutorialTime.txt".format(uuid)
             with open(fname, "w") as f:
@@ -210,15 +229,16 @@ class FlaskExample:
         # Called when the tutorial is completed
         @app.route('/game', methods=['POST'])
         def game():
-            global completedGameIDs, minUUID
+            global completedGameIDs, minUUID, gidsToTest
 
             uuid = request.form['uuid']
+            order = request.form['order']
 
-            logger.logPrint("{}: Showing the game to UUID {}".format(request.remote_addr, uuid))
+            logger.logPrint("{}: Showing the game to UUID {} order {}".format(request.remote_addr, uuid, order))
 
-            # Save the startTime
+            # Save the gameTime
             timestamp = time.time()
-            fname = "outputs/{}/gameTime.txt".format(uuid)
+            fname = "outputs/{}/gameTime_{}.txt".format(uuid, order)
             with open(fname, "w") as f:
                 f.write(str(timestamp))
 
@@ -227,32 +247,41 @@ class FlaskExample:
             logger.logPrint("completedGameIDs", completedGameIDs)
 
             # # Assign the user a game ID
-            # gidWithMinNumUsers = 4
-            if int(uuid) == 18:
-                gidWithMinNumUsers = 0
-            elif int(uuid) < 100:
-                gidWithMinNumUsers = random.randint(0, 2)
-            else:
-                gidAndUsersList = [] # (numRealAndInProgressUsers, numRealUsers, gid)
-                gidsToTest = ["0"]#, "2"] # completedGameIDs #
-                for i in range(len(gidsToTest)):
-                    gid = gidsToTest[i]
-                    numRealUsers = 0
-                    numInProgressUsers = 0
-                    for tempUUID in completedGameIDs[gid]:
-                        if int(tempUUID) >= minUUID: # only count actual users
-                            numRealUsers += 1
-                    for uuidTemp in inProgressUUIDs:
-                        # If the user is still playing the game or the game is finished
-                        # if time.time() <= inProgressUUIDs[uuidTemp][1] + maxBreaktime or inProgressUUIDs[uuidTemp][2]:
-                        if inProgressUUIDs[uuidTemp][0] == gid:
-                            numInProgressUsers += 1
-                    gidAndUsersList.append((numRealUsers+numInProgressUsers, numRealUsers, i, gid))
-                gidAndUsersList.sort()
-                logger.logPrint("gidAndUsersList", gidAndUsersList)
-                gidWithMinNumUsers = gidAndUsersList[0][3]
+            if (order == "a"):
+                # gidWithMinNumUsers = 4
+                if int(uuid) == 18:
+                    gidWithMinNumUsers = "0"
+                elif int(uuid) == 19:
+                    gidWithMinNumUsers = "1"
+                elif int(uuid) == 20:
+                    gidWithMinNumUsers = "2"
+                else:
+                    gidAndUsersList = [] # (numRealAndInProgressUsers, numRealUsers, gid)
+                    for i in range(len(gidsToTest)):
+                        gid = gidsToTest[i]
+                        numRealUsers = 0
+                        numInProgressUsers = 0
+                        for tempUUID in completedGameIDs[gid]:
+                            if int(tempUUID) >= minUUID: # only count actual users
+                                numRealUsers += 1
+                        for uuidTemp in inProgressUUIDs:
+                            # If the user is still playing the game or the game is finished
+                            # if time.time() <= inProgressUUIDs[uuidTemp][1] + maxBreaktime or inProgressUUIDs[uuidTemp][2]:
+                            if inProgressUUIDs[uuidTemp][0] == gid:
+                                numInProgressUsers += 1
+                        gidAndUsersList.append((numRealUsers+numInProgressUsers, numRealUsers, i, gid))
+                    gidAndUsersList.sort()
+                    logger.logPrint("gidAndUsersList", gidAndUsersList)
+                    gidWithMinNumUsers = gidAndUsersList[0][3]
+            else: # For order b, pick the GID you did not do for order a
+                gid = request.form['gid']
+                logger.logPrint("UUID {} order {} old GID {}".format(request.remote_addr, uuid, order, gid))
+                if str(gid) == gidsToTest[0]:
+                    gidWithMinNumUsers = gidsToTest[1]
+                else:
+                    gidWithMinNumUsers = gidsToTest[0]
 
-            logger.logPrint("Assigned UUID {} GID {}".format(uuid, gidWithMinNumUsers))
+            logger.logPrint("Assigned UUID {} order {} GID {}".format(uuid, order, gidWithMinNumUsers))
 
             fname ="outputs/{}/{}_data.json".format(uuid, gidWithMinNumUsers)
             try:
@@ -266,43 +295,53 @@ class FlaskExample:
                 inProgressUUIDLogStateFiles[uuid] = open(fname, "w")
                 inProgressUUIDLogStateFiles[uuid].write("")
 
-                logger.logPrint("Wrote initial log_state for UUID {} GID {} to {}".format(uuid, gid, fname))
+                logger.logPrint("Wrote initial log_state for UUID {} order {} GID {} to {}".format(uuid, order, gid, fname))
             except Exception as err:
-                logger.logPrint("game failure to create state file for UUID {} GID {}: {}\n{}".format(uuid, gid, err, traceback.format_exc()))
+                logger.logPrint("game failure to create state file for UUID {} order {} GID {}: {}\n{}".format(uuid, order, gid, err, traceback.format_exc()))
 
-            inProgressUUIDs[uuid] = [gidWithMinNumUsers, time.time()]#, False]
+            if (order == "a"): inProgressUUIDs[uuid] = [gidWithMinNumUsers, time.time()]#, False]
             # Render the tutorial
-            return render_template('game.html', uuid=uuid, gid=gidWithMinNumUsers)
+            return render_template('game.html', uuid=uuid, gid=gidWithMinNumUsers, order=order)
 
         # Called when the game is completed
         @app.route('/survey', methods=['POST'])
         def survey():
             uuid = request.form['uuid']
             gid = request.form['gid']
+            order = request.form['order']
 
-            logger.logPrint("{}: Showing survey to UUID {} GID {}".format(request.remote_addr, uuid, gid))
+            logger.logPrint("{}: Showing survey to UUID {} order {} GID {}".format(request.remote_addr, uuid, order, gid))
 
             updateInProgressUUIDs()
 
             if uuid in inProgressUUIDLogStateFiles:
-                logger.logPrint("survey UUID {} closing old logStateFile {}".format(uuid, inProgressUUIDLogStateFiles[uuid]))
+                logger.logPrint("survey UUID {} order {} closing old logStateFile {}".format(uuid, order, inProgressUUIDLogStateFiles[uuid]))
                 inProgressUUIDLogStateFiles[uuid].flush()
                 os.fsync(inProgressUUIDLogStateFiles[uuid].fileno())
                 inProgressUUIDLogStateFiles[uuid].close()
                 del inProgressUUIDLogStateFiles[uuid]
             else:
-                logger.logPrint("ERROR survey UUID {} no old logStateFile exists".format(uuid))
+                logger.logPrint("ERROR survey UUID {} order {} no old logStateFile exists".format(uuid, order))
 
-            if uuid in inProgressUUIDs:
+            if uuid in inProgressUUIDs and order == "a":
                 inProgressUUIDs[uuid] = [gid, time.time()]
 
-            # Save the startTime
+            # Save the surveyTime
             timestamp = time.time()
-            fname = "outputs/{}/surveyTime.txt".format(uuid)
+            fname = "outputs/{}/surveyTime_{}.txt".format(uuid, order)
             with open(fname, "w") as f:
                 f.write(str(timestamp))
 
-            return render_template('survey.html', uuid=uuid, gid=gid)
+            return render_template('survey.html', uuid=uuid, gid=gid, order=order)
+
+        @app.route('/survey_test/<uuid>/<order>', methods=['GET'])
+        def survey_test(uuid, order):
+            gid = -1
+            return render_template('survey.html', uuid=uuid, gid=gid, order=order)
+
+        @app.route('/game_test/<uuid>/<gid>/<order>', methods=['GET'])
+        def game_test(uuid, gid, order):
+            return render_template('game.html', uuid=uuid, gid=gid, order=order)
 
         # Called when the survey is submitted
         @app.route('/completionCode', methods=['POST'])
@@ -327,8 +366,12 @@ class FlaskExample:
             with open(completionCodesToUUIDFilename, "w") as f:
                 json.dump(completionCodes, f)
 
-            # Update and save the completedGameIDs
-            completedGameIDs[gid].append(uuid)
+            # Update and save the completedGameIDs; completedGameIDs contains the first GID
+            if str(gid) == gidsToTest[0]:
+                completedGameIDs[str(gidsToTest[1])].append(uuid)
+            else:
+                completedGameIDs[str(gidsToTest[0])].append(uuid)
+
             with open(completedGIDsFilename, "w") as f:
                 json.dump(completedGameIDs, f)
 
@@ -411,7 +454,10 @@ class FlaskExample:
                     # Either the user is in COMPLETED_TASKS or the eventType is SHIFT_GAME_KILL
                     # isGameComplete = (request.json["player"]["currentState"] == "2" or
                     #                   request.json["eventType"] == "11")
-                    inProgressUUIDs[uuid] = [gid, time.time()]#, isGameComplete]
+                    if uuid in inProgressUUIDs: # to mainly keep just the first GID
+                        inProgressUUIDs[uuid] = [inProgressUUIDs[uuid][0], time.time()]#, isGameComplete]
+                    else:
+                        inProgressUUIDs[uuid] = [gid, time.time()]#, isGameComplete]
 
                 if tutorial:
                     fname ="outputs/{}/{}_tutorial_data.json".format(uuid, gid)
@@ -536,8 +582,6 @@ class FlaskExample:
 
 
 if __name__ == '__main__':
-    minUUID = 600
-
     logger = Logger()
 
     if os.path.isfile(completedGIDsFilename):

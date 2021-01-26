@@ -26,7 +26,7 @@ function createHelpButton(scene) {
   );
   scene.game.helpText.setScrollFactor(0.0, 0.0);
   scene.game.helpText.setVisible(false);
-  scene.game.helpText.setDepth(14);
+  scene.game.helpText.setDepth(20);//14);//
 
   // Create the help button
   scene.game.helpButton = scene.add.text(

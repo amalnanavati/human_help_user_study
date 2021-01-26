@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Progression</title>
+
+    <link rel="stylesheet" href = "{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+
+    <style>
+    p {
+      padding-left: 40px;
+    }
+    h4 {
+      /* padding-left: 30px; */
+      text-align: center
+    }
+    h3
+    {
+      padding-left: 20px;
+    }
+    body {
+    	max-width: 900px;
+    	margin: 0 auto !important;
+    	float: none !important;
+    }
+    </style>
+
+  </head>
+
+  <body>
+
+    <h1><center>How To Get Paid</center></h1><br>
+    <br>
+
+    <p>To get paid, you must complete <em>every part</em> of the HIT, shown in the diagram below. This includes two games and two surveys. Do not hit the "back" button on your browser or it might invalidate your results.</p>
+
+    <img src="/assets/study_progression_smaller.jpg" alt="In order to get paid, you must complete the tutorial, Game #1, Survey #1, Game #2, Survey #2, and then receive your completion code. The average time to complete this HIT is 55 minutes.">
+
+
+    <center>
+    <form action="../tutorial" method="post">
+      <!-- <input type="radio" name="agree" value="agree" /> Agree
+      &nbsp;
+      <input type="radio" name="agree" value="disagree" /> Disagree
+      <br><br> -->
+      <input type="hidden" id="uuid" name="uuid" value="{{uuid}}">
+
+      <input type="submit" value="Continue to Tutorial">
+
+    </form>
+    <br><br><br><br>
+
+  </body>
+</html>

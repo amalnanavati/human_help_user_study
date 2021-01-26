@@ -404,10 +404,16 @@ function setHelpBubbleToLeadMe(scene, hasSaidYes) {
 function sendNewUserMsgToPolicyServer(scene) {
   var url = basePolicyURL + "new_user";
 
+  // Get last busyness
+  var firstTaskIWhenTheRobotAppeared = scene.game.tasks.robotActions[scene.game.robot.currentActionI].afterHumanTaskIndex+1;
+  var busyness_float = scene.game.tasks.tasks[firstTaskIWhenTheRobotAppeared].busyness;
+  var human_busyness = Math.round((busyness_float/0.4*(num_busyness-1))+1);
+
   var data = {
     uuid: parseInt(uuid),
     gid: parseInt(gid),
     robot_action_i: 0,
+    human_busyness: human_busyness,
   }
   // console.log("Send ", data)
   $.ajax({

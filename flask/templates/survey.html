@@ -127,22 +127,31 @@
 
 <div class="container">
   <center>
-  <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdiqtN3R0aW68r0C1R2GMswVEfIegCZcloyKbM15Cer2x9f-g/viewform?embedded=true" width="640" height="640" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+  {% if order == "a" %}
+      <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSeJzxX4b6iC4YLPFitDAwn_3t7GinyIeNggC59iT5p_Jb7Kfw/viewform?embedded=true" width="640" height="640" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+  {% else %}
+      <iframe src="https://docs.google.com/forms/d/e/1FAIpQLScgYX33ACHz_fPJ4O9RoUEg-RrZCIx_BgMtio2uW_ONadg9Iw/viewform?embedded=true" width="640" height="640" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+  {% endif %}
 </div>
 
 <br/>
 
 <center>
+{% if order == "a" %}
+<form action="../game" method="post">
+  <input type="hidden" id="uuid" name="uuid" value="{{uuid}}">
+  <input type="hidden" id="gid" name="gid" value="{{gid}}">
+  <input type="hidden" id="order" name="order" value="b">
+
+  <input type="submit" value="I have completed the survey">
+</form>
+{% else %}
 <form action="../completionCode" method="post">
-  <!-- <input type="radio" name="agree" value="agree" /> Agree
-  &nbsp;
-  <input type="radio" name="agree" value="disagree" /> Disagree
-  <br><br> -->
   <input type="hidden" id="uuid" name="uuid" value="{{uuid}}">
   <input type="hidden" id="gid" name="gid" value="{{gid}}">
 
   <input type="submit" value="I have completed the survey">
-
 </form>
+{% endif %}
 
 </html>

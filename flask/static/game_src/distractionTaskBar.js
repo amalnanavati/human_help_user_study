@@ -16,7 +16,7 @@ function createDistractionTaskBar(scene) {
     fill: "rgba(0, 0, 0, 0.9)",
   }).setOrigin(0.5, 0.5);
   scene.game.distractionTaskText.y = scene.game.distractionTaskBar.y-scene.game.distractionTaskBar.height/2 + scene.game.distractionTaskBar.width/40 +scene.game.distractionTaskText.height/2;
-  scene.game.distractionTaskText.setDepth(13);
+  scene.game.distractionTaskText.setDepth(20);//13);//
 }
 
 function setDistractionTaskBarVisible(scene, visible) {

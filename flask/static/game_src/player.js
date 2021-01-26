@@ -18,7 +18,7 @@ const playerState = {
 function createPlayer(scene) {
   scene.game.player = scene.physics.add.sprite(scene.game.config.width/2, scene.game.config.width/2, 'characters');
   scene.game.player.setScale(0.80);
-  scene.game.player.setDepth(5);
+  scene.game.player.setDepth(15);//5);//
   scene.game.player.currentTile = {x : scene.game.tasks.player_start_location.x, y : scene.game.tasks.player_start_location.y};
   scene.game.player.previousTile = scene.game.player.currentTile;
   scene.game.player.nextTile = scene.game.player.currentTile;
@@ -409,6 +409,7 @@ function processPlayerKeyPresses(scene) {
           if (!load) logData(tutorial ? logTutorialStateEndpoint : logGameStateEndpoint, getGameState(scene, eventType.SHIFT_GAME_KILL));
           scene.game.isRunning = false;
           console.log("create ending screen through shift key");
+          scene.game.gameEndedDueToShift = true;
           createEndingScreen(scene);
         }
       } else {

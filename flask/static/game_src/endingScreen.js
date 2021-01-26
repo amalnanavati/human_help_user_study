@@ -9,14 +9,14 @@ function createEndingScreen(scene) {
   scene.game.endingScreen.setDepth(16);
 
   if (tutorial) {
-    if (scene.game.robot.numTimesHelped == 0) {
-      title = "ERROR: Did Not Follow Instructions";
-      titleColor = "rgba(255, 0, 0, 1.0)";
-      body = "You did not follow the tutorial instructions, which makes you ineligible for this HIT. Please exit and do not try again. You will not get paid.";
-    } else {
+    if (scene.game.gameEndedDueToShift || !scene.game.robot || scene.game.robot.numTimesHelped != 0) {
       title = "Completed Tutorial";
       titleColor = "rgba(0, 0, 0, 1.0)";
       body = "Congratulations, you have succesfully completed the tutorial! \n\nPlease be patient as the game log gets saved. This can take several minutes. Wait until the \"Continue\" button appears.";
+    } else {
+      title = "ERROR: Did Not Follow Instructions";
+      titleColor = "rgba(255, 0, 0, 1.0)";
+      body = "You did not follow the tutorial instructions, which makes you ineligible for this HIT. Please exit and do not try again. You will not get paid.";
     }
   } else {
     title = "Completed Tasks";
@@ -73,7 +73,7 @@ function createEndingScreen(scene) {
 }
 
 function updateEndingScreen(scene) {
-  if (tutorial && scene.game.robot.numTimesHelped == 0) {
+  if (tutorial && (scene.game.robot && scene.game.robot.numTimesHelped == 0)) {
     return; // do not update the ending screen if the human never helped
   }
   if (scene.game.endingScreen.oldNumReceivedLogs == null || numReceivedLogs != scene.game.endingScreen.oldNumReceivedLogs) {
@@ -134,9 +134,9 @@ function createEndingScreenContinueButton(scene) {
     // scene.game.endingScreen.title.destroy();
     // scene.game.endingScreen.destroy();
     if (tutorial) {
-      post_form('/game', {uuid: uuid});
+      post_form('/game', {uuid: uuid, order: "a"});
     } else {
-      post_form('/survey', {uuid: uuid, gid: gid});
+      post_form('/survey', {uuid: uuid, gid: gid, order: order});
     }
   }, scene.game.endingScreen.continueButton);
   scene.game.endingScreen.continueButton.setDepth(16);

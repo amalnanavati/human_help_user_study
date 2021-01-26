@@ -176,6 +176,9 @@ anova(busynessM, busyness_freqOfAskingI)
 # freqOfHelping_ageI <- update(freqOfAsking_numRecentTimesDidNotHelpI, .~ Past.Frequency.of.Helping.Accurately:Age + .)
 # anova(freqOfAsking_numRecentTimesDidNotHelpI, freqOfHelping_ageI)
 
+individualModel <- glmer(Human.Response ~ (1 | UUID), data = data, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
+contextualModel <- glm(Human.Response ~ Busyness.Numeric + Busyness.Numeric:Past.Frequency.of.Asking data = data, family = binomial(link="logit"))
+
 # Check whether we should add a random slope with busyness
 busyness_random_slope <- update(busyness_freqOfAskingI, .~ (Busyness.Numeric | UUID) + .)
 anova(busyness_freqOfAskingI, busyness_random_slope)
@@ -238,8 +241,19 @@ params<-cbind(fixParam[1]+ranParam[1],fixParam[2], fixParam[3], fixParam[4])
 print(params)
 
 # Get the residuals
-residuals <- residuals(finalModel)
-hist(residuals)
+predictions <- as.vector(predict(finalModel, type="response"))
+# predictions <- as.vector(predict(contextualModel, type="response"))
+# predictions <- as.vector(predict(individualModel, type="response"))
+responses <- as.integer(data$Human.Response) - 1 # minus one due to the one-indexed factors
+residuals <- responses-predictions
+sd(residuals)
+
+h <- hist(residuals, breaks = 10, density = 10,
+          col = "lightgray", xlab = "Accuracy", main = "Overall") 
+xfit <- seq(min(residuals), max(residuals), length = 40) 
+yfit <- dnorm(xfit, mean = mean(residuals), sd = sd(residuals)) 
+yfit <- yfit * diff(h$mids[1:2]) * length(residuals) 
+lines(xfit, yfit, col = "black", lwd = 2)
 
 # Compute the correlation between prosociality and the random effect
 ranParamDataframe <- setDT(ranParam, keep.rownames = TRUE)
@@ -570,13 +584,14 @@ exp(tab)/(1+exp(tab))
 # # contrast(frequencyOfAskingPostHoc, "poly")
 
 # Fit the Baseline Models (and the proposed as a sanity check)
-model <- glmer(Human.Response ~ Busyness.Numeric + Num.Recent.Times.Did.Not.Help + Busyness.Numeric:Past.Frequency.of.Asking + (1 | UUID), data = data, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
+model <- glmer(Human.Response ~ Busyness.Numeric + Busyness.Numeric:Past.Frequency.of.Asking + (1 | UUID), data = data, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
 summary(model)
 
-model_only_fixed <- glm(Human.Response ~ Busyness.Numeric + Num.Recent.Times.Did.Not.Help + Busyness.Numeric:Past.Frequency.of.Asking, data = data, family = binomial(link="logit"))
+model_only_fixed <- glm(Human.Response ~ Busyness.Numeric + Busyness.Numeric:Past.Frequency.of.Asking, data = data, family = binomial(link="logit"))
 coef(model_only_fixed)
 
 model_only_random <- glmer(Human.Response ~ (1 | UUID), data = data, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
+summary(model_only_random)
 attr(summary(model_only_random)$varcor$UUID, "stddev")
 
 model_only_intercept <- glm(Human.Response ~ 1, data = data, family = binomial(link="logit"))
@@ -613,3 +628,18 @@ contrast(emmeans(modelAsFactors, ~ Past.Frequency.of.Asking))
 data$data_ID <- seq.int(nrow(data))
 print(data)
 model_width_errors <- glmer(Human.Response ~ Busyness.Numeric + Busyness.Numeric:Past.Frequency.of.Asking + (1 | UUID) + (1 | data_ID), data = data, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
+
+#########################################################################################################################
+evaluation_data <- read.csv("/Users/amaln/Documents/PRL/human_help_user_study/flask/ec2_outputs_evaluation/humanHelpUserStudyDataWithExclusionAskingData.csv")
+
+evaluation_data <- within(evaluation_data, {
+  User.ID <- factor(User.ID)
+  Policy <- factor(Policy)
+  Busyness <- as.numeric(Busyness)
+  Frequency <- as.numeric(Frequency)
+  Human.Response <- factor(Human.Response)
+})
+
+print(evaluation_data)
+evaluation_model <- glmer(Human.Response ~ Busyness + Busyness:Frequency + (1 | User.ID), data = evaluation_data, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
+summary(evaluation_model)

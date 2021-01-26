@@ -59,6 +59,10 @@
       const gid = "{{gid|default(-1, false)}}";
       console.log("uuid", uuid, "gid", gid);
       const tutorial = {{tutorial|default("false", false)}};
+      var order;
+      if (!tutorial) {
+        var order = "{{order}}"
+      }
       const starting_dtime = {{starting_dtime|default(0, false)}};
 
       const gameMode = tutorial ? gameModes.TUTORIAL : gameModes.GAME;
@@ -90,29 +94,43 @@
       // Load the assets that will be used in this game
       function preload() {
         // Load the tiles and tile map (created in Tiled https://www.mapeditor.org/ )
-        this.load.image("tiles", "./assets/tiles2.png");
-        this.load.tilemapTiledJSON("map", "../assets/map3.json");
-        this.load.image("minimap", "./assets/map3.png");
+        this.load.image("tiles", "/assets/tiles2.png");
+        this.load.tilemapTiledJSON("map", "/assets/map3.json");
+        this.load.image("minimap", "/assets/map3.png");
 
         // Load the character
         this.load.spritesheet(
           'characters',
-          'assets/character_64x96_spritesheet_bw.png',
+          '/assets/character_64x96_spritesheet_bw.png',
           {frameWidth: 64, frameHeight: 96},
         );
 
         // Load the robot
-        this.load.spritesheet(
-          'robot',
-          'assets/robot2_64x64_spritesheet_bw.png',
-          {frameWidth: 64, frameHeight: 64},
-        );
+        if (tutorial) {
+          this.load.spritesheet(
+            'robot',
+            '/assets/robot2_64x64_spritesheet_bw.png',
+            {frameWidth: 64, frameHeight: 64},
+          );
+        } else if (order == "a") {
+          this.load.spritesheet(
+            'robot',
+            '/assets/robot2_64x64_spritesheet_orange_lite.png',
+            {frameWidth: 64, frameHeight: 64},
+          );
+        } else {
+          this.load.spritesheet(
+            'robot',
+            '/assets/robot2_64x64_spritesheet_purple_lite.png',
+            {frameWidth: 64, frameHeight: 64},
+          );
+        }
 
         // Load the tasks for this game ID
         if (tutorial) {
-          this.load.json('tasks', 'assets/tasks/tutorial.json');
+          this.load.json('tasks', '/assets/tasks/tutorial.json');
         } else {
-          this.load.json('tasks', 'assets/tasks/evaluation.json');
+          this.load.json('tasks', '/assets/tasks/evaluation.json');
         }
       }
 

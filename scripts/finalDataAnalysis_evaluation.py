@@ -353,6 +353,7 @@ def processPolicyLog(policyLog):
     numHelpsRejected = 0
     episodeLength = 0
     lastBusyness = None # although the first is always free time, I shouldn't include it because the policy doesn't get to observe the busyness before acting
+    askData = []
     for logEntry in policyLog:
         if logEntry["type"] == "action":
             if len(rawData) == 0 or type(rawData[-1]) != list:
@@ -390,6 +391,8 @@ def processPolicyLog(policyLog):
                     askingHelpingByBusyness[lastBusyness]["correctRooms"].append(0)
             if lastAction == "ask" and logEntry["data"]["obs"]["robot_room_obs"] != "obs_human_helped":
                 numHelpsRejected += 1
+            if lastAction == "ask":
+                askData.append((int(1 if lastBusyness is None else lastBusyness), sum([1 if logEntry["data"]["obs"]["robot_did_ask_obs"][i] else 0 for i in range(5)])/5.0, 1 if logEntry["data"]["obs"]["robot_room_obs"] == "obs_human_helped" else 0))
             lastBusyness = logEntry["data"]["obs"]["human_busyness_obs"]
             rawData.append(logEntry["data"]["obs"])
         elif logEntry["type"] == "reward":
@@ -451,7 +454,7 @@ def processPolicyLog(policyLog):
         "pctHelpingRejected" : numHelpsRejected / episodeLength,
     }
 
-    return metricsRetval, rawData, randomEffectsVariances, askingHelpingByBusyness
+    return metricsRetval, rawData, randomEffectsVariances, askingHelpingByBusyness, askData
 
 
 def getAverageHelpRate(sequence):
@@ -1603,6 +1606,31 @@ def makePolicyGraphs(surveyData, descriptor=""):
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(baseDir + "policies_pct_asking{}.png".format(descriptor))
 
+    # Graph the Random Effect Variance
+    randomEffectVariances = []
+    for uuid in surveyData:
+        gid = surveyData[uuid]["gid"]
+        policy = gid_to_policy_descriptor[gid]
+        for i in range(len(surveyData[uuid]['policyResults']["randomEffectsVariances"])):
+            randomEffectVariances.append([policy, i+1, surveyData[uuid]['policyResults']["randomEffectsVariances"][i]])
+    randomEffectVariances = pd.DataFrame(randomEffectVariances, columns = ['Policy', 'Num Asks', 'Variance'])
+    fig, ax = plt.subplots(1, 1, figsize=(4,4))
+    fig.patch.set_facecolor('k')
+    sns.lineplot(data=randomEffectVariances, x="Num Asks", y="Variance", hue="Policy", ax=ax, palette = pal, hue_order=gid_to_policy_descriptor)
+    fig.suptitle("Random Effect Variance Over Num Asks")
+    ax.set_xlabel("Num Asks")
+    ax.set_ylabel("Random Effect Variance")
+    handles, labels = ax.get_legend_handles_labels()
+    l = ax.legend(handles=handles[0:], labels=labels[0:], loc='upper right')#, facecolor='k', edgecolor='darkgrey')
+    for text in l.get_texts():
+        text.set_color("k")
+    ax.xaxis.label.set_color('white')
+    ax.yaxis.label.set_color('white')
+    ax.tick_params(axis='x', colors='white')
+    ax.tick_params(axis='y', colors='white')
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(baseDir + "policies_random_effect_variance{}.png".format(descriptor))
+
     # Graph the survey question results
     surveyQuestionToPolicyToResponses = {}
 
@@ -1689,7 +1717,7 @@ def makePolicyGraphs(surveyData, descriptor=""):
     plt.savefig(baseDir + "gids{}.png".format(descriptor))
     plt.clf()
 
-def writeCSV(surveyData, taskDefinitions, filepath, numericFilepath, separatedByTaskIFilepath):
+def writeCSV(surveyData, taskDefinitions, filepath, numericFilepath, separatedByTaskIFilepath, askingDataFilepath):
     gid_to_policy_descriptor = ["Hybrid", "Contextual", "Individual"]
     header = [
         "User ID",
@@ -1877,6 +1905,27 @@ def writeCSV(surveyData, taskDefinitions, filepath, numericFilepath, separatedBy
                     writer.writerow(row)
                 i += 1
             print("wrote {} data rows".format(i))
+
+        header = [
+            "User ID",
+            "Policy",
+            "Busyness",
+            "Frequency",
+            "Human Response",
+        ]# + ["Human Response %d" % i for i in range(len(taskDefinitions[0]["robotActions"]))]
+        with open(askingDataFilepath, "w") as f:
+            writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
+            writer.writerow(header)
+            i = 0
+            for uuid in surveyData:
+                for busyness, frequency, humanResponse in surveyData[uuid]['policyResults']['askData']:
+                    row = []
+                    row.append(uuid)
+                    row.append(gid_to_policy_descriptor[surveyData[uuid]["gid"]])
+                    row.append((busyness-1)*0.4/5)
+                    row.append(frequency)
+                    row.append(humanResponse)
+                    writer.writerow(row)
 
         # numericHeader = ["Busyness", "Frequency", "Prosociality", "Willingness To Help"]
         # with open(numericFilepath, "w") as f:
@@ -2430,7 +2479,19 @@ if __name__ == "__main__":
                 print("UUID {} completed the survey but is not in uuidsToKeep".format(uuid))
         raise Exception("len(uuidsToKeep) = %d, len(surveyData) = %d" % (len(uuidsToKeep), len(surveyData)))
 
+    gidToUUIDs = {}
+    for uuid in surveyData:
+        gid = uuidToGID[uuid]
+        if gid not in gidToUUIDs:
+            gidToUUIDs[gid] = []
+        gidToUUIDs[gid].append(uuid)
+    raise Exception("gidToUUIDs", gidToUUIDs)
+
     # For each UUID, get the corresponding GID and gameLog
+    consentDurations = []
+    tutorialDurations = []
+    gameDurations = []
+    surveyDurations = []
     for uuid in surveyData:
         print("UUID", uuid)
         # try:
@@ -2461,7 +2522,7 @@ if __name__ == "__main__":
 
         policyLog = loadPolicyLog(policyFilepath)
         surveyData[uuid]["policyResults"] = {}
-        surveyData[uuid]["policyResults"]["metrics"], surveyData[uuid]["policyResults"]["rawData"], surveyData[uuid]["policyResults"]["randomEffectsVariances"], surveyData[uuid]["policyResults"]["metricsByBusyness"] = processPolicyLog(policyLog)
+        surveyData[uuid]["policyResults"]["metrics"], surveyData[uuid]["policyResults"]["rawData"], surveyData[uuid]["policyResults"]["randomEffectsVariances"], surveyData[uuid]["policyResults"]["metricsByBusyness"], surveyData[uuid]["policyResults"]["askData"] = processPolicyLog(policyLog)
         surveyData[uuid]["averageBusyness"] = 0.0
         for busyness in surveyData[uuid]["policyResults"]["metricsByBusyness"]:
             numTimesAtBusyness = len(surveyData[uuid]["policyResults"]["metricsByBusyness"][busyness]['asking'])
@@ -2496,10 +2557,29 @@ if __name__ == "__main__":
             print("uuid", uuid, "taskI", taskI, surveyData[uuid]["slownessesPerTask"], len(surveyData[uuid]["slownessesPerTask"]))
             surveyData[uuid]["Demography"]["Slowness"] += surveyData[uuid]["slownessesPerTask"][taskI]
         surveyData[uuid]["Demography"]["Slowness"] /= len(taskIForSlowness)
+
         getTimes(surveyData, uuid, baseDir)
+        consentDurations.append(surveyData[uuid]["tutorialTime"]-surveyData[uuid]["startTime"])
+        tutorialDurations.append(surveyData[uuid]["gameTime"]-surveyData[uuid]["tutorialTime"])
+        gameDurations.append(surveyData[uuid]["surveyTime"]-surveyData[uuid]["gameTime"])
+        surveyDurations.append(surveyData[uuid]["Demography"]["Survey Duration"])
+
         surveyData[uuid]["completionCode"] = uuidToCompletionID[str(uuid)] if str(uuid) in uuidToCompletionID else None
 
     pprint.pprint(surveyData)
+
+    consentDurations = np.array(consentDurations)
+    tutorialDurations = np.array(tutorialDurations)
+    gameDurations = np.array(gameDurations)
+    surveyDurations = np.array(surveyDurations)
+    print("Consent mean, sd, min, max", np.mean(consentDurations), np.std(consentDurations), np.amin(consentDurations), np.amax(consentDurations))
+    print("Tutorial mean, sd, min, max", np.mean(tutorialDurations), np.std(tutorialDurations), np.amin(tutorialDurations), np.amax(tutorialDurations))
+    print("Game mean, sd, min, max", np.mean(gameDurations), np.std(gameDurations), np.amin(gameDurations), np.amax(gameDurations))
+    print("Survey mean, sd, min, max", np.mean(surveyDurations), np.std(surveyDurations), np.amin(surveyDurations), np.amax(surveyDurations))
+    print("Consent quartiles", np.percentile(consentDurations, [0, 25, 50, 75, 100]))
+    print("Tutorial quartiles", np.percentile(tutorialDurations, [0, 25, 50, 75, 100]))
+    print("Game quartiles", np.percentile(gameDurations, [0, 25, 50, 75, 100]))
+    print("Survey quartiles", np.percentile(surveyDurations, [0, 25, 50, 75, 100]))
 
     # Analyze the busyness assignment distribution -- overall and within people
     overallBusynessDistribution = [0,0,0,0,0,0]
@@ -2580,7 +2660,7 @@ if __name__ == "__main__":
 
     print("gidListForTutorialOnlyHelping", gidListForTutorialOnlyHelping, repr(gidListForTutorialOnlyHelping))
 
-    writeCSV(surveyDataTutorialOnlyHelping, taskDefinitions, baseDir+"humanHelpUserStudyDataWithExclusion.csv", baseDir+"humanHelpUserStudyDataWithExclusionNumeric.csv", baseDir+"humanHelpUserStudyDataWithExclusion%d.csv")
+    writeCSV(surveyDataTutorialOnlyHelping, taskDefinitions, baseDir+"humanHelpUserStudyDataWithExclusion.csv", baseDir+"humanHelpUserStudyDataWithExclusionNumeric.csv", baseDir+"humanHelpUserStudyDataWithExclusion%d.csv", baseDir+"humanHelpUserStudyDataWithExclusionAskingData.csv")
     makePolicyGraphs(surveyDataTutorialOnlyHelping, "_tutorialOnlyHelping")
 
     # makeGraphs(surveyDataTutorialOnlyHelping, "_tutorialOnlyHelping")
