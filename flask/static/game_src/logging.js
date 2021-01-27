@@ -46,6 +46,7 @@ function getGameConfig(scene) {
   return {
     uuid:uuid,
     gid:gid,
+    order:order,
     start_time: scene.game.start_time,
     browserData: browserData ? browserData.parsedResult : null,
     // playerMsPerStep: playerMsPerStep,
@@ -58,6 +59,7 @@ function getGameState(scene, eventType, additionalData) {
     // User study details
     uuid:uuid,
     gid:gid,
+    order:order,
     // eventType
     eventType: eventType,
     // Game state
@@ -211,7 +213,7 @@ function loadUpdate(scene) {
           }
           break;
         case eventType.CLICK:
-          // We only have leadMe queries. 
+          // We only have leadMe queries.
           var queryType = "leadMe";//scene.game.tasks.robotActions[scene.game.robot.currentActionI].robotAction.query;
           console.log("click button", queryType, dataToLoad, dataToLoad[0].buttonName, helpRequestButtonCallbacks[queryType][dataToLoad[0].buttonName]);
           helpRequestButtonCallbacks[queryType][dataToLoad[0].buttonName](scene);
