@@ -11,7 +11,7 @@ function createTitleScreen(scene, callbackFunction) {
   scene.game.titleScreen.title = scene.add.text(
     scene.game.config.width/2,
     offset,
-    tutorial ? "Tutorial" : "Office Game",
+    tutorial ? "Tutorial" : "Office Game"+(order == "a" ? " #1" : " #2"),
     {
       font: "32px monospace",
       fill: "rgba(0, 0, 0, 1.0)",
