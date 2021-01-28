@@ -15,7 +15,7 @@ import time
 import pandas as pd
 import seaborn as sns
 sns.set(style="darkgrid", font="Palatino")
-mpl.rcParams['text.color'] = 'white'
+# mpl.rcParams['text.color'] = 'white'
 # sns.set(style="whitegrid")
 # sns.set_style("white")
 # sns.set(style="whitegrid",font_scale=2)
@@ -338,9 +338,9 @@ def processPolicyLog(policyLog):
     The metrics are:
         1) cumulative reward
         2) num correct rooms
-        3) pct asking
-        4) pct help received
-        5) pct help rejected
+        3) num asking
+        4) num help received
+        5) num help rejected
     """
     rawData = []
     randomEffectsVariances = []
@@ -449,9 +449,9 @@ def processPolicyLog(policyLog):
     metricsRetval = {
         "cumulativeReward" : cumulativeReward,
         "numCorrectRooms" : numCorrectRooms,
-        "pctAsking" : numAsks / episodeLength,
-        "pctHelping" : numHelps / episodeLength,
-        "pctHelpingRejected" : numHelpsRejected / episodeLength,
+        "numAsking" : numAsks,
+        "numHelping" : numHelps,
+        "numHelpingRejected" : numHelpsRejected,
     }
 
     return metricsRetval, rawData, randomEffectsVariances, askingHelpingByBusyness, askData
@@ -470,203 +470,159 @@ def processSurveyData(filepath):
     timeFormat = "%m/%d/%Y %H:%M:%S"
     timeCol = 0
     uuidCol = 1
-    likertQuestionsCols = {
-        "The robot was able to predict my general willingness to help it across the whole game." : 2,
-        "As the robot interacted with me more, it adapted to my behavior." : 3,
-        "When I said no, the robot adapted its behavior accordingly." : 4,
-        "The robot was mindful of how much time I had remaining for the task." : 5,
-        "The robot asked for help too frequently." : 6,
-        "The robot asked for help at appropriate times." : 7,
-        "The robot was annoying." : 8,
-        "The robot was likeable." : 9,
-        "The robot was competent." : 10,
-        "The robot was stubborn." : 11,
-        "The robot was curious." : 12,
-        "When the robot asked for help, I was willing to help it." : 13,
-        "I would be willing to help the robot in the future." : 14,
-        "The robot was polite." : 43,
-        "The robot inconvenienced me." : 44,
+    nasaTLXCols = {
+        "Mental Demand": 2,
+        "Physical Demand": 3,
+        "Temporal Demand": 4,
+        "Performance": 5,
+        "Effort": 6,
+        "Frustration": 7,
     }
-    surveyAttentionCheckCols = {
-        "Select \"Strongly Disagree\"" : 40,
-        "Select \"Strongly Agree\"" : 41,
-        "Select \"Neither Agree Nor Disagree\"" : 42,
+    rosasRawCols = {
+        "Reliable": 8,
+        "Competent": 9,
+        "Knowledgeable": 10,
+        "Interactive": 11,
+        "Responsive": 12,
+        "Capable": 13,
+        "Organic": 14,
+        "Sociable": 15,
+        "Emotional": 16,
+        "Compassionate": 17,
+        "Happy": 18,
+        "Feeling": 19,
+        "Awkward": 20,
+        "Scary": 21,
+        "Strange": 22,
+        "Awful": 23,
+        "Dangerous": 24,
+        "Aggressive": 25,
+        "Investigative": 26,
+        "Inquisitive": 27,
+        "Curious": 28,
     }
-    # nasaTLXCols = {
-    #     "Mental Demand": 2,
-    #     "Physical Demand": 3,
-    #     "Temporal Demand": 4,
-    #     "Performance": 5,
-    #     "Effort": 6,
-    #     "Frustration": 7,
-    # }
-    # rosasRawCols = {
-    #     "Reliable": 8,
-    #     "Competent": 9,
-    #     "Knowledgeable": 10,
-    #     "Interactive": 11,
-    #     "Responsive": 12,
-    #     "Capable": 13,
-    #     "Organic": 14,
-    #     "Sociable": 15,
-    #     "Emotional": 16,
-    #     "Compassionate": 17,
-    #     "Happy": 18,
-    #     "Feeling": 19,
-    #     "Awkward": 20,
-    #     "Scary": 21,
-    #     "Strange": 22,
-    #     "Awful": 23,
-    #     "Dangerous": 24,
-    #     "Aggressive": 25,
-    #     "Investigative": 26,
-    #     "Inquisitive": 27,
-    #     "Curious": 28,
-    # }
-    # rosasCols = {
-    #     "Competence" : range(8,14),
-    #     "Warmth" : range(14,20),
-    #     "Discomfort" : range(20,26),
-    #     "Curiosity" : range(26,29),
-    # }
+    rosasCols = {
+        "Competence" : range(8,14),
+        "Warmth" : range(14,20),
+        "Discomfort" : range(20,26),
+        "Curiosity" : range(26,29),
+    }
+    attentionCheckCols = {
+        "Somewhat disagree": 29,
+        "Strongly agree": 30,
+        "Definitely Robot #1 (Orange)": 44,
+        "Definitely Robot #2 (Purple)": 45,
+    }
+    robotComparisonCols = {
+        "Which robot asked for help more times?": 31,
+        "Which robot asked for help at more appropriate times?": 32,
+        "Which robot respected your time?": 33,
+        "Which robot did you prefer interacting with?": 34,
+        "Which robot would you be more willing to help?": 35,
+        "Which robot was more annoying?": 36,
+        "Which robot was more likeable?": 37,
+        "Which robot was more competent?": 38,
+        "Which robot was more stubborn?": 39,
+        "Which robot was more curious?": 40,
+        "Which robot was more polite?": 41,
+        "Which robot inconvenienced you more?": 42,
+        "Which robot would you be more willing to help in the future?": 43,
+        "Which robot was better at adapting its behavior to you as an individual?": 46,
+        "Which robot was better at adapting its behavior to the situation(s) you were in?": 47,
+        "Which robot did you help more?": 48,
+        "Which robot did you not help more (e.g. saying \"Can't Help\" or ignoring it)?": 49,
+    }
 
     openEndedCols = {
-        "In instances when the robot asked for help, why did you help or not help it?" : 15,
-        "Do you think the robot adapted its behavior to your context at the time(s) it asked for help? Why or why not?" : 16,
-        "Do you think the robot adapted its behavior to you as an individual? Why or why not?" : 17,
-        "When a robot needs help and there are multiple people around, how should it decide which person to ask for help?" : 18,
-        "Is there anything else you would like us to know?" : 19,
+        "In instances when the robot asked for help, why did you help or not help it?" : 50,
+        "What differences were there between Robot #1 (Orange) and Robot #2 (Purple)?" : 51,
+        "What do you think this study was about?" : 52,
+        "Are there any other thoughts you’d like to share with us? If so, please add them here." : 53,
     }
     demographicCols = {
-        "Prosociality" : range(20,36),
-        # "Navigational Ability" : range(49,56),
-        "Video Game Experience" : 36,
-        "Age" : 37,
-        "Gender" : 38,
+        "Video Game Experience" : 54,
+        "Age" : 55,
+        "Gender" : 56,
     }
     # Likert Scale Mappings
     likertQuestionsMapping = {
-        "Strongly Agree" : 5,
-        "Agree" : 4,
-        "Neither Agree Nor Disagree" : 3,
-        "Disagree" : 2,
-        "Strongly Disagree" : 1,
-        "" : None,
+        "Strongly agree" : 2,
+        "Somewhat agree" : 1,
+        "Neither agree nor disagree" : 0,
+        "Somewhat disagree" : -1,
+        "Strongly disagree" : -2,
     }
-    prosocialityMapping = {
-        "Never / Almost Never True" : 1,
-        "Occasionally True" : 2,
-        "Sometimes True" : 3,
-        "Often True" : 4,
-        "Always / Almost Always True" : 5,
+    robotComparisonMapping = {
+        "Definitely Robot #1 (Orange)" : -2,
+        "Somewhat Robot #1 (Orange)" : -1,
+        "Somewhat Robot #2 (Purple)" : 1,
+        "Definitely Robot #2 (Purple)" : 2,
     }
-    # navigationalAbilityMapping = {
-    #     "Not applicable to me" : 1,
-    #     "Seldom applicable to me" : 2,
-    #     "Sometimes applicable to me" : 3,
-    #     "Often applicable to me" : 4,
-    #     "Totally applicable to me" : 5,
-    # }
 
     processedData = {}
 
-    with open(filepath, "r") as f:
-        reader = csv.reader(f)
-        rowI = 0 # If the header row is 1, the second 501 is row 229
-        header = None
-        for row in reader:
-            rowI += 1
-            if header is None:
-                header = row
-                continue
-            if "9/11/2020 22:21:17" in row[timeCol]:
-                row[uuidCol] = 599
-            surveyCompletionTime = datetime.datetime.strptime(row[timeCol], "%m/%d/%Y %H:%M:%S").timestamp()
-            uuid = int(row[uuidCol])
-            if uuid == 1228:
-                continue
-            if uuid in processedData:
-                raise Exception("ERROR: UUID %d has multiple rows rowI %d" % (uuid, rowI))
-            processedData[uuid] = {
-                "surveyCompletionTime" : surveyCompletionTime,
-                # "NASA-TLX" : {},
-                # "RoSAS" : {},
-                # "RoSAS Raw" : {},
-                "Likert Questions" : {},
-                "Survey Attention Check" : {},
-                "Demography" : {},
-            }
-            # for nasaTLXHeading in nasaTLXCols:
-            #     processedData[uuid]["NASA-TLX"][nasaTLXHeading] = int(row[nasaTLXCols[nasaTLXHeading]])
-            # for rosasHeadingRaw, col in rosasRawCols.items():
-            #     processedData[uuid]["RoSAS Raw"][rosasHeadingRaw] = rosasMapping[row[col]]
-            for likertHeading, col in likertQuestionsCols.items():
-                processedData[uuid]["Likert Questions"][likertHeading] = likertQuestionsMapping[row[col]]
-            attentionCheckNumCorrect = 0
-            for attentionCheckHeading, col in surveyAttentionCheckCols.items():
-                response = likertQuestionsMapping[row[col]]
-                processedData[uuid]["Survey Attention Check"][attentionCheckHeading] = response
-                if "Strongly Disagree" in attentionCheckHeading:
-                    if response == 1: attentionCheckNumCorrect += 1
-                elif "Neither Agree Nor Disagree" in attentionCheckHeading:
-                    if response == 3: attentionCheckNumCorrect += 1
-                elif "Strongly Agree" in attentionCheckHeading:
-                    if response == 5: attentionCheckNumCorrect += 1
-                elif "Disagree" in attentionCheckHeading:
-                    if response == 2: attentionCheckNumCorrect += 1
-                elif "Agree" in attentionCheckHeading:
-                    if response == 4: attentionCheckNumCorrect += 1
-                else:
-                    raise Exception("unknown attentionCheckHeading", attentionCheckHeading)
-            processedData[uuid]["Attention Check Proportion"] = attentionCheckNumCorrect/len(surveyAttentionCheckCols)
-            # for rosasHeading in rosasCols:
-            #     total, num = 0, 0
-            #     for col in rosasCols[rosasHeading]:
-            #         total += rosasMapping[row[col]]
-            #         num += 1
-            #     processedData[uuid]["RoSAS"][rosasHeading] = total/num
-            openEndedLengths = []
-            for openEndedQ, openEndedCol in openEndedCols.items():
-                processedData[uuid][openEndedQ] = row[openEndedCol]
-                if openEndedCol != 19: # only count the required Qs
-                    openEndedLengths.append(len(row[openEndedCol]))
-            # Median
-            if (len(openEndedLengths) % 2 == 0):
-                openEndedLength = (openEndedLengths[(len(openEndedLengths)//2)-1]+openEndedLengths[(len(openEndedLengths)//2)])/2
-            else:
-                openEndedLength = openEndedLengths[(len(openEndedLengths)//2)]
-            # # Mean
-            # openEndedLength = sum(openEndedLengths)/len(openEndedLengths)
-            # # Max
-            # openEndedLength = max(openEndedLengths)
-            processedData[uuid]["Demography"]["Open Ended Length"] = openEndedLength
-            # rosasMean = sum(processedData[uuid]["RoSAS Raw"].values())/len(processedData[uuid]["RoSAS Raw"])
-            # rosasVariance = sum([(rosasMean-rosasVal)**2.0 for rosasVal in processedData[uuid]["RoSAS Raw"].values()])/len(processedData[uuid]["RoSAS Raw"])
-            # processedData[uuid]["Demography"]["RoSAS Variance"] = rosasVariance
-            for demographicHeading, demographicCol in demographicCols.items():
-                if demographicHeading == "Prosociality":
+    for surveyI in range(1,3):
+        with open(filepath%surveyI, "r") as f:
+            reader = csv.reader(f)
+            rowI = 0 # If the header row is 1
+            header = None
+            for row in reader:
+                rowI += 1
+                if header is None:
+                    header = row
+                    continue
+                # if "9/11/2020 22:21:17" in row[timeCol]:
+                #     row[uuidCol] = 599
+                surveyCompletionTime = datetime.datetime.strptime(row[timeCol], "%m/%d/%Y %H:%M:%S").timestamp()
+                uuid = int(row[uuidCol])
+                # if uuid == 1228:
+                #     continue
+                if uuid in processedData and "Survey%d"%surveyI in processedData[uuid]:
+                    raise Exception("ERROR: UUID %d has multiple rows rowI %d" % (uuid, rowI))
+                elif uuid not in processedData:
+                    processedData[uuid] = {}
+                processedData[uuid]["Survey%d"%surveyI] = {
+                    "surveyCompletionTime" : surveyCompletionTime,
+                    "NASA-TLX" : {},
+                    "RoSAS" : {},
+                    "RoSAS Raw" : {},
+                    "Attention Check": {},
+                }
+                for nasaTLXHeading in nasaTLXCols:
+                    processedData[uuid]["Survey%d"%surveyI]["NASA-TLX"][nasaTLXHeading] = int(row[nasaTLXCols[nasaTLXHeading]])
+                for rosasHeadingRaw, col in rosasRawCols.items():
+                    processedData[uuid]["Survey%d"%surveyI]["RoSAS Raw"][rosasHeadingRaw] = likertQuestionsMapping[row[col]]
+                for rosasHeading in rosasCols:
                     total, num = 0, 0
-                    for col in demographicCol:
-                        total += prosocialityMapping[row[col]]
+                    for col in rosasCols[rosasHeading]:
+                        total += likertQuestionsMapping[row[col]]
                         num += 1
-                    processedData[uuid]["Demography"][demographicHeading] = total/num
-                # elif demographicHeading == "Navigational Ability":
-                #     total, num = 0, 0
-                #     for col in demographicCol:
-                #         total += navigationalAbilityMapping[row[col]]
-                #         num += 1
-                #     processedData[uuid]["Demography"][demographicHeading] = total/num
-                else:
-                    try:
-                        val = int(row[demographicCol])
-                    except:
-                        val = row[demographicCol]
-                    processedData[uuid]["Demography"][demographicHeading] = val
+                    processedData[uuid]["Survey%d"%surveyI]["RoSAS"][rosasHeading] = total/num
+                numCorrectAttentionChecks, numTotalAttentionChecks = 0, 0
+                for attentionCheckAnswer, col in attentionCheckCols.items():
+                    if col < len(row):
+                        processedData[uuid]["Survey%d"%surveyI]["Attention Check"][attentionCheckAnswer] = row[col]
+                        numCorrectAttentionChecks += (1 if row[col] == attentionCheckAnswer else 0)
+                        numTotalAttentionChecks += 1
+                    processedData[uuid]["Survey%d"%surveyI]["Attention Check Total"] = numCorrectAttentionChecks/numTotalAttentionChecks
+                if surveyI == 2:
+                    processedData[uuid]["Survey%d"%surveyI]["Robot Comparison"] = {}
+                    for robotComparisonQ, col in robotComparisonCols.items():
+                        processedData[uuid]["Survey%d"%surveyI]["Robot Comparison"][robotComparisonQ] = robotComparisonMapping[row[col]]
+                    for openEndedQ, openEndedCol in openEndedCols.items():
+                        processedData[uuid]["Survey%d"%surveyI][openEndedQ] = row[openEndedCol]
+                    processedData[uuid]["Demography"] = {}
+                    for demographicHeading, demographicCol in demographicCols.items():
+                        try:
+                            val = int(row[demographicCol])
+                        except:
+                            val = row[demographicCol]
+                        processedData[uuid]["Demography"][demographicHeading] = val
 
     return processedData
 
 def getTimes(surveyData, uuid, baseDir):
-    for filename in ["startTime.txt", "tutorialTime.txt", "gameTime.txt", "surveyTime.txt", "endTime.txt"]:
+    for filename in ["startTime.txt", "tutorialTime.txt", "gameTime_a.txt", "gameTime_b.txt", "surveyTime_a.txt", "surveyTime_b.txt", "endTime.txt"]:
         try:
             with open(baseDir+"{}/".format(uuid)+filename, "r") as f:
                 timeFloat = float(f.read().strip())
@@ -674,8 +630,10 @@ def getTimes(surveyData, uuid, baseDir):
         except Exception as e:
             print(e)
             print(traceback.print_exc())
-    surveyElapsedSecs = surveyData[uuid]["surveyCompletionTime"]-surveyData[uuid]["surveyTime"]
-    surveyData[uuid]["Demography"]["Survey Duration"] = surveyElapsedSecs
+    survey1ElapsedSecs = surveyData[uuid]["Survey1"]["surveyCompletionTime"]-surveyData[uuid]["surveyTime_a"]
+    survey2ElapsedSecs = surveyData[uuid]["Survey2"]["surveyCompletionTime"]-surveyData[uuid]["surveyTime_b"]
+    surveyData[uuid]["Demography"]["Survey1 Duration"] = survey1ElapsedSecs
+    surveyData[uuid]["Demography"]["Survey2 Duration"] = survey2ElapsedSecs
     return
 
 def makeGraphs(surveyData, descriptor=""):
@@ -1229,483 +1187,274 @@ def makePolicyGraphs(surveyData, descriptor=""):
     metricToYLabel = {
         "cumulativeReward" : "Cumulative Reward",
         "numCorrectRooms" : "Num Correct Rooms",
-        "pctAsking" : "Proportion Of Episode",
-        "pctHelping" : "Proportion Of Episode",
-        "pctHelpingRejected" : "Proportion Of Episode",
-        "pctHelping_pctAsking" : "Proportion Succesful Asks",
         "numAsking" : "Num Asks",
         "numHelping" : "Num Help",
         "numHelpingRejected" : "Num Refused Help",
-        "averagePerformance" : "Average Performance",
-        "robotPerformance" : "Robot Performance",
-        "humanPerformance" : "Human Performance",
-        "rewardAdjusted" : "Reward Adjusted",
     }
 
     metricToTitle = {
         "cumulativeReward" : "Cumulative Reward Across Policies",
         "numCorrectRooms" : "Num Correct Rooms Across Policies",
-        "pctAsking" : "Proportion Asking Across Policies",
-        "pctHelping" : "Proportion Helping Across Policies",
-        "pctHelpingRejected" : "Proportion Refused Helping Across Policies",
-        "pctHelping_pctAsking" : "Proportion Succesful Asks Across Policies",
         "numAsking" : "Num Asks Across Policies",
         "numHelping" : "Num Help Across Policies",
         "numHelpingRejected" : "Num Refused Help Across Policies",
-        "averagePerformance" : "Average Performance Across Policies",
-        "robotPerformance" : "Robot Performance Across Policies",
-        "humanPerformance" : "Human Performance Across Policies",
-        "rewardAdjusted" : "Reward Adjusted Across Policies",
     }
-
-    # metricsToData = {
-    #     "cumulativeReward" : [[] for gid in range(numGIDs)],
-    #     "numCorrectRooms" : [[] for gid in range(numGIDs)],
-    #     "pctAsking" : [[] for gid in range(numGIDs)],
-    #     "pctHelping" : [[] for gid in range(numGIDs)],
-    # }
-    # gidToCumulativeRewards = [[] for gid in range(numGIDs)]
-    # gidToNumCorrectRooms = [[] for gid in range(numGIDs)]
-    # gidToPercentAsking = [[] for gid in range(numGIDs)]
-    # gidToPercentHelping = [[] for gid in range(numGIDs)]
 
     metricsToData = {
         "cumulativeReward" : [],
         "numCorrectRooms" : [],
-        "pctAsking" : [],
-        "pctHelping" : [],
-        "pctHelpingRejected" : [],
-        "pctHelping_pctAsking" : [],
-        "averagePerformance" : [],
-        "robotPerformance" : [],
-        "humanPerformance" : [],
-        "rewardAdjusted" : [],
+        "numAsking" : [],
+        "numHelping" : [],
+        "numHelpingRejected" : [],
     }
-    pctAskingHelping = []
-    numAskingHelping = []
+
+    metricsToDataPaired = {
+        "cumulativeReward" : [],
+        "numCorrectRooms" : [],
+        "numAsking" : [],
+        "numHelping" : [],
+        "numHelpingRejected" : [],
+    }
+
+    metricsToDataDifference = {
+        "cumulativeReward" : [],
+        "numCorrectRooms" : [],
+        "numAsking" : [],
+        "numHelping" : [],
+        "numHelpingRejected" : [],
+    }
+
+    forcedChoiceQData = []
+
+    rosasData = []
+    rosasDifferencesData = []
+
+    rosasRawData = {}
+    rosasRawDifferencesData = []
+
+    nasaTLXData = []
+    nasaTLXDifferencesData = []
+
+    policy0 = gid_to_policy_descriptor[gidsInComparison[0]]
+    policy1 = gid_to_policy_descriptor[gidsInComparison[1]]
+
+    askingData = []
     numAskingHelpingJitter = []
-    humanRobotPerformanceJitter = []
-    pctAskingHelpingOfAsking = []
-    pctAskingHelpingNoType = []
     jitterNoiseStd = 0.5
-    numAskingHelpingCountDict = {policy : {} for policy in gid_to_policy_descriptor}
     gids = []
     for uuid in surveyData:
-        gid = surveyData[uuid]["gid"]
-        gids.append(gid)
-        policy = gid_to_policy_descriptor[gid]
+        firstGID = surveyData[uuid]["firstGID"]
+        gids.append(firstGID)
+
         for metric in metricsToData:
-            if metric == "pctHelping_pctAsking":
-                if surveyData[uuid]["policyResults"]["metrics"]["pctAsking"] > 0.0:
-                    metricsToData[metric].append([policy, surveyData[uuid]["policyResults"]["metrics"]["pctHelping"]/surveyData[uuid]["policyResults"]["metrics"]["pctAsking"]])
-            else:
-                metricsToData[metric].append([policy, surveyData[uuid]["policyResults"]["metrics"][metric]])
-        pctAskingHelping.append([policy, surveyData[uuid]["policyResults"]["metrics"]["pctAsking"], "Asking"])
-        pctAskingHelping.append([policy, surveyData[uuid]["policyResults"]["metrics"]["pctHelping"], "Helping"])
-        pctAskingHelpingOfAsking.append([policy, surveyData[uuid]["policyResults"]["metrics"]["pctAsking"]+(random.random()-0.5)/20, (0 if surveyData[uuid]["policyResults"]["metrics"]["pctAsking"] == 0 else surveyData[uuid]["policyResults"]["metrics"]["pctHelping"]/surveyData[uuid]["policyResults"]["metrics"]["pctAsking"])+(random.random()-0.5)/20])
-        pctAskingHelpingNoType.append([policy, surveyData[uuid]["policyResults"]["metrics"]["pctAsking"]+(random.random()-0.5)/20, surveyData[uuid]["policyResults"]["metrics"]["pctHelping"]+(random.random()-0.5)/20])
-        numAskingHelping.append([policy, surveyData[uuid]["policyResults"]["metrics"]["pctAsking"]*20, surveyData[uuid]["policyResults"]["metrics"]["pctHelping"]*20])
-        # numAskingHelpingJitter.append([policy, surveyData[uuid]["policyResults"]["metrics"]["pctAsking"]*20+np.random.normal(loc=0, scale=jitterNoiseStd), surveyData[uuid]["policyResults"]["metrics"]["pctHelping"]*20+np.random.normal(loc=0, scale=jitterNoiseStd)])
-        numAskingHelpingJitter.append([policy, surveyData[uuid]["policyResults"]["metrics"]["pctAsking"]*20+(random.random()-0.5)*jitterNoiseStd, surveyData[uuid]["policyResults"]["metrics"]["pctHelping"]*20+(random.random()-0.5)*jitterNoiseStd])
-        humanRobotPerformanceJitter.append([policy, surveyData[uuid]["policyResults"]["metrics"]["humanPerformance"]+(random.random()-0.5)*jitterNoiseStd/20, surveyData[uuid]["policyResults"]["metrics"]["robotPerformance"]+(random.random()-0.5)*jitterNoiseStd/20])
-        numAskingHelpingVal = (surveyData[uuid]["policyResults"]["metrics"]["pctAsking"]*20, surveyData[uuid]["policyResults"]["metrics"]["pctHelping"]*20)
-        if numAskingHelpingVal not in numAskingHelpingCountDict[policy]:
-            numAskingHelpingCountDict[policy][numAskingHelpingVal] = 0
-        numAskingHelpingCountDict[policy][numAskingHelpingVal] += 1
-    metricsToData["numAsking"] = [[policy, p*20] for policy, p in metricsToData["pctAsking"]]
-    metricsToData["numHelping"] = [[policy, p*20] for policy, p in metricsToData["pctHelping"]]
-    metricsToData["numHelpingRejected"] = [[policy, p*20] for policy, p in metricsToData["pctHelpingRejected"]]
-    numAskingHelpingCount = []
-    for policy in numAskingHelpingCountDict:
-        for numAsking, numHelping in numAskingHelpingCountDict[policy]:
-            count = numAskingHelpingCountDict[policy][(numAsking, numHelping)]
-            numAskingHelpingCount.append([policy, numAsking, numHelping, count])
+            metricsToData[metric].append([policy0, surveyData[uuid][gidsInComparison[0]]["policyResults"]["metrics"][metric]])
+            metricsToData[metric].append([policy1, surveyData[uuid][gidsInComparison[1]]["policyResults"]["metrics"][metric]])
+
+            metricsToDataPaired[metric].append([surveyData[uuid][gidsInComparison[0]]["policyResults"]["metrics"][metric]+(random.random()-0.5)*jitterNoiseStd, surveyData[uuid][gidsInComparison[1]]["policyResults"]["metrics"][metric]+(random.random()-0.5)*jitterNoiseStd])
+
+        for metric in metricsToDataDifference:
+            metricsToDataDifference[metric].append([surveyData[uuid][gidsInComparison[0]]["policyResults"]["metrics"][metric] - surveyData[uuid][gidsInComparison[1]]["policyResults"]["metrics"][metric]])
+
+        numAskingHelpingJitter.append([policy0, surveyData[uuid][gidsInComparison[0]]["policyResults"]["metrics"]["numAsking"]+(random.random()-0.5)*jitterNoiseStd, surveyData[uuid][gidsInComparison[0]]["policyResults"]["metrics"]["numHelping"]+(random.random()-0.5)*jitterNoiseStd])
+        numAskingHelpingJitter.append([policy1, surveyData[uuid][gidsInComparison[1]]["policyResults"]["metrics"]["numAsking"]+(random.random()-0.5)*jitterNoiseStd, surveyData[uuid][gidsInComparison[1]]["policyResults"]["metrics"]["numHelping"]+(random.random()-0.5)*jitterNoiseStd])
+
+        for busyness in surveyData[uuid][gidsInComparison[0]]["policyResults"]["metricsByBusyness"]:
+            type = "asking"
+            for gid in gidsInComparison:
+                policy = gid_to_policy_descriptor[gid]
+                if len(surveyData[uuid][gid]["policyResults"]["metricsByBusyness"][busyness][type]) > 0:
+                    p = sum(surveyData[uuid][gid]["policyResults"]["metricsByBusyness"][busyness][type])/len(surveyData[uuid][gid]["policyResults"]["metricsByBusyness"][busyness][type])
+                    busynessFloat = (busyness-1)/5.0*0.4
+                    askingData.append([policy, busynessFloat, p])
+
+        for forcedChoiceQ in surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']:
+            forcedChoiceQData.append([forcedChoiceQ, surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison'][forcedChoiceQ]])
+
+
+        for rosasCategory in surveyData[uuid][0]['Survey']['RoSAS']:
+            for gid in gidsInComparison:
+                policy = gid_to_policy_descriptor[gid]
+                rosasData.append([policy+" "+rosasCategory, surveyData[uuid][gid]['Survey']['RoSAS'][rosasCategory]])
+            rosasDifferencesData.append([rosasCategory, surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS'][rosasCategory]-surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS'][rosasCategory]])
+
+        for rosasRawCategory in surveyData[uuid][0]['Survey']['RoSAS Raw']:
+            if rosasRawCategory not in rosasRawData:
+                rosasRawData[rosasRawCategory] = []
+            for gid in gidsInComparison:
+                policy = gid_to_policy_descriptor[gid]
+                rosasRawData[rosasRawCategory].append([policy, surveyData[uuid][gid]['Survey']['RoSAS Raw'][rosasRawCategory]])
+            rosasRawDifferencesData.append([rosasRawCategory, surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw'][rosasRawCategory]-surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw'][rosasRawCategory]])
+
+        for nasaTLXCategory in surveyData[uuid][0]['Survey']['NASA-TLX']:
+            for gid in gidsInComparison:
+                policy = gid_to_policy_descriptor[gid]
+                nasaTLXData.append([policy+" "+nasaTLXCategory, surveyData[uuid][gid]['Survey']['NASA-TLX'][nasaTLXCategory]])
+            nasaTLXDifferencesData.append([nasaTLXCategory, surveyData[uuid][gidsInComparison[0]]['Survey']['NASA-TLX'][nasaTLXCategory]-surveyData[uuid][gidsInComparison[1]]['Survey']['NASA-TLX'][nasaTLXCategory]])
+
     for metric in metricsToData:
         metricsToData[metric].sort(key=lambda x: gid_to_policy_descriptor.index(x[0]))
         metricsToData[metric] = pd.DataFrame(metricsToData[metric], columns = ['Policy', metric])
-    pctAskingHelping = pd.DataFrame(pctAskingHelping, columns = ['Policy', 'Proportion', 'Type'])
-    pctAskingHelpingOfAsking = pd.DataFrame(pctAskingHelpingOfAsking, columns = ['Policy', 'Pct Asking', 'Pct Helping'])
-    pctAskingHelpingNoType = pd.DataFrame(pctAskingHelpingNoType, columns = ['Policy', 'Pct Asking', 'Pct Helping'])
-    numAskingHelping = pd.DataFrame(numAskingHelping, columns = ['Policy', 'Num Asking', 'Num Helping'])
+        metricsToDataPaired[metric] = pd.DataFrame(metricsToDataPaired[metric], columns = [policy0+" "+metric, policy1+" "+metric])
+        metricsToDataDifference[metric] = pd.DataFrame(metricsToDataDifference[metric], columns = [policy0+" - "+policy1+" "+metric])
     numAskingHelpingJitter = pd.DataFrame(numAskingHelpingJitter, columns = ['Policy', 'Num Asking', 'Num Helping'])
-    humanRobotPerformanceJitter = pd.DataFrame(humanRobotPerformanceJitter, columns = ['Policy', 'Human Performance', 'Robot Performance'])
-    numAskingHelpingCount = pd.DataFrame(numAskingHelpingCount, columns = ['Policy', 'Num Asking', 'Num Helping', 'Count'])
+    askingData = pd.DataFrame(askingData, columns = ['Policy', 'Busyness', 'Proportion'])
+    forcedChoiceQData = pd.DataFrame(forcedChoiceQData, columns = ['Question', 'Value'])
+    rosasData = pd.DataFrame(rosasData, columns = ['Policy And RoSAS Category', 'Value'])
+    rosasDifferencesData = pd.DataFrame(rosasDifferencesData, columns = ['RoSAS Category', policy0+' - '+policy1])
+    for rosasRawCategory in rosasRawData:
+        rosasRawData[rosasRawCategory] = pd.DataFrame(rosasRawData[rosasRawCategory], columns = ['Policy', 'Value'])
+    rosasRawDifferencesData = pd.DataFrame(rosasRawDifferencesData, columns = ['RoSAS Raw Category', policy0+' - '+policy1])
+    nasaTLXData = pd.DataFrame(nasaTLXData, columns = ['Policy And NASA-TLX Category', 'Value'])
+    nasaTLXDifferencesData = pd.DataFrame(nasaTLXDifferencesData, columns = ['NASA-TLX Category', policy0+' - '+policy1])
 
     # Generate boxplots for each of the four metrics
     pal = [(77/255,175/255,74/255),(55/255,126/255,184/255),(228/255,26/255,28/255)]#sns.color_palette()#"tab10") # sns.color_palette(n_colors=3) # "colorblind" # "Set2"
     # pal = [pal[9], pal[3], pal[8]]
     sigma = 0.2
     for metric in metricsToData:
+        # Metrics By Policy RainCloud
         fig = plt.figure(figsize=(8,8))
         ax = fig.subplots(1, 1)
         fig.suptitle(metricToTitle[metric])
-
         pt.RainCloud(x = "Policy", y = metric, data = metricsToData[metric], palette = pal, bw = sigma,
                          width_viol = .6, ax = ax, orient = "h", order=gid_to_policy_descriptor)
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         plt.savefig(baseDir + "policy_{}_{}.png".format(metric, descriptor))
         plt.clf()
 
-    # Graph the num correct rooms, num asking, num helping, num helping rejected, on the same graph
-    fig = plt.figure(figsize=(12,6))
-    fig.patch.set_facecolor('k')
-    ax = fig.subplots(2, 2)
-    fig.suptitle("Policy Performance")
-    pt.RainCloud(x = "Policy", y = "numCorrectRooms", data = metricsToData["numCorrectRooms"], palette = pal, bw = sigma,
-                     width_viol = .6, ax = ax[0][0], orient = "h", order=gid_to_policy_descriptor)
-    ax[0][0].set_xlabel(metricToYLabel["numCorrectRooms"])
-    pt.RainCloud(x = "Policy", y = "numAsking", data = metricsToData["numAsking"], palette = pal, bw = sigma,
-                     width_viol = .6, ax = ax[0][1], orient = "h", order=gid_to_policy_descriptor)
-    ax[0][1].set_xlabel(metricToYLabel["numAsking"])
-    pt.RainCloud(x = "Policy", y = "numHelping", data = metricsToData["numHelping"], palette = pal, bw = sigma,
-                     width_viol = .6, ax = ax[1][0], orient = "h", order=gid_to_policy_descriptor)
-    ax[1][0].set_xlabel(metricToYLabel["numHelping"])
-    pt.RainCloud(x = "Policy", y = "numHelpingRejected", data = metricsToData["numHelpingRejected"], palette = pal, bw = sigma,
-                     width_viol = .6, ax = ax[1][1], orient = "h", order=gid_to_policy_descriptor)
-    ax[1][1].set_xlabel(metricToYLabel["numHelpingRejected"])
-    for i in range(2):
-        for j in range(2):
-            ax[i][j].xaxis.label.set_color('white')
-            ax[i][j].yaxis.label.set_color('white')
-            ax[i][j].tick_params(axis='x', colors='white')
-            ax[i][j].tick_params(axis='y', colors='white')
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "policy_combined_{}.png".format(descriptor))
-    plt.clf()
+        # Metrics Difference RainCloud
+        fig = plt.figure(figsize=(8,8))
+        ax = fig.subplots(1, 1)
+        fig.suptitle(metricToTitle[metric])
+        pt.RainCloud(y = policy0+" - "+policy1+" "+metric, data = metricsToDataDifference[metric], palette = pal, bw = sigma,
+                         width_viol = .6, ax = ax, orient = "h")
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        plt.savefig(baseDir + "policy_difference_{}_{}.png".format(metric, descriptor))
+        plt.clf()
 
-    # Graph the pctAsking and pctHelping on the same graph
-    fig = plt.figure(figsize=(8,8))
-    ax = fig.subplots(1, 1)
-    fig.suptitle("Proportion Asking / Helping Across Policies")
-    pt.RainCloud(x = "Policy", y = "Proportion", data = pctAskingHelping, palette = pal, bw = sigma, hue="Type", alpha=0.65, dodge=True,
-                     width_viol = .6, ax = ax, orient = "h", order=gid_to_policy_descriptor)
-    ax.set_xlim([0.0,1.0])
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "policy_pct_asking_helping_{}.png".format(descriptor))
-    plt.clf()
+        # Metrics Paired Scatterplot
+        fig = plt.figure(figsize=(8,8))
+        ax = fig.subplots(1, 1)
+        fig.suptitle(metricToTitle[metric])
+        sns.scatterplot(x = policy0+" "+metric, y = policy1+" "+metric, data = metricsToDataPaired[metric], palette = pal, alpha=1,
+                         ax = ax)
+        minXYLim = min(ax.get_xlim()[0], ax.get_ylim()[0])
+        maxXYLim = max(ax.get_xlim()[1], ax.get_ylim()[1])
+        ax.plot([minXYLim,maxXYLim], [minXYLim,maxXYLim], linewidth=2, linestyle='--', alpha=0.5)
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        plt.savefig(baseDir + "policy_paired_{}_{}.png".format(metric, descriptor))
+        plt.clf()
 
-    # Graph the numAsking and numHelping scatterplot
+    # Num Times Asked Helped Scatterplot
     fig = plt.figure(figsize=(4,4))
-    ax = fig.subplots(1, 1)
-    fig.suptitle("Num Asking / Helping Across Policies")
-    sns.scatterplot(x = "Num Asking", y = "Num Helping", data = numAskingHelping, palette = pal, hue="Policy", alpha=1,
-                     ax = ax, hue_order=gid_to_policy_descriptor)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "policy_num_asking_helping_{}.png".format(descriptor))
-    plt.clf()
-
-    fig = plt.figure(figsize=(4,4))
-    fig.patch.set_facecolor('k')
+    # fig.patch.set_facecolor('k')
     ax = fig.subplots(1, 1)
     fig.suptitle("Num Times Asked / Helped Across Policies")
     sns.scatterplot(x = "Num Asking", y = "Num Helping", data = numAskingHelpingJitter, palette = pal, hue="Policy", style="Policy", style_order=['Contextual', 'Individual', 'Hybrid'], alpha=1,
                      ax = ax, hue_order=gid_to_policy_descriptor)
     handles, labels = ax.get_legend_handles_labels()
-    l = ax.legend(handles=handles[1:], labels=labels[1:])#, facecolor='k', edgecolor='darkgrey')
-    for text in l.get_texts():
-        text.set_color("k")
+    l = ax.legend(handles=handles[0:], labels=labels[0:])#, facecolor='k', edgecolor='darkgrey')
+    # for text in l.get_texts():
+    #     text.set_color("k")
     ax.set_xlabel('Number of Times the Robot Asked')
     ax.set_ylabel('Number of Times the Human Helped')
     ax.plot([0,20], [0,20], linewidth=2, linestyle='--', alpha=0.5)
-    ax.xaxis.label.set_color('white')
-    ax.yaxis.label.set_color('white')
-    ax.tick_params(axis='x', colors='white')
-    ax.tick_params(axis='y', colors='white')
+    # ax.xaxis.label.set_color('white')
+    # ax.yaxis.label.set_color('white')
+    # ax.tick_params(axis='x', colors='white')
+    # ax.tick_params(axis='y', colors='white')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(baseDir + "policy_num_asking_helping_jitter_{}.png".format(descriptor))
     plt.clf()
 
-    fig = plt.figure(figsize=(6,4))
-    fig.patch.set_facecolor('k')
-    ax = fig.subplots(1, 1)
-    fig.suptitle("Human / Robot Performance")
-    sns.scatterplot(x = "Robot Performance", y = "Human Performance", data = humanRobotPerformanceJitter, palette = pal, hue="Policy", style="Policy", style_order=['Contextual', 'Individual', 'Hybrid'], alpha=1,
-                     ax = ax, hue_order=gid_to_policy_descriptor)
-    handles, labels = ax.get_legend_handles_labels()
-    l = ax.legend(handles=handles[:], labels=labels[:], bbox_to_anchor=(1.05, 1), loc='upper left')#, facecolor='k', edgecolor='darkgrey')
-    for text in l.get_texts():
-        text.set_color("k")
-    ax.set_xlabel('Robot Performance')
-    ax.set_ylabel('Human Performance')
-    ax.plot([0,1], [1,0], linewidth=2, linestyle='--', alpha=0.5)
-    ax.xaxis.label.set_color('white')
-    ax.yaxis.label.set_color('white')
-    ax.tick_params(axis='x', colors='white')
-    ax.tick_params(axis='y', colors='white')
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "policy_human_robot_performance_jitter_{}.png".format(descriptor))
-    plt.clf()
-
-    fig = plt.figure(figsize=(4,4))
-    ax = fig.subplots(1, 1)
-    fig.suptitle("Proportion Asked / Helped Across Policies")
-    sns.scatterplot(x = "Pct Asking", y = "Pct Helping", data = pctAskingHelpingOfAsking, palette = pal, hue="Policy", style="Policy", style_order=['Contextual', 'Individual', 'Hybrid'], alpha=1,
-                     ax = ax, hue_order=gid_to_policy_descriptor)
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles=handles[1:], labels=labels[1:])
-    ax.set_xlabel('Proportion of Times the Robot Asked')
-    ax.set_ylabel('Proportion of Times the Human Helped')
-    ax.plot([0,1], [1,1], linewidth=2, linestyle='--', alpha=0.5)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "policy_pct_asking_helping_jitter_{}.png".format(descriptor))
-    plt.clf()
-
-    fig = plt.figure(figsize=(4,4))
-    ax = fig.subplots(1, 1)
-    fig.suptitle("Proportion Asked / Helped Across Policies")
-    sns.scatterplot(x = "Pct Asking", y = "Pct Helping", data = pctAskingHelpingNoType, palette = pal, hue="Policy", style="Policy", style_order=['Contextual', 'Individual', 'Hybrid'], alpha=1,
-                     ax = ax, hue_order=gid_to_policy_descriptor)
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles=handles[1:], labels=labels[1:])
-    ax.set_xlabel('Proportion of Times the Robot Asked')
-    ax.set_ylabel('Proportion of Times the Human Helped')
-    ax.plot([0,1], [0,1], linewidth=2, linestyle='--', alpha=0.5)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "policy_pct_asking_helping_jitter_2_{}.png".format(descriptor))
-    plt.clf()
-
-    fig = plt.figure(figsize=(8,8))
-    ax = fig.subplots(1, 1)
-    fig.suptitle("Num Asking / Helping Across Policies")
-    sns.scatterplot(x = "Num Asking", y = "Num Helping", data = numAskingHelpingCount, palette = pal, hue="Policy", size="Count", alpha=1,
-                     ax = ax, hue_order=gid_to_policy_descriptor)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "policy_num_asking_helping_size_{}.png".format(descriptor))
-    plt.clf()
-
-    # Graph the combined Num Correct Rooms and Jitter Scatterplot Graph
-    fig = plt.figure(figsize=(6,4))
-    axes = fig.subplots(1, 2)
-
-    pt.RainCloud(x = "Policy", y = "numCorrectRooms", data = metricsToData["numCorrectRooms"], palette = pal, bw = sigma,
-                     width_viol = .6, ax = axes[0], orient = "h", order=gid_to_policy_descriptor)
-    axes[0].set_xlabel(metricToYLabel["numCorrectRooms"])
-
-    sns.scatterplot(x = "Num Asking", y = "Num Helping", data = numAskingHelpingJitter, palette = pal, hue="Policy", alpha=1,
-                     ax = axes[1], hue_order=gid_to_policy_descriptor)
-    axes[1].set_title("Num Asking / Helping Across Policies")
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    axes[1].plot([0,20], [0,20], linewidth=2, linestyle='--', alpha=0.5)
-    plt.savefig(baseDir + "policy_final_line_and_scatter{}.png".format(descriptor))
-    plt.clf()
-
-    # Graph the pct asking and pct helping by busyness
-    policyToBusynessToPctAskingHelping = {}
-    policyToBusynessToPctAskingHelpingMeans = {}
-    policyToBusynessToPctAskingHelpingErrs = {}
-    askingData = []
-    helpingData = []
-    numAskingData = []
-    numHelpingData = []
-    for uuid in surveyData:
-        gid = surveyData[uuid]["gid"]
-        policy = gid_to_policy_descriptor[gid]
-        if policy not in policyToBusynessToPctAskingHelping:
-            policyToBusynessToPctAskingHelping[policy] = {}
-            policyToBusynessToPctAskingHelpingMeans[policy] = {}
-            policyToBusynessToPctAskingHelpingErrs[policy] = {}
-        for busyness in surveyData[uuid]["policyResults"]["metricsByBusyness"]:
-            if busyness not in policyToBusynessToPctAskingHelping[policy]:
-                policyToBusynessToPctAskingHelping[policy][busyness] = {}
-                policyToBusynessToPctAskingHelpingMeans[policy][busyness] = {}
-                policyToBusynessToPctAskingHelpingErrs[policy][busyness] = {}
-            for type in surveyData[uuid]["policyResults"]["metricsByBusyness"][busyness]:
-                if type not in policyToBusynessToPctAskingHelping[policy][busyness]:
-                    policyToBusynessToPctAskingHelping[policy][busyness][type] = []
-                policyToBusynessToPctAskingHelping[policy][busyness][type].extend(surveyData[uuid]["policyResults"]["metricsByBusyness"][busyness][type])
-                if len(surveyData[uuid]["policyResults"]["metricsByBusyness"][busyness][type]) > 0:
-                    p = sum(surveyData[uuid]["policyResults"]["metricsByBusyness"][busyness][type])/len(surveyData[uuid]["policyResults"]["metricsByBusyness"][busyness][type])
-                    if type == "asking":
-                        busynessFloat = (busyness-1)/5.0*0.4
-                        askingData.append([policy, busynessFloat, p])
-                        numAskingData.append([policy, busynessFloat, p*20])
-                    elif type == "helping":
-                        helpingData.append([policy, busynessFloat, p])
-                        numHelpingData.append([policy, busynessFloat, p*20])
-
-    for policy in policyToBusynessToPctAskingHelping:
-        for busyness in policyToBusynessToPctAskingHelping[policy]:
-            for type in policyToBusynessToPctAskingHelping[policy][busyness]:
-                p = sum(policyToBusynessToPctAskingHelping[policy][busyness][type])/len(policyToBusynessToPctAskingHelping[policy][busyness][type])
-                policyToBusynessToPctAskingHelpingMeans[policy][busyness][type] = p
-                policyToBusynessToPctAskingHelpingErrs[policy][busyness][type] = (p*(1-p)/len(policyToBusynessToPctAskingHelping[policy][busyness][type]))**0.5
-    askingData = pd.DataFrame(askingData, columns = ['Policy', 'Busyness', 'Proportion'])
-    numAskingData = pd.DataFrame(numAskingData, columns = ['Policy', 'Busyness', 'Num'])
-    helpingData = pd.DataFrame(helpingData, columns = ['Policy', 'Busyness', 'Proportion'])
-    numHelpingData = pd.DataFrame(numHelpingData, columns = ['Policy', 'Busyness', 'Num'])
-
-    fig, axes = plt.subplots(1, len(policyToBusynessToPctAskingHelping), figsize=(16,8), sharey='row')
-    typeToColor = {
-        "asking" : [1.0,0.0,0.0],
-        "helping" : [0.0,0.0,1.0],
-    }
-    for i in range(len(axes)):
-        policy = gid_to_policy_descriptor[i]
-
-        xs = [busyness for busyness in policyToBusynessToPctAskingHelpingMeans[policy]]
-        ys = {
-            type : [policyToBusynessToPctAskingHelpingMeans[policy][busyness][type] for busyness in policyToBusynessToPctAskingHelpingMeans[policy]] for type in policyToBusynessToPctAskingHelpingMeans[policy][1]
-        }
-        errs = {
-            type : [policyToBusynessToPctAskingHelpingErrs[policy][busyness][type] for busyness in policyToBusynessToPctAskingHelpingErrs[policy]] for type in policyToBusynessToPctAskingHelpingErrs[policy][1]
-        }
-
-        for type in ["asking", "helping"]:
-            axes[i].plot(xs, ys[type], label=type, color=typeToColor[type])
-            axes[i].errorbar(xs, ys[type], yerr=errs[type], color=typeToColor[type], ecolor=typeToColor[type])
-        axes[i].set_ylim([0.0, 1.0])
-        axes[i].set_xlabel("Busyness")
-        axes[i].set_ylabel("Proportion of Episode")
-        axes[i].set_title(policy)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "policies_pct_asking_helping_{}.png".format(descriptor))
-    plt.clf()
-
-    fig, axes = plt.subplots(1, 2, figsize=(12,8), sharey='row')
-    sns.lineplot(data=askingData, x="Busyness", y="Proportion", hue="Policy", ax=axes[0], palette = pal)
-    axes[0].set_title("Proportion Asking By Busyness")
-    axes[0].set_ylabel("Proportion of Episode")
-    sns.lineplot(data=helpingData, x="Busyness", y="Proportion", hue="Policy", ax=axes[1], palette = pal)
-    axes[1].set_title("Proportion Helping By Busyness")
-    axes[1].set_ylabel("Proportion of Episode")
-    plt.savefig(baseDir + "policies_pct_asking_helping_2_{}.png".format(descriptor))
-
-    fig, axes = plt.subplots(1, 2, figsize=(12,8), sharey='row')
-    sns.lineplot(data=numAskingData, x="Busyness", y="Num", hue="Policy", ax=axes[0], palette = pal)
-    axes[0].set_title("Num Asking By Busyness")
-    axes[0].set_ylabel("Num Times Asked")
-    sns.lineplot(data=numHelpingData, x="Busyness", y="Num", hue="Policy", ax=axes[1], palette = pal)
-    axes[1].set_title("Num Helping By Busyness")
-    axes[1].set_ylabel("Num Times Helped")
-    plt.savefig(baseDir + "policies_num_asking_helping_2_{}.png".format(descriptor))
-
+    # Proportion of Times Asked By Busyness
     fig, ax = plt.subplots(1, 1, figsize=(4,4))
-    sns.lineplot(data=numAskingData, x="Busyness", y="Num", hue="Policy", ax=ax, palette = pal, hue_order=gid_to_policy_descriptor)
-    fig.suptitle("Number of Times Asked By Busyness")
-    ax.set_xlabel("Human Busyness")
-    ax.set_ylabel("Number of Times the Robot Asked")
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles=handles[1:], labels=labels[1:], loc='lower left')
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "policies_num_asking{}.png".format(descriptor))
-
-    fig, ax = plt.subplots(1, 1, figsize=(4,4))
-    fig.patch.set_facecolor('k')
+    # fig.patch.set_facecolor('k')
     sns.lineplot(data=askingData, x="Busyness", y="Proportion", hue="Policy", ax=ax, palette = pal, hue_order=gid_to_policy_descriptor)
     fig.suptitle("Proportion of Times Asked By Busyness")
     ax.set_xlabel("Human Busyness")
     ax.set_ylabel("Proportion of Times the Robot Asked")
     handles, labels = ax.get_legend_handles_labels()
-    l = ax.legend(handles=handles[1:], labels=labels[1:], loc='lower left')#, facecolor='k', edgecolor='darkgrey')
-    for text in l.get_texts():
-        text.set_color("k")
-    ax.xaxis.label.set_color('white')
-    ax.yaxis.label.set_color('white')
-    ax.tick_params(axis='x', colors='white')
-    ax.tick_params(axis='y', colors='white')
+    l = ax.legend(handles=handles[0:], labels=labels[0:], loc='lower left')#, facecolor='k', edgecolor='darkgrey')
+    # for text in l.get_texts():
+    #     text.set_color("k")
+    # ax.xaxis.label.set_color('white')
+    # ax.yaxis.label.set_color('white')
+    # ax.tick_params(axis='x', colors='white')
+    # ax.tick_params(axis='y', colors='white')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(baseDir + "policies_pct_asking{}.png".format(descriptor))
 
-    # Graph the Random Effect Variance
-    randomEffectVariances = []
-    for uuid in surveyData:
-        gid = surveyData[uuid]["gid"]
-        policy = gid_to_policy_descriptor[gid]
-        for i in range(len(surveyData[uuid]['policyResults']["randomEffectsVariances"])):
-            randomEffectVariances.append([policy, i+1, surveyData[uuid]['policyResults']["randomEffectsVariances"][i]])
-    randomEffectVariances = pd.DataFrame(randomEffectVariances, columns = ['Policy', 'Num Asks', 'Variance'])
-    fig, ax = plt.subplots(1, 1, figsize=(4,4))
-    fig.patch.set_facecolor('k')
-    sns.lineplot(data=randomEffectVariances, x="Num Asks", y="Variance", hue="Policy", ax=ax, palette = pal, hue_order=gid_to_policy_descriptor)
-    fig.suptitle("Random Effect Variance Over Num Asks")
-    ax.set_xlabel("Num Asks")
-    ax.set_ylabel("Random Effect Variance")
-    handles, labels = ax.get_legend_handles_labels()
-    l = ax.legend(handles=handles[0:], labels=labels[0:], loc='upper right')#, facecolor='k', edgecolor='darkgrey')
-    for text in l.get_texts():
-        text.set_color("k")
-    ax.xaxis.label.set_color('white')
-    ax.yaxis.label.set_color('white')
-    ax.tick_params(axis='x', colors='white')
-    ax.tick_params(axis='y', colors='white')
+    # Forced Choice Qs
+    fig = plt.figure(figsize=(16,8))
+    ax = fig.subplots(1, 1)
+    fig.suptitle("Forced Choice Questions")
+    pt.RainCloud(x = "Question", y = "Value", data = forcedChoiceQData, bw = sigma,
+                     width_viol = .6, ax = ax, orient = "h")
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(baseDir + "policies_random_effect_variance{}.png".format(descriptor))
+    plt.savefig(baseDir + "forced_choice_qs_{}.png".format(descriptor))
+    plt.clf()
 
-    # Graph the survey question results
-    surveyQuestionToPolicyToResponses = {}
+    # RoSAS Data
+    fig = plt.figure(figsize=(12,8))
+    ax = fig.subplots(1, 1)
+    fig.suptitle("RoSAS Results")
+    pt.RainCloud(x = "Policy And RoSAS Category", y = "Value", data = rosasData, bw = sigma,
+                     width_viol = .6, ax = ax, orient = "h")
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(baseDir + "rosas_data_{}.png".format(descriptor))
+    plt.clf()
 
-    for uuid in surveyData:
-        gid = surveyData[uuid]["gid"]
-        policy = gid_to_policy_descriptor[gid]
-        for likertQuestion in surveyData[uuid]["Likert Questions"]:
-            if likertQuestion not in surveyQuestionToPolicyToResponses:
-                surveyQuestionToPolicyToResponses[likertQuestion] = {}
-            if policy not in surveyQuestionToPolicyToResponses[likertQuestion]:
-                surveyQuestionToPolicyToResponses[likertQuestion][policy] = []
-            surveyQuestionToPolicyToResponses[likertQuestion][policy].append(surveyData[uuid]["Likert Questions"][likertQuestion])
+    # RoSAS Differences Data
+    fig = plt.figure(figsize=(12,8))
+    ax = fig.subplots(1, 1)
+    fig.suptitle("RoSAS Differences")
+    pt.RainCloud(x = "RoSAS Category", y = policy0+" - "+policy1, data = rosasDifferencesData, bw = sigma,
+                     width_viol = .6, ax = ax, orient = "h")
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(baseDir + "rosas_differences_data_{}.png".format(descriptor))
+    plt.clf()
 
-    surveyQuestionOrder = [
-        "The robot was able to predict my general willingness to help it across the whole game.",
-        "As the robot interacted with me more, it adapted to my behavior.",
-        "When I said no, the robot adapted its behavior accordingly.",
-        "The robot was mindful of how much time I had remaining for the task.",
-        "The robot asked for help too frequently.",
-        "The robot asked for help at appropriate times.",
-        "The robot was annoying.",
-        "The robot was likeable.",
-        "The robot was competent.",
-        "The robot was stubborn.",
-        "The robot was curious.",
-        "When the robot asked for help, I was willing to help it.",
-        "I would be willing to help the robot in the future.",
-        "The robot was polite.",
-        "The robot inconvenienced me.",
-    ]
-
-    for i in range(len(surveyQuestionOrder)):
-        likertQuestion = surveyQuestionOrder[i]
-        data = []
-        for policy in surveyQuestionToPolicyToResponses[likertQuestion]:
-            for val in surveyQuestionToPolicyToResponses[likertQuestion][policy]:
-                data.append([policy, val])
-        df = pd.DataFrame(data, columns = ['Policy', likertQuestion])
-
-        fig = plt.figure(figsize=(8,8))
+    # RoSAS Raw Data
+    for rosasRawCategory in rosasRawData:
+        fig = plt.figure(figsize=(12,8))
         ax = fig.subplots(1, 1)
-        fig.suptitle(likertQuestion)
-
-        pt.RainCloud(x = "Policy", y = likertQuestion, data = df, palette = pal, bw = sigma,
-                         width_viol = .6, ax = ax, orient = "h", order=gid_to_policy_descriptor)
+        fig.suptitle("RoSAS Results")
+        pt.RainCloud(x = "Policy", y = "Value", data = rosasRawData[rosasRawCategory], bw = sigma,
+                         width_viol = .6, ax = ax, orient = "h")
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        plt.savefig(baseDir + "survey_question_{}_{}.png".format(i, descriptor))
+        plt.savefig(baseDir + "rosas_raw_data+{}_{}.png".format(rosasRawCategory, descriptor))
         plt.clf()
 
-    # Demographic Factors
-    demographicFactors = ["Prosociality", "Video Game Experience", "Age", "Gender", "Survey Duration", "Open Ended Length", "tutorialOverallHelping", "Slowness"]
-    demography = {factor : [] for factor in demographicFactors}
-    for uuid in surveyData:
-        # Demographic Factors
-        for factor in demographicFactors:
-            if factor in surveyData[uuid]["Demography"]:
-                demography[factor].append(surveyData[uuid]["Demography"][factor])
-            else:
-                demography[factor].append(-100.0) # I am setting this at an absurd value so I remember that it is an easy fix and should be changed if I want proper graphs
-    for factor in demographicFactors:
-        fig = plt.figure()
-        ax = fig.subplots(1,2)
-        fig.suptitle('Demographic Makeup: '+factor)
-        ax[0].hist(demography[factor])
-        ax[0].set_xlabel(factor)
-        ax[0].set_ylabel("Count")
-        if factor in ["Prosociality", "Video Game Experience"]:
-            ax[0].set_xlim([0,5.5])
-        try:
-            ax[1].boxplot(demography[factor], showmeans=True)
-            ax[1].set_ylabel(factor)
-        except Exception as err:
-            pass
-        plt.savefig(baseDir + "%s%s.png" % (factor, descriptor))
-        plt.clf()
+    # RoSAS Raw Differences Data
+    fig = plt.figure(figsize=(12,8))
+    ax = fig.subplots(1, 1)
+    fig.suptitle("RoSAS Differences")
+    pt.RainCloud(x = "RoSAS Raw Category", y = policy0+" - "+policy1, data = rosasRawDifferencesData, bw = sigma,
+                     width_viol = .6, ax = ax, orient = "h")
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(baseDir + "rosas_raw_differences_data_{}.png".format(descriptor))
+    plt.clf()
+
+    # NASA-TLX Data
+    fig = plt.figure(figsize=(12,8))
+    ax = fig.subplots(1, 1)
+    fig.suptitle("NASA-TLX Results")
+    pt.RainCloud(x = "Policy And NASA-TLX Category", y = "Value", data = nasaTLXData, bw = sigma,
+                     width_viol = .6, ax = ax, orient = "h")
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(baseDir + "nasa_tlx_data_{}.png".format(descriptor))
+    plt.clf()
+
+    # NASA-TLX Differences Data
+    fig = plt.figure(figsize=(12,8))
+    ax = fig.subplots(1, 1)
+    fig.suptitle("NASA-TLX Differences")
+    pt.RainCloud(x = "NASA-TLX Category", y = policy0+" - "+policy1, data = nasaTLXDifferencesData, bw = sigma,
+                     width_viol = .6, ax = ax, orient = "h")
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(baseDir + "nasa_tlx_differences_data_{}.png".format(descriptor))
+    plt.clf()
 
     # GIDs
     fig = plt.figure()
@@ -1714,234 +1463,249 @@ def makePolicyGraphs(surveyData, descriptor=""):
     ax.hist(gids)
     ax.set_xlabel("Game ID")
     ax.set_ylabel("Count")
-    plt.savefig(baseDir + "gids{}.png".format(descriptor))
+    plt.savefig(baseDir + "gids_{}.png".format(descriptor))
     plt.clf()
 
-def writeCSV(surveyData, taskDefinitions, filepath, numericFilepath, separatedByTaskIFilepath, askingDataFilepath):
+def writeCSV(surveyData, taskDefinitions, filepath):
     gid_to_policy_descriptor = ["Hybrid", "Contextual", "Individual"]
     header = [
         "User ID",
-        "Policy",
-        "Cumulative Reward",
-        "Num Correct Rooms",
-        "Num Asking",
-        "Num Helping",
-        "Num Helping Rejected",
-        "Proportion Succesful Asking",
-        "Overall Willingness To Help",
-        "The robot was able to predict my general willingness to help it across the whole game.",
-        "As the robot interacted with me more, it adapted to my behavior.",
-        "When I said no, the robot adapted its behavior accordingly.",
-        "The robot was mindful of how much time I had remaining for the task.",
-        "The robot asked for help too frequently.",
-        "The robot asked for help at appropriate times.",
-        "The robot was annoying.",
-        "The robot was likeable.",
-        "The robot was competent.",
-        "The robot was stubborn.",
-        "The robot was curious.",
-        "When the robot asked for help, I was willing to help it.",
-        "I would be willing to help the robot in the future.",
-        "The robot was polite.",
-        "The robot inconvenienced me.",
-        "Select \"Strongly Disagree\"",
-        "Select \"Strongly Agree\"",
-        "Select \"Neither Agree Nor Disagree\"",
+        "First GID",
+        "Hybrid Cumulative Reward",
+        "Hybrid Num Correct Rooms",
+        "Hybrid Num Asking",
+        "Hybrid Num Helping",
+        "Hybrid Num Helping Rejected",
+        "Individual Cumulative Reward",
+        "Individual Num Correct Rooms",
+        "Individual Num Asking",
+        "Individual Num Helping",
+        "Individual Num Helping Rejected",
+
+        "Hybrid NASA TLX Mental Demand",
+        "Hybrid NASA TLX Physical Demand",
+        "Hybrid NASA TLX Temporal Demand",
+        "Hybrid NASA TLX Performance",
+        "Hybrid NASA TLX Effort",
+        "Hybrid NASA TLX Frustration",
+        "Individual NASA TLX Mental Demand",
+        "Individual NASA TLX Physical Demand",
+        "Individual NASA TLX Temporal Demand",
+        "Individual NASA TLX Performance",
+        "Individual NASA TLX Effort",
+        "Individual NASA TLX Frustration",
+
+        "Hybrid RoSAS Competence",
+        "Hybrid RoSAS Warmth",
+        "Hybrid RoSAS Discomfort",
+        "Hybrid RoSAS Curiosity",
+        "Individual RoSAS Competence",
+        "Individual RoSAS Warmth",
+        "Individual RoSAS Discomfort",
+        "Individual RoSAS Curiosity",
+
+        "Hybrid RoSAS Raw Reliable",
+        "Hybrid RoSAS Raw Competent",
+        "Hybrid RoSAS Raw Knowledgeable",
+        "Hybrid RoSAS Raw Interactive",
+        "Hybrid RoSAS Raw Responsive",
+        "Hybrid RoSAS Raw Capable",
+        "Hybrid RoSAS Raw Organic",
+        "Hybrid RoSAS Raw Sociable",
+        "Hybrid RoSAS Raw Emotional",
+        "Hybrid RoSAS Raw Compassionate",
+        "Hybrid RoSAS Raw Happy",
+        "Hybrid RoSAS Raw Feeling",
+        "Hybrid RoSAS Raw Awkward",
+        "Hybrid RoSAS Raw Scary",
+        "Hybrid RoSAS Raw Strange",
+        "Hybrid RoSAS Raw Awful",
+        "Hybrid RoSAS Raw Dangerous",
+        "Hybrid RoSAS Raw Aggressive",
+        "Hybrid RoSAS Raw Investigative",
+        "Hybrid RoSAS Raw Inquisitive",
+        "Hybrid RoSAS Raw Curious",
+        "Individual RoSAS Raw Reliable",
+        "Individual RoSAS Raw Competent",
+        "Individual RoSAS Raw Knowledgeable",
+        "Individual RoSAS Raw Interactive",
+        "Individual RoSAS Raw Responsive",
+        "Individual RoSAS Raw Capable",
+        "Individual RoSAS Raw Organic",
+        "Individual RoSAS Raw Sociable",
+        "Individual RoSAS Raw Emotional",
+        "Individual RoSAS Raw Compassionate",
+        "Individual RoSAS Raw Happy",
+        "Individual RoSAS Raw Feeling",
+        "Individual RoSAS Raw Awkward",
+        "Individual RoSAS Raw Scary",
+        "Individual RoSAS Raw Strange",
+        "Individual RoSAS Raw Awful",
+        "Individual RoSAS Raw Dangerous",
+        "Individual RoSAS Raw Aggressive",
+        "Individual RoSAS Raw Investigative",
+        "Individual RoSAS Raw Inquisitive",
+        "Individual RoSAS Raw Curious",
+
+        "Which robot asked for help more times?",
+        "Which robot asked for help at more appropriate times?",
+        "Which robot respected your time?",
+        "Which robot did you prefer interacting with?",
+        "Which robot would you be more willing to help?",
+        "Which robot was more annoying?",
+        "Which robot was more likeable?",
+        "Which robot was more competent?",
+        "Which robot was more stubborn?",
+        "Which robot was more curious?",
+        "Which robot was more polite?",
+        "Which robot inconvenienced you more?",
+        "Which robot would you be more willing to help in the future?",
+        "Which robot was better at adapting its behavior to you as an individual?",
+        "Which robot was better at adapting its behavior to the situation(s) you were in?",
+        "Which robot did you help more?",
+        "Which robot did you not help more (e.g. saying \"Can't Help\" or ignoring it)?",
+
         "In instances when the robot asked for help, why did you help or not help it?",
-        "Do you think the robot adapted its behavior to your context at the time(s) it asked for help? Why or why not?",
-        "Do you think the robot adapted its behavior to you as an individual? Why or why not?",
-        "When a robot needs help and there are multiple people around, how should it decide which person to ask for help?",
-        "Is there anything else you would like us to know?",
+        "What differences were there between Robot #1 (Orange) and Robot #2 (Purple)?",
+        "What do you think this study was about?",
+        "Are there any other thoughts you’d like to share with us? If so, please add them here.",
+
         "Age",
         "Gender",
-        "Prosociality",
         "Video Game Experience",
-        "Survey Duration",
-        "Slowness",
-        "Tutorial Overall Willingness to Help",
-        "Average Busyness",
-        "Human Score",
-        "Human Performance",
-        "Robot Performance",
-        "Average Performance",
-        "Reward Adjusted",
-        "User Took Break",
-        "Robot Asked on First Round",
-        "Human Helped on First Round",
-        "Human Busyness When Robot First Asked",
-        "Human Response When Robot First Asked",
-    ]# + ["Human Response %d" % i for i in range(len(taskDefinitions[0]["robotActions"]))]
+        "Survey1 Duration",
+        "Survey2 Duration",
+        "Hybrid Average Busyness",
+        "Individual Average Busyness",
+        "Hybrid Score",
+        "Individual Score",
+
+        "First Attention Check Total",
+        "Second Attention Check Total",
+    ]
     with open(filepath, "w") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
         writer.writerow(header)
         i = 0
         for uuid in surveyData:
             row = [uuid]
-            row.append(gid_to_policy_descriptor[surveyData[uuid]["gid"]])
-            row.append(surveyData[uuid]['policyResults']['metrics']['cumulativeReward'])
-            row.append(surveyData[uuid]['policyResults']['metrics']['numCorrectRooms'])
-            row.append(surveyData[uuid]['policyResults']['metrics']['pctAsking']*20)
-            row.append(surveyData[uuid]['policyResults']['metrics']['pctHelping']*20)
-            row.append(surveyData[uuid]['policyResults']['metrics']['pctHelpingRejected']*20)
-            if surveyData[uuid]['policyResults']['metrics']['pctAsking'] > 0.0:
-                row.append(surveyData[uuid]['policyResults']['metrics']['pctHelping']/surveyData[uuid]['policyResults']['metrics']['pctAsking'])
-            else:
-                row.append("")
-            row.append(surveyData[uuid]['helpGivingData']['overall'])
-            row.append(surveyData[uuid]['Likert Questions']['The robot was able to predict my general willingness to help it across the whole game.'])
-            row.append(surveyData[uuid]['Likert Questions']['As the robot interacted with me more, it adapted to my behavior.'])
-            row.append(surveyData[uuid]['Likert Questions']['When I said no, the robot adapted its behavior accordingly.'])
-            row.append(surveyData[uuid]['Likert Questions']['The robot was mindful of how much time I had remaining for the task.'])
-            row.append(surveyData[uuid]['Likert Questions']['The robot asked for help too frequently.'])
-            row.append(surveyData[uuid]['Likert Questions']['The robot asked for help at appropriate times.'])
-            row.append(surveyData[uuid]['Likert Questions']['The robot was annoying.'])
-            row.append(surveyData[uuid]['Likert Questions']['The robot was likeable.'])
-            row.append(surveyData[uuid]['Likert Questions']['The robot was competent.'])
-            row.append(surveyData[uuid]['Likert Questions']['The robot was stubborn.'])
-            row.append(surveyData[uuid]['Likert Questions']['The robot was curious.'])
-            row.append(surveyData[uuid]['Likert Questions']['When the robot asked for help, I was willing to help it.'])
-            row.append(surveyData[uuid]['Likert Questions']['I would be willing to help the robot in the future.'])
-            row.append(surveyData[uuid]['Likert Questions']['The robot was polite.'])
-            row.append(surveyData[uuid]['Likert Questions']['The robot inconvenienced me.'])
-            row.append(surveyData[uuid]['Survey Attention Check']['Select \"Strongly Disagree\"'])
-            row.append(surveyData[uuid]['Survey Attention Check']['Select \"Strongly Agree\"'])
-            row.append(surveyData[uuid]['Survey Attention Check']['Select \"Neither Agree Nor Disagree\"'])
-            row.append(surveyData[uuid]['In instances when the robot asked for help, why did you help or not help it?'].replace("\n", "\\n"))
-            row.append(surveyData[uuid]['Do you think the robot adapted its behavior to your context at the time(s) it asked for help? Why or why not?'].replace("\n", "\\n"))
-            row.append(surveyData[uuid]['Do you think the robot adapted its behavior to you as an individual? Why or why not?'].replace("\n", "\\n"))
-            row.append(surveyData[uuid]['When a robot needs help and there are multiple people around, how should it decide which person to ask for help?'].replace("\n", "\\n"))
-            row.append(surveyData[uuid]['Is there anything else you would like us to know?'].replace("\n", "\\n"))
+            row.append(surveyData[uuid]["firstGID"])
+
+            row.append(surveyData[uuid][0]['policyResults']['metrics']['cumulativeReward'])
+            row.append(surveyData[uuid][0]['policyResults']['metrics']['numCorrectRooms'])
+            row.append(surveyData[uuid][0]['policyResults']['metrics']['numAsking'])
+            row.append(surveyData[uuid][0]['policyResults']['metrics']['numHelping'])
+            row.append(surveyData[uuid][0]['policyResults']['metrics']['numHelpingRejected'])
+            row.append(surveyData[uuid][2]['policyResults']['metrics']['cumulativeReward'])
+            row.append(surveyData[uuid][2]['policyResults']['metrics']['numCorrectRooms'])
+            row.append(surveyData[uuid][2]['policyResults']['metrics']['numAsking'])
+            row.append(surveyData[uuid][2]['policyResults']['metrics']['numHelping'])
+            row.append(surveyData[uuid][2]['policyResults']['metrics']['numHelpingRejected'])
+
+            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Mental Demand'])
+            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Physical Demand'])
+            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Temporal Demand'])
+            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Performance'])
+            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Effort'])
+            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Frustration'])
+            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Mental Demand'])
+            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Physical Demand'])
+            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Temporal Demand'])
+            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Performance'])
+            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Effort'])
+            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Frustration'])
+
+            row.append(surveyData[uuid][0]['Survey']['RoSAS']['Competence'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS']['Warmth'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS']['Discomfort'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS']['Curiosity'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS']['Competence'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS']['Warmth'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS']['Discomfort'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS']['Curiosity'])
+
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Reliable'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Competent'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Knowledgeable'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Interactive'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Responsive'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Capable'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Organic'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Sociable'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Emotional'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Compassionate'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Happy'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Feeling'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Awkward'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Scary'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Strange'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Awful'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Dangerous'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Aggressive'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Investigative'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Inquisitive'])
+            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Curious'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Reliable'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Competent'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Knowledgeable'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Interactive'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Responsive'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Capable'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Organic'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Sociable'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Emotional'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Compassionate'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Happy'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Feeling'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Awkward'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Scary'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Strange'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Awful'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Dangerous'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Aggressive'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Investigative'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Inquisitive'])
+            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Curious'])
+
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot asked for help more times?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot asked for help at more appropriate times?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot respected your time?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot did you prefer interacting with?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot would you be more willing to help?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot was more annoying?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot was more likeable?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot was more competent?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot was more stubborn?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot was more curious?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot was more polite?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot inconvenienced you more?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot would you be more willing to help in the future?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot was better at adapting its behavior to you as an individual?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot was better at adapting its behavior to the situation(s) you were in?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot did you help more?'])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']["Which robot did you not help more (e.g. saying \"Can't Help\" or ignoring it)?"])
+
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']["In instances when the robot asked for help, why did you help or not help it?"])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']["What differences were there between Robot #1 (Orange) and Robot #2 (Purple)?"])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']["What do you think this study was about?"])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']["Are there any other thoughts you’d like to share with us? If so, please add them here."])
+
             row.append(surveyData[uuid]['Demography']['Age'])
             row.append(surveyData[uuid]['Demography']['Gender'])
-            row.append(surveyData[uuid]['Demography']['Prosociality'])
             row.append(surveyData[uuid]['Demography']['Video Game Experience'])
-            row.append(surveyData[uuid]['Demography']['Survey Duration'] if 'Survey Duration' in surveyData[uuid]['Demography'] else "")
-            row.append(surveyData[uuid]['Demography']['Slowness'])
-            row.append(surveyData[uuid]['Demography']['tutorialOverallHelping'])
-            row.append(surveyData[uuid]["averageBusyness"])
-            row.append(surveyData[uuid]["score"])
-            row.append(surveyData[uuid]["policyResults"]["metrics"]["humanPerformance"])
-            row.append(surveyData[uuid]["policyResults"]["metrics"]["robotPerformance"])
-            row.append(surveyData[uuid]["policyResults"]["metrics"]["averagePerformance"])
-            row.append(surveyData[uuid]["policyResults"]["metrics"]["rewardAdjusted"])
-            row.append(1 if surveyData[uuid]["userTookBreak"] else 0)
-            row.append(1 if surveyData[uuid]["policyResults"]["robotAskedOnFirstRound"] else 0)
-            row.append(1 if surveyData[uuid]["policyResults"]["humanHelpedOnFirstRound"] else 0)
-            row.append(surveyData[uuid]["policyResults"]["humanBusynessAtRobotFirstAsk"])
-            row.append(surveyData[uuid]["policyResults"]["humanHelpedAtRobotFirstAsk"])
-            # for i in range(len(taskDefinitions[0]["robotActions"])):
-            #     if surveyData[uuid]['humanHelpSequence']['robot interaction sequence'][i] is None:
-            #         response = None
-            #     else:
-            #         _, response = surveyData[uuid]['humanHelpSequence']['robot interaction sequence'][i]
-            #     if response is None:
-            #         if taskDefinitions[surveyData[uuid]["gid"]]["robotActions"][i]["robotAction"]["query"] == "walkPast":
-            #             row.append("ROBOT_NOT_ASK_CONDITION")
-            #         else:
-            #             row.append("NEVER_SAW_ROBOT")
-            #             print("Response none on not walkPast, uuid {}, i {}".format(uuid, i))
-            #     else:
-            #         row.append(response.name)
+            row.append(surveyData[uuid]['Demography']['Survey1 Duration'])
+            row.append(surveyData[uuid]['Demography']['Survey2 Duration'])
+            row.append(surveyData[uuid][0]["averageBusyness"])
+            row.append(surveyData[uuid][2]["averageBusyness"])
+            row.append(surveyData[uuid][0]["score"])
+            row.append(surveyData[uuid][2]["score"])
+
+            row.append(surveyData[uuid][surveyData[uuid]["firstGID"]]['Survey']["Attention Check Total"])
+            row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']["Attention Check Total"])
 
             writer.writerow(row)
             i += 1
         print("wrote {} data rows".format(i))
-
-        header = [
-            "User ID",
-            "Policy",
-            "Busyness",
-            "Num Correct Rooms",
-            "Num Asking",
-            "Num Helping",
-            "Overall Willingness To Help",
-            "Age",
-            "Gender",
-            "Prosociality",
-            "Video Game Experience",
-            "Survey Duration",
-            "Slowness",
-            "Tutorial Overall Willingness to Help",
-            "Average Busyness",
-        ]# + ["Human Response %d" % i for i in range(len(taskDefinitions[0]["robotActions"]))]
-        with open(numericFilepath, "w") as f:
-            writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
-            writer.writerow(header)
-            i = 0
-            for uuid in surveyData:
-                rowsToAppend = []
-                for busyness in surveyData[uuid]['policyResults']['metricsByBusyness']:
-                    row = [uuid]
-                    row.append(gid_to_policy_descriptor[surveyData[uuid]["gid"]])
-                    row.append((busyness-1)*0.4/5)
-                    row.append(sum(surveyData[uuid]['policyResults']['metricsByBusyness'][busyness]['correctRooms']))
-                    row.append(sum(surveyData[uuid]['policyResults']['metricsByBusyness'][busyness]['asking']))
-                    row.append(sum(surveyData[uuid]['policyResults']['metricsByBusyness'][busyness]['helping']))
-                    row.append(surveyData[uuid]['helpGivingData']['overall'])
-                    row.append(surveyData[uuid]['Demography']['Age'])
-                    row.append(surveyData[uuid]['Demography']['Gender'])
-                    row.append(surveyData[uuid]['Demography']['Prosociality'])
-                    row.append(surveyData[uuid]['Demography']['Video Game Experience'])
-                    row.append(surveyData[uuid]['Demography']['Survey Duration'] if 'Survey Duration' in surveyData[uuid]['Demography'] else "")
-                    row.append(surveyData[uuid]['Demography']['Slowness'])
-                    row.append(surveyData[uuid]['Demography']['tutorialOverallHelping'])
-                    row.append(surveyData[uuid]["averageBusyness"])
-                    # for i in range(len(taskDefinitions[0]["robotActions"])):
-                    #     if surveyData[uuid]['humanHelpSequence']['robot interaction sequence'][i] is None:
-                    #         response = None
-                    #     else:
-                    #         _, response = surveyData[uuid]['humanHelpSequence']['robot interaction sequence'][i]
-                    #     if response is None:
-                    #         if taskDefinitions[surveyData[uuid]["gid"]]["robotActions"][i]["robotAction"]["query"] == "walkPast":
-                    #             row.append("ROBOT_NOT_ASK_CONDITION")
-                    #         else:
-                    #             row.append("NEVER_SAW_ROBOT")
-                    #             print("Response none on not walkPast, uuid {}, i {}".format(uuid, i))
-                    #     else:
-                    #         row.append(response.name)
-                    rowsToAppend.append(row)
-
-                for row in rowsToAppend:
-                    writer.writerow(row)
-                i += 1
-            print("wrote {} data rows".format(i))
-
-        header = [
-            "User ID",
-            "Policy",
-            "Busyness",
-            "Frequency",
-            "Human Response",
-        ]# + ["Human Response %d" % i for i in range(len(taskDefinitions[0]["robotActions"]))]
-        with open(askingDataFilepath, "w") as f:
-            writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
-            writer.writerow(header)
-            i = 0
-            for uuid in surveyData:
-                for busyness, frequency, humanResponse in surveyData[uuid]['policyResults']['askData']:
-                    row = []
-                    row.append(uuid)
-                    row.append(gid_to_policy_descriptor[surveyData[uuid]["gid"]])
-                    row.append((busyness-1)*0.4/5)
-                    row.append(frequency)
-                    row.append(humanResponse)
-                    writer.writerow(row)
-
-        # numericHeader = ["Busyness", "Frequency", "Prosociality", "Willingness To Help"]
-        # with open(numericFilepath, "w") as f:
-        #     writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
-        #     writer.writerow(numericHeader)
-        #     i = 0
-        #     for uuid in surveyData:
-        #         for busyness in surveyData[uuid]['helpGivingData']:
-        #             if busyness == "overall" or busyness == "robot interaction sequence": continue
-        #             # print("saving numeric CSV UUID {} busyness {} surveyData[uuid]['helpGivingData'] {}".format(uuid, busyness, surveyData[uuid]['helpGivingData']))
-        #             row = [
-        #                 busyness,
-        #                 (surveyData[uuid]["gid"]+1)/5.0, float(surveyData[uuid]['Demography']['Prosociality']),
-        #                 float(surveyData[uuid]['helpGivingData'][busyness]),
-        #             ]
-        #             writer.writerow(row)
 
 def responseCountByType(surveyData):
     responsesToCount = {response : 0 for response in ResponseToHelpQuery}
@@ -2380,7 +2144,7 @@ def getHumanPerformance(humanDidArriveOnTime):
 if __name__ == "__main__":
     numGIDs = 3
 
-    baseDir = "../flask/ec2_outputs_evaluation/"
+    baseDir = "../flask/ec2_outputs_evaluation_2021/"
     # baseDir = "../flask/finalData/friendsData/"
     # baseDir = "../flask/finalData/pilot3/"
 
@@ -2394,72 +2158,41 @@ if __name__ == "__main__":
     completedGIDsFilename = "completedGIDs.json"
     with open(baseDir+completedGIDsFilename, "r") as f:
         completedGameIDs = json.load(f)
+    completedGameIDs["2"].append(2028)
     print("completedGameIDs", completedGameIDs)
     uuidToGID = {}
     for gid in completedGameIDs:
         for uuid in completedGameIDs[gid]:
             uuidToGID[int(uuid)] = int(gid)
-    # completed the game and survey but did not get a completion code
-    uuidToGID[862] = 1
-    uuidToGID[1384] = 0
-    uuidToGID[1335] = 2
-    uuidToGID[1321] = 0 # refreshed the game at some point
-    uuidToGID[1487] = 2
-    uuidToGID[1497] = 2
-    # Fix the case where two users were assigned 966
-    uuidToGID[966] = 1
-    uuidToGID[599] = 2
 
     # raise Exception()
 
-    surveyData = processSurveyData(baseDir + "Human Help Evaluation Study Survey (Responses) - Form Responses 1.csv")
-    # surveyData = {630:{"Demography":{}}, 631:{"Demography":{}}, 633:{"Demography":{}}, 635:{"Demography":{}}, 636:{"Demography":{}}, 638:{"Demography":{}}}
+    surveyData = processSurveyData(baseDir + "Human Help Evaluation Study 2021 Survey#%d (Responses) - Form Responses 1.csv")
+    # print("surveyData")
+    # pprint.pprint(surveyData)
+    # raise Exception()
+
+    # NOTE: I don't believe this is still applicable now that the task sequence
+    # is different for the evaluation
     taskDefinitions = {}
     for gid in range(numGIDs):
         filepath = "../flask/assets/tasks/{}.json".format(gid)
         taskDefinitions[gid] = loadTaskDefinitionFile(filepath)
     addMinTaskTime(taskDefinitions, "../flask/assets/min_task_time.json")
 
-    print("taskDefinitions")
-    pprint.pprint(taskDefinitions)
+    # print("taskDefinitions")
+    # pprint.pprint(taskDefinitions)
 
     tutorialTaskDefinition = loadTaskDefinitionFile("../flask/assets/tasks/tutorial.json")
 
     uuidsToKeep = []
 
-    # uuidsToKeep += [630, 631, 633, 635, 636, 638] # pilot 1
-    # uuidsToKeep += [641, 649] # pilot 2
-
-    # uuidsToKeep += [691,668,702,664,684,671,656,666] # eval 4
-    # uuidsToKeep += [686,696,705,673,703,655,672,654,683] # eval 5
-    # uuidsToKeep += [709,720,752,735,765,808] # eval 6
-    # uuidsToKeep += [794,756,742,783,812,803,889,862] # eval 7
-    # uuidsToKeep += [874,876,843,904,948,902,835] # eval 8
-    # uuidsToKeep += [861,894,909,973,836,911,858] # eval 9
-    # uuidsToKeep += [850,873,880,906,959,881] # eval 10 # 966 is a special case where two players were assigned the same GID, one is reassigned to 599
-    # uuidsToKeep += [867,878,954,839,845,942,857,977] # eval 11
-    # uuidsToKeep += [980,1068,1024,1058,1063,986,1025,1050]# Eval 12
-    # uuidsToKeep += [1023,993,988,1041,1046,995,1008]# Eval 13
-    # uuidsToKeep += [1163,1122,1133,1159,1082,1145,1142,1124] # eval 14
-    # uuidsToKeep += [1113,1175,1092,1099,1076,1139,1073,1090,1116] # eval 15
-    # uuidsToKeep += [1150,1093,1071,1151,1126,1164] # eval 16
-    # uuidsToKeep += [1177,1256,1265,1206,1254,1218] # eval 17
-    # uuidsToKeep += [1211,1225,1209,1261,1243,1230] # eval 18
-    # uuidsToKeep += [1236,1234,1244,1237,1260,1263,1213,1199,1220] # eval 19
-
-    # Only took the first 37 of the 39 for GID 1, to stay within budget and because the difference between 39 and 37 people is not much from a significance perspective.
-    # When I had decided on 39, it is because I thought I was using ANOVA and needed 39 to achieve significance. Now, with GLMM, 39 is too many people, so might as well save money and time by not running unnecessary experiments
-    uuidsToKeep += [655, 664, 671, 696, 703, 720, 752, 783, 808, 835, 850, 862, 867, 878, 880, 902, 906, 942, 993, 986, 995, 1024, 1023, 1058, 1063, 1082, 1093, 1124, 1116, 1145, 1151, 1163, 1175, 1211, 1218, 1225, 1234]#, 1254, 1260] # GID 1 UUIDs that we unaffected by the belief bug
-    uuidsToKeep += [1301,1357,1372,1386,1351,1376] # eval 20
-    uuidsToKeep += [1303,1309,1294,1341,1407,1398,1274] # eval 21
-    uuidsToKeep += [1288,1368,1322,1352,1345,1321,1349,1280] # eval 22 # 1384 only has 19 policy logs (skipped actionI 18)
-    uuidsToKeep += [1337,1342,1335,1382,1394,1355,1281] # eval 23
-    uuidsToKeep += [1435,1441,1445,1423,1426,1431,1422,1448,1429] # eval 24
-    uuidsToKeep += [1436,1437,1424,1439,1433,1444,1443,1442] # eval 25 # 1449 skipped some policy logs
-    uuidsToKeep += [1453,1460,1473,1469,1461,1472,1457,1477,1487] # eval 26
-    uuidsToKeep += [1478,1483,1485,1464,1481,1451,1480,1466,1497] # eval 27
-    uuidsToKeep += [1512,1542,1491,1539,1502] # eval 28
-    uuidsToKeep += [1521,1533,1543,1514,1500,1510,1513] # eval 29
+    gidsInComparison = [0, 2] # 0 must be first, since in the difference I take the first GID minus the second
+    comparisonDescriptor = "Hybrid_vs_Individual"
+    # uuidsToKeep += [2004] # amal test
+    uuidsToKeep += [2006, 2008, 2016, 2021, 2028, 2036] # eval 1
+    uuidsToKeep += [2038, 2040] # eval 2
+    uuidsToKeep += [2042, 2043, 2046, 2048, 2051, 2055, 2061, 2060, 2058] # need to categorize into evals
 
     # Remove the UUIDs of people who filled out the survey but are not actual datapoints
     uuidsToDel = []
@@ -2485,250 +2218,119 @@ if __name__ == "__main__":
         if gid not in gidToUUIDs:
             gidToUUIDs[gid] = []
         gidToUUIDs[gid].append(uuid)
-    raise Exception("gidToUUIDs", gidToUUIDs)
+    # raise Exception("gidToUUIDs", gidToUUIDs)
 
     # For each UUID, get the corresponding GID and gameLog
     consentDurations = []
     tutorialDurations = []
-    gameDurations = []
-    surveyDurations = []
+    game1Durations = []
+    survey1Durations = []
+    game2Durations = []
+    survey2Durations = []
+    firstGIDToUUIDs = {gid:[] for gid in gidsInComparison}
     for uuid in surveyData:
         print("UUID", uuid)
-        # try:
-        gid = uuidToGID[uuid]
-        # except Exception as err:
-        #     for filename in os.listdir(baseDir + "{}/".format(uuid)):
-        #         if "_data" in filename and "tutorial" not in filename:
-        #             gid = int(filename[0])
-        if uuid == 1483:
-            filename = "{}_data_fixed.json".format(gid)
-        else:
+
+        firstGID = uuidToGID[uuid]
+        firstGIDToUUIDs[firstGID].append(uuid)
+        secondGID = gidsInComparison[1] if firstGID==gidsInComparison[0] else gidsInComparison[0]
+        surveyData[uuid]["firstGID"] = firstGID
+        surveyData[uuid]["secondGID"] = secondGID
+
+        # Reverse the Robot Comparison Qs if firstGID is Hybrid (so Hybrid is always positive)
+        if firstGID == 0:
+            for robotComparisonQ in surveyData[uuid]["Survey2"]["Robot Comparison"]:
+                surveyData[uuid]["Survey2"]["Robot Comparison"][robotComparisonQ] *= -1
+
+        tutorialLog = loadGameLog(baseDir + "{}/0_tutorial_data.json".format(uuid))
+        tutorialHelpGivingData, tutorialHumanHelpSequence, _, _, _, _ = processGameLog(tutorialLog, tutorialTaskDefinition)
+        surveyData[uuid]["Demography"]["tutorialOverallHelping"] = tutorialHelpGivingData["overall"]
+
+        for gid in gidsInComparison:
+            surveyData[uuid][gid] = {}
+
             filename = "{}_data.json".format(gid)
-        surveyData[uuid]["gid"] = gid
+            gameLog = loadGameLog(baseDir + "{}/{}".format(uuid, filename))
 
-        if uuid not in [966, 599]:
-            tutorialLog = loadGameLog(baseDir + "{}/0_tutorial_data.json".format(uuid))
-            tutorialHelpGivingData, tutorialHumanHelpSequence, _, _, _, _ = processGameLog(tutorialLog, tutorialTaskDefinition)
-            surveyData[uuid]["Demography"]["tutorialOverallHelping"] = tutorialHelpGivingData["overall"]
-        else:
-            surveyData[uuid]["Demography"]["tutorialOverallHelping"] = 999
+            policyFilepath = baseDir + "{}/{}_policy_output.json".format(uuid, gid)
 
-        gameLog = loadGameLog(baseDir + "{}/{}".format(966 if uuid == 599 else uuid, filename))
+            policyLog = loadPolicyLog(policyFilepath)
+            surveyData[uuid][gid]["policyResults"] = {}
+            surveyData[uuid][gid]["policyResults"]["metrics"], surveyData[uuid][gid]["policyResults"]["rawData"], surveyData[uuid][gid]["policyResults"]["randomEffectsVariances"], surveyData[uuid][gid]["policyResults"]["metricsByBusyness"], surveyData[uuid][gid]["policyResults"]["askData"] = processPolicyLog(policyLog)
+            surveyData[uuid][gid]["averageBusyness"] = 0.0
+            for busyness in surveyData[uuid][gid]["policyResults"]["metricsByBusyness"]:
+                numTimesAtBusyness = len(surveyData[uuid][gid]["policyResults"]["metricsByBusyness"][busyness]['asking'])
+                surveyData[uuid][gid]["averageBusyness"] += busyness*numTimesAtBusyness/20.0
 
-        if (uuid <= 705 and uuid != 599) or uuid == 1483 :
-            policyFilepath = baseDir + "{}/{}_policy_output_fixed.json".format(uuid, gid)
-        else:
-            policyFilepath = baseDir + "{}/{}_policy_output.json".format(966 if uuid == 599 else uuid, gid)
+            surveyData[uuid][gid]["helpGivingData"], surveyData[uuid][gid]["humanHelpSequence"], surveyData[uuid][gid]["slownessesPerTask"], surveyData[uuid][gid]["score"], surveyData[uuid][gid]["humanDidArriveOnTime"], surveyData[uuid][gid]["userTookBreak"] = processGameLog(gameLog, taskDefinitions[gid])#, afterTaskI=6)
+            # surveyData[uuid][gid]["policyResults"]["metrics"]["humanPerformance"] = getHumanPerformance(surveyData[uuid][gid]["humanDidArriveOnTime"])/20 # surveyData[uuid][gid]["score"]/280
+            # surveyData[uuid][gid]["policyResults"]["metrics"]["robotPerformance"] = surveyData[uuid][gid]['policyResults']['metrics']['numCorrectRooms']/20
+            # surveyData[uuid][gid]["policyResults"]["metrics"]["averagePerformance"] = 0.5*surveyData[uuid][gid]["policyResults"]["metrics"]["humanPerformance"] + 0.5*surveyData[uuid][gid]["policyResults"]["metrics"]["robotPerformance"]
+            # surveyData[uuid][gid]["policyResults"]["metrics"]["rewardAdjusted"] = surveyData[uuid][gid]["policyResults"]["metrics"]["numCorrectRooms"] - 0.5*surveyData[uuid][gid]['policyResults']['metrics']['pctAsking']*20
 
-        policyLog = loadPolicyLog(policyFilepath)
-        surveyData[uuid]["policyResults"] = {}
-        surveyData[uuid]["policyResults"]["metrics"], surveyData[uuid]["policyResults"]["rawData"], surveyData[uuid]["policyResults"]["randomEffectsVariances"], surveyData[uuid]["policyResults"]["metricsByBusyness"], surveyData[uuid]["policyResults"]["askData"] = processPolicyLog(policyLog)
-        surveyData[uuid]["averageBusyness"] = 0.0
-        for busyness in surveyData[uuid]["policyResults"]["metricsByBusyness"]:
-            numTimesAtBusyness = len(surveyData[uuid]["policyResults"]["metricsByBusyness"][busyness]['asking'])
-            surveyData[uuid]["averageBusyness"] += busyness*numTimesAtBusyness/20.0
+            surveyData[uuid][gid]["policyResults"]["robotAskedOnFirstRound"] = (surveyData[uuid][gid]["policyResults"]["rawData"][1] == 'ask')
+            surveyData[uuid][gid]["policyResults"]["humanHelpedOnFirstRound"] = (surveyData[uuid][gid]["policyResults"]["rawData"][2]['robot_room_obs'] == 'obs_human_helped')
 
-        surveyData[uuid]["helpGivingData"], surveyData[uuid]["humanHelpSequence"], surveyData[uuid]["slownessesPerTask"], surveyData[uuid]["score"], surveyData[uuid]["humanDidArriveOnTime"], surveyData[uuid]["userTookBreak"] = processGameLog(gameLog, taskDefinitions[gid])#, afterTaskI=6)
-        surveyData[uuid]["policyResults"]["metrics"]["humanPerformance"] = getHumanPerformance(surveyData[uuid]["humanDidArriveOnTime"])/20 # surveyData[uuid]["score"]/280
-        surveyData[uuid]["policyResults"]["metrics"]["robotPerformance"] = surveyData[uuid]['policyResults']['metrics']['numCorrectRooms']/20
-        surveyData[uuid]["policyResults"]["metrics"]["averagePerformance"] = 0.5*surveyData[uuid]["policyResults"]["metrics"]["humanPerformance"] + 0.5*surveyData[uuid]["policyResults"]["metrics"]["robotPerformance"]
-        surveyData[uuid]["policyResults"]["metrics"]["rewardAdjusted"] = surveyData[uuid]["policyResults"]["metrics"]["numCorrectRooms"] - 0.5*surveyData[uuid]['policyResults']['metrics']['pctAsking']*20
+            lastBusynessFromRawData = -1
+            surveyData[uuid][gid]["policyResults"]["humanBusynessAtRobotFirstAsk"] = lastBusynessFromRawData
+            surveyData[uuid][gid]["policyResults"]["humanHelpedAtRobotFirstAsk"] = 0
+            for i in range(len(surveyData[uuid][gid]["policyResults"]["rawData"])):
+                if (i % 4) == 1: # action
+                    if surveyData[uuid][gid]["policyResults"]["rawData"][i] == 'ask':
+                        if lastBusynessFromRawData == -1:
+                            lastBusynessFromRawData = 1 # first round
+                        surveyData[uuid][gid]["policyResults"]["humanBusynessAtRobotFirstAsk"] = lastBusynessFromRawData
+                        surveyData[uuid][gid]["policyResults"]["humanHelpedAtRobotFirstAsk"] = 1 if surveyData[uuid][gid]["policyResults"]["rawData"][i+1]['robot_room_obs'] == 'obs_human_helped' else 0
+                        break
+                elif (i % 4) == 2: # obs
+                    lastBusynessFromRawData = int(surveyData[uuid][gid]["policyResults"]["rawData"][i]['human_busyness_obs'])
 
-        surveyData[uuid]["policyResults"]["robotAskedOnFirstRound"] = (surveyData[uuid]["policyResults"]["rawData"][1] == 'ask')
-        surveyData[uuid]["policyResults"]["humanHelpedOnFirstRound"] = (surveyData[uuid]["policyResults"]["rawData"][2]['robot_room_obs'] == 'obs_human_helped')
-
-        lastBusynessFromRawData = -1
-        surveyData[uuid]["policyResults"]["humanBusynessAtRobotFirstAsk"] = lastBusynessFromRawData
-        surveyData[uuid]["policyResults"]["humanHelpedAtRobotFirstAsk"] = 0
-        for i in range(len(surveyData[uuid]["policyResults"]["rawData"])):
-            if (i % 4) == 1: # action
-                if surveyData[uuid]["policyResults"]["rawData"][i] == 'ask':
-                    if lastBusynessFromRawData == -1:
-                        lastBusynessFromRawData = 1 # first round
-                    surveyData[uuid]["policyResults"]["humanBusynessAtRobotFirstAsk"] = lastBusynessFromRawData
-                    surveyData[uuid]["policyResults"]["humanHelpedAtRobotFirstAsk"] = 1 if surveyData[uuid]["policyResults"]["rawData"][i+1]['robot_room_obs'] == 'obs_human_helped' else 0
-                    break
-            elif (i % 4) == 2: # obs
-                lastBusynessFromRawData = int(surveyData[uuid]["policyResults"]["rawData"][i]['human_busyness_obs'])
-
-        assert len(surveyData[uuid]["slownessesPerTask"]) == 28
-        surveyData[uuid]["Demography"]["Slowness"] = 0.0
-        for taskI in taskIForSlowness:
-            print("uuid", uuid, "taskI", taskI, surveyData[uuid]["slownessesPerTask"], len(surveyData[uuid]["slownessesPerTask"]))
-            surveyData[uuid]["Demography"]["Slowness"] += surveyData[uuid]["slownessesPerTask"][taskI]
-        surveyData[uuid]["Demography"]["Slowness"] /= len(taskIForSlowness)
+            assert len(surveyData[uuid][gid]["slownessesPerTask"]) == 28
+            # surveyData[uuid]["Demography"]["Slowness"] = 0.0
+            # for taskI in taskIForSlowness:
+            #     print("uuid", uuid, "taskI", taskI, surveyData[uuid]["slownessesPerTask"], len(surveyData[uuid]["slownessesPerTask"]))
+            #     surveyData[uuid]["Demography"]["Slowness"] += surveyData[uuid]["slownessesPerTask"][taskI]
+            # surveyData[uuid]["Demography"]["Slowness"] /= len(taskIForSlowness)
 
         getTimes(surveyData, uuid, baseDir)
         consentDurations.append(surveyData[uuid]["tutorialTime"]-surveyData[uuid]["startTime"])
-        tutorialDurations.append(surveyData[uuid]["gameTime"]-surveyData[uuid]["tutorialTime"])
-        gameDurations.append(surveyData[uuid]["surveyTime"]-surveyData[uuid]["gameTime"])
-        surveyDurations.append(surveyData[uuid]["Demography"]["Survey Duration"])
+        tutorialDurations.append(surveyData[uuid]["gameTime_a"]-surveyData[uuid]["tutorialTime"])
+        game1Durations.append(surveyData[uuid]["surveyTime_a"]-surveyData[uuid]["gameTime_a"])
+        survey1Durations.append(surveyData[uuid]["Demography"]["Survey1 Duration"])
+        game2Durations.append(surveyData[uuid]["surveyTime_b"]-surveyData[uuid]["gameTime_b"])
+        survey2Durations.append(surveyData[uuid]["Demography"]["Survey2 Duration"])
 
         surveyData[uuid]["completionCode"] = uuidToCompletionID[str(uuid)] if str(uuid) in uuidToCompletionID else None
+
+        surveyData[uuid][firstGID]["Survey"] = surveyData[uuid]["Survey1"]
+        del surveyData[uuid]["Survey1"]
+        surveyData[uuid][secondGID]["Survey"] = surveyData[uuid]["Survey2"]
+        del surveyData[uuid]["Survey2"]
 
     pprint.pprint(surveyData)
 
     consentDurations = np.array(consentDurations)
     tutorialDurations = np.array(tutorialDurations)
-    gameDurations = np.array(gameDurations)
-    surveyDurations = np.array(surveyDurations)
+    game1Durations = np.array(game1Durations)
+    survey1Durations = np.array(survey1Durations)
+    game2Durations = np.array(game2Durations)
+    survey2Durations = np.array(survey2Durations)
     print("Consent mean, sd, min, max", np.mean(consentDurations), np.std(consentDurations), np.amin(consentDurations), np.amax(consentDurations))
     print("Tutorial mean, sd, min, max", np.mean(tutorialDurations), np.std(tutorialDurations), np.amin(tutorialDurations), np.amax(tutorialDurations))
-    print("Game mean, sd, min, max", np.mean(gameDurations), np.std(gameDurations), np.amin(gameDurations), np.amax(gameDurations))
-    print("Survey mean, sd, min, max", np.mean(surveyDurations), np.std(surveyDurations), np.amin(surveyDurations), np.amax(surveyDurations))
+    print("Game1 mean, sd, min, max", np.mean(game1Durations), np.std(game1Durations), np.amin(game1Durations), np.amax(game1Durations))
+    print("Survey1 mean, sd, min, max", np.mean(survey1Durations), np.std(survey1Durations), np.amin(survey1Durations), np.amax(survey1Durations))
+    print("Game2 mean, sd, min, max", np.mean(game2Durations), np.std(game2Durations), np.amin(game2Durations), np.amax(game2Durations))
+    print("Survey2 mean, sd, min, max", np.mean(survey2Durations), np.std(survey2Durations), np.amin(survey2Durations), np.amax(survey2Durations))
     print("Consent quartiles", np.percentile(consentDurations, [0, 25, 50, 75, 100]))
     print("Tutorial quartiles", np.percentile(tutorialDurations, [0, 25, 50, 75, 100]))
-    print("Game quartiles", np.percentile(gameDurations, [0, 25, 50, 75, 100]))
-    print("Survey quartiles", np.percentile(surveyDurations, [0, 25, 50, 75, 100]))
-
-    # Analyze the busyness assignment distribution -- overall and within people
-    overallBusynessDistribution = [0,0,0,0,0,0]
-    distributions = []
-    for uuid in surveyData:
-        busynessDistribution = [1,0,0,0,0,0] # first one is always free time
-        for i in range(2, len(surveyData[uuid]["policyResults"]["rawData"]), 4):
-            obs = surveyData[uuid]["policyResults"]["rawData"][i]
-            busyness = obs['human_busyness_obs']
-            busynessDistribution[busyness-1] += 1
-        for i in range(len(busynessDistribution)):
-            overallBusynessDistribution[i] += busynessDistribution[i]
-        distribution = [val/sum(busynessDistribution) for val in busynessDistribution]
-        distributions.append(distribution)
-
-    print("Overall Distribution", [val/sum(overallBusynessDistribution) for val in overallBusynessDistribution])
-    distributions = np.array(distributions)
-    print("Mean across people", np.mean(distributions, axis=0), "Std across people", np.std(distributions, axis=0))
+    print("Game1 quartiles", np.percentile(game1Durations, [0, 25, 50, 75, 100]))
+    print("Survey1 quartiles", np.percentile(survey1Durations, [0, 25, 50, 75, 100]))
+    print("Game2 quartiles", np.percentile(game2Durations, [0, 25, 50, 75, 100]))
+    print("Survey2 quartiles", np.percentile(survey2Durations, [0, 25, 50, 75, 100]))
 
     # raise Exception()
 
-    # print("responseCountByType", responseCountByType(surveyData))
+    writeCSV(surveyData, taskDefinitions, baseDir+"humanHelpUserStudyData"+comparisonDescriptor+".csv")
+    makePolicyGraphs(surveyData, comparisonDescriptor)
 
-    # writeCSV(surveyData, taskDefinitions, baseDir+"humanHelpUserStudyDataComplete.csv", baseDir+"humanHelpUserStudyDataCompleteNumeric.csv")
-    #
-    # makeGraphs(surveyData)
-
-    # # Remove the users who do not meet the inclusion critereon
-    # surveyDataNoStraightlining = {}
-    # uuidsToDel = []
-    # for uuid in surveyData:
-    #     if surveyData[uuid]["Demography"]["RoSAS Variance"] >= 0.67:
-    #         surveyDataNoStraightlining[uuid] = surveyData[uuid]
-    #
-    # print("len(surveyDataNoStraightlining)", len(surveyDataNoStraightlining), "len(surveyData)", len(surveyData))
-    #
-    # makeGraphs(surveyDataNoStraightlining, "_noStraightlining")
-
-    # # Remove the users who do not meet the inclusion critereon
-    # surveyDataNoLowSurveyTime = {}
-    # uuidsToDel = []
-    # for uuid in surveyData:
-    #     if "Survey Duration" in surveyData[uuid]["Demography"] and surveyData[uuid]["Demography"]["Survey Duration"] >= 180:
-    #         surveyDataNoLowSurveyTime[uuid] = surveyData[uuid]
-    #
-    # print("len(surveyDataNoLowSurveyTime)", len(surveyDataNoLowSurveyTime), "len(surveyData)", len(surveyData))
-    #
-    # makeGraphs(surveyDataNoLowSurveyTime, "_noLowSurveyTime")
-
-    # # Remove the users who do not meet the inclusion critereon
-    # surveyDataBriefOpenEndedResponses = {}
-    # uuidsToDel = []
-    # for uuid in surveyData:
-    #     if surveyData[uuid]["Demography"]["Open Ended Length"] >= 20:
-    #         surveyDataBriefOpenEndedResponses[uuid] = surveyData[uuid]
-    #
-    # print("len(surveyDataBriefOpenEndedResponses)", len(surveyDataBriefOpenEndedResponses), "len(surveyData)", len(surveyData))
-    #
-    # makeGraphs(surveyDataBriefOpenEndedResponses, "_briefOpenEndedResponses")
-
-    # Remove the users who do not meet the inclusion critereon
-    surveyDataTutorialOnlyHelping = {}
-    # surveyTutorialNoHelpingAndLowSurveyTime = {}
-    uuidsToDel = []
-    for uuid in surveyData:
-        if surveyData[uuid]["Attention Check Proportion"] == 1.0:
-            surveyDataTutorialOnlyHelping[uuid] = surveyData[uuid]
-        # elif surveyData[uuid]["Demography"]["Survey Duration"] < 180:
-        #     surveyTutorialNoHelpingAndLowSurveyTime[uuid] = surveyData[uuid]
-
-    print("len(surveyDataTutorialOnlyHelping)", len(surveyDataTutorialOnlyHelping), "len(surveyData)", len(surveyData))
-    print("responseCountByType", responseCountByType(surveyDataTutorialOnlyHelping))
-
-    gidListForTutorialOnlyHelping = {str(i) : [] for i in range(5)}
-    for uuid in surveyDataTutorialOnlyHelping:
-        gid = surveyDataTutorialOnlyHelping[uuid]["gid"]
-        gidListForTutorialOnlyHelping[str(gid)].append(str(uuid))
-
-    print("gidListForTutorialOnlyHelping", gidListForTutorialOnlyHelping, repr(gidListForTutorialOnlyHelping))
-
-    writeCSV(surveyDataTutorialOnlyHelping, taskDefinitions, baseDir+"humanHelpUserStudyDataWithExclusion.csv", baseDir+"humanHelpUserStudyDataWithExclusionNumeric.csv", baseDir+"humanHelpUserStudyDataWithExclusion%d.csv", baseDir+"humanHelpUserStudyDataWithExclusionAskingData.csv")
-    makePolicyGraphs(surveyDataTutorialOnlyHelping, "_tutorialOnlyHelping")
-
-    # makeGraphs(surveyDataTutorialOnlyHelping, "_tutorialOnlyHelping")
-    #
-    # # Make the per response dataset
-    # perResponseDataset = makePerResponseDataset(surveyDataTutorialOnlyHelping)
-    # # print("perResponseDataset")
-    # # pprint.pprint(perResponseDataset)
-    # makePerResponseDatasetGraph(perResponseDataset, "_tutorialOnlyHelping")
-    # writePerResponseCSV(perResponseDataset, baseDir+"humanHelpUserStudyPerResponseData.csv", surveyDataTutorialOnlyHelping, baseDir+"humanHelpUserStudyPerResponseData%d.csv")
-    # generatePerResponseTrainingTestingData(perResponseDataset, baseDir+"processedData/80-20/%d_%s.csv", partitions=5, surveyData=surveyData) # 80-20 split
-    # generatePerResponseTrainingTestingData(perResponseDataset, baseDir+"processedData/hold-one-out/%d_%s.csv", partitions=140, surveyData=surveyData)
-    #
-    # # Make the entire history dataset
-    # entireHistoryDataset = makeEntrieHistoryDataset(surveyDataTutorialOnlyHelping)
-    # makeEntireHistoryDatasetGraph(entireHistoryDataset, "_tutorialOnlyHelping")
-
-    # surveyDataOnlyZeros = {}
-    # surveyDataNoZeros = {}
-    # surveyDataOnlyZeroesAndTutorialNoHelping = {}
-    # surveyDataOnlyZeroesAndTooBriefSurvey = {}
-    # surveyDataOnlyZeroesAndTooBriefSurveyAndTutorialNoHelping = {}
-    # for uuid in surveyData:
-    #     high = surveyData[uuid]["helpGivingData"]["high"]
-    #     medium = surveyData[uuid]["helpGivingData"]["medium"]
-    #     freeTime = surveyData[uuid]["helpGivingData"]["free time"]
-    #     if not (high == 0.0 and medium == 0.0 and freeTime == 0.0):
-    #         surveyDataNoZeros[uuid] = surveyData[uuid]
-    #     else:
-    #         surveyDataOnlyZeros[uuid] = surveyData[uuid]
-    #         if surveyData[uuid]["Demography"]["tutorialOverallHelping"] == 0.0:
-    #             surveyDataOnlyZeroesAndTutorialNoHelping[uuid] = surveyData[uuid]
-    #             if surveyData[uuid]["Demography"]["Survey Duration"] < 180:
-    #                 surveyDataOnlyZeroesAndTooBriefSurveyAndTutorialNoHelping[uuid] = surveyData[uuid]
-    #         if surveyData[uuid]["Demography"]["Survey Duration"] < 180:
-    #             surveyDataOnlyZeroesAndTooBriefSurvey[uuid] = surveyData[uuid]
-    #
-    # print("len(surveyDataNoZeros)", len(surveyDataNoZeros), "len(surveyDataOnlyZeroesAndTutorialNoHelping)", len(surveyDataOnlyZeroesAndTutorialNoHelping), "len(surveyDataOnlyZeroesAndTooBriefSurvey)", len(surveyDataOnlyZeroesAndTooBriefSurvey), "len(surveyDataOnlyZeroesAndTooBriefSurveyAndTutorialNoHelping)", len(surveyDataOnlyZeroesAndTooBriefSurveyAndTutorialNoHelping), "len(surveyData)", len(surveyData))
-    #
-    # makeGraphs(surveyDataNoZeros, "_noZeros")
-
-    # print("surveyDataOnlyZeros")
-    # pprint.pprint(surveyDataOnlyZeros)
-
-    # # Remove the users that never help the robot
-    # surveyDataTutorialOnlyHelpingAndNoZeros = {}
-    # uuidsToDel = []
-    # for uuid in surveyDataTutorialOnlyHelping:
-    #     if surveyDataTutorialOnlyHelping[uuid]["helpGivingData"]["overall"] > 0.0:
-    #         surveyDataTutorialOnlyHelpingAndNoZeros[uuid] = surveyDataTutorialOnlyHelping[uuid]
-    #
-    # print("len(surveyDataTutorialOnlyHelpingAndNoZeros)", len(surveyDataTutorialOnlyHelpingAndNoZeros), "len(surveyDataTutorialOnlyHelping)", len(surveyDataTutorialOnlyHelping), "len(surveyData)", len(surveyData))
-    # print("responseCountByType", responseCountByType(surveyDataTutorialOnlyHelpingAndNoZeros))
-    #
-    # writeCSV(surveyDataTutorialOnlyHelpingAndNoZeros, taskDefinitions, baseDir+"humanHelpUserStudyDataWithExclusionNoZeros.csv", baseDir+"humanHelpUserStudyDataWithExclusionNoZerosNumeric.csv", baseDir+"humanHelpUserStudyDataWithExclusionNoZeros%d.csv")
-    #
-    # makeGraphs(surveyDataTutorialOnlyHelpingAndNoZeros, "_tutorialOnlyHelpingNoZeros")
-    #
-    # # Make the per response dataset
-    # perResponseDataset = makePerResponseDataset(surveyDataTutorialOnlyHelpingAndNoZeros)
-    # # print("perResponseDataset")
-    # # pprint.pprint(perResponseDataset)
-    # makePerResponseDatasetGraph(perResponseDataset, "_tutorialOnlyHelpingNoZeros")
-    # writePerResponseCSV(perResponseDataset, baseDir+"humanHelpUserStudyPerResponseDataNoZeros.csv", surveyDataTutorialOnlyHelpingAndNoZeros, baseDir+"humanHelpUserStudyPerResponseDataNoZeros%d.csv")
-    #
-    # # Make the entire history dataset
-    # entireHistoryDataset = makeEntrieHistoryDataset(surveyDataTutorialOnlyHelpingAndNoZeros)
-    # makeEntireHistoryDatasetGraph(entireHistoryDataset, "_tutorialOnlyHelpingNoZeros")
-    #
-    # # print("Copying data over to the final dataset folder")
-    # # copyDataOver(surveyDataTutorialOnlyHelping, baseDir, copyDir="../flask/finalData/finalDataset/")
+    print("firstGIDToUUIDs", firstGIDToUUIDs)
