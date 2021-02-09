@@ -177,7 +177,7 @@ anova(busynessM, busyness_freqOfAskingI)
 # anova(freqOfAsking_numRecentTimesDidNotHelpI, freqOfHelping_ageI)
 
 individualModel <- glmer(Human.Response ~ (1 | UUID), data = data, family = binomial(link="logit"), control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=100000)))
-contextualModel <- glm(Human.Response ~ Busyness.Numeric + Busyness.Numeric:Past.Frequency.of.Asking data = data, family = binomial(link="logit"))
+contextualModel <- glm(Human.Response ~ Busyness.Numeric + Busyness.Numeric:Past.Frequency.of.Asking, data = data, family = binomial(link="logit"))
 
 # Check whether we should add a random slope with busyness
 busyness_random_slope <- update(busyness_freqOfAskingI, .~ (Busyness.Numeric | UUID) + .)
@@ -241,9 +241,12 @@ params<-cbind(fixParam[1]+ranParam[1],fixParam[2], fixParam[3], fixParam[4])
 print(params)
 
 # Get the residuals
-predictions <- as.vector(predict(finalModel, type="response"))
+# summary(finalModel)
+# predictions <- as.vector(predict(finalModel, type="response"))
+# summary(contextualModel)
 # predictions <- as.vector(predict(contextualModel, type="response"))
-# predictions <- as.vector(predict(individualModel, type="response"))
+summary(individualModel)
+predictions <- as.vector(predict(individualModel, type="response"))
 responses <- as.integer(data$Human.Response) - 1 # minus one due to the one-indexed factors
 residuals <- responses-predictions
 sd(residuals)

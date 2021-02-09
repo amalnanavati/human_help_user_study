@@ -12,8 +12,8 @@ from flask import Flask, render_template, send_file, request, redirect
 from flask_cors import CORS
 
 numGIDs = 3
-gidsToTest = ["0", "2"]
-minUUID = 2000
+gidsToTest = ["0", "1"]
+minUUID = 3000
 completedGIDsFilename = "outputs/completedGIDs.json"
 
 completionCodesToUUIDFilename = "outputs/completionCodesToUUID.json"

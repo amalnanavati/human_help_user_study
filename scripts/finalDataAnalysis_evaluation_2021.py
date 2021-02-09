@@ -116,7 +116,7 @@ def loadPolicyLog(filepath):
     policyLog = []
     with open(filepath, "r") as f:
         for i, line in enumerate(f):
-            # print("Row", i, line)
+            print("Row", i, line)
             if len(line.strip()) == 0:
                 break
             logEntry = json.loads(line)
@@ -329,7 +329,7 @@ def processGameLog(gameLog, taskDefinition, afterTaskI=-1):
 
     return {descriptor : getAverageHelpRate(humanHelpSequence[descriptor]) for descriptor in humanHelpSequence}, humanHelpSequence, slownessesPerTask, score, humanDidArriveOnTime, userTookBreak
 
-def processPolicyLog(policyLog):
+def processPolicyLog(policyLog, uuid):
     """
     Returns: 1) a dictionary of our 4 metrics for this user; 2) The raw b, a, o, r
     data, where b is a list, a is a string, r is a float, and o is a dict; and
@@ -344,6 +344,7 @@ def processPolicyLog(policyLog):
     """
     rawData = []
     randomEffectsVariances = []
+    randomEffectsMeans = []
     askingHelpingByBusyness = {i : {"asking":[], "helping":[], "correctRooms":[]} for i in range(1,7)}
     lastAction = None
     cumulativeReward = 0.0
@@ -407,6 +408,7 @@ def processPolicyLog(policyLog):
             if len(randomEffectsVariances) == 0 or lastAction == "ask":
                 randomEffects = logEntry["data"]["human_random_effect_distribution"]["vals"]
                 meanRandomEffect = sum([randomEffects[i]*randomEffectProbs[i] for i in range(len(randomEffects))])
+                randomEffectsMeans.append(meanRandomEffect)
                 variance = sum([randomEffectProbs[i]*(randomEffects[i]-meanRandomEffect)**2.0 for i in range(len(randomEffects))])
                 randomEffectsVariances.append(variance)
             if len(rawData) > 0 and type(rawData[-1]) != float:
@@ -444,7 +446,7 @@ def processPolicyLog(policyLog):
     #         rawData.append(reward)
     # else:
     if episodeLength != 20:
-        raise Exception("episodeLength != 20", episodeLength, rawData)
+        raise Exception("uuid", uuid, "episodeLength != 20", episodeLength, rawData)
 
     metricsRetval = {
         "cumulativeReward" : cumulativeReward,
@@ -454,7 +456,7 @@ def processPolicyLog(policyLog):
         "numHelpingRejected" : numHelpsRejected,
     }
 
-    return metricsRetval, rawData, randomEffectsVariances, askingHelpingByBusyness, askData
+    return metricsRetval, rawData, randomEffectsVariances, askingHelpingByBusyness, askData, randomEffectsMeans[-1]
 
 
 def getAverageHelpRate(sequence):
@@ -1225,6 +1227,7 @@ def makePolicyGraphs(surveyData, descriptor=""):
     }
 
     forcedChoiceQData = []
+    forcedChoiceQNumAsking = {}
 
     rosasData = []
     rosasDifferencesData = []
@@ -1268,8 +1271,24 @@ def makePolicyGraphs(surveyData, descriptor=""):
                     askingData.append([policy, busynessFloat, p])
 
         for forcedChoiceQ in surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']:
-            forcedChoiceQData.append([forcedChoiceQ, surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison'][forcedChoiceQ]])
+            value = surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison'][forcedChoiceQ]
+            if abs(value) == 2:
+                valueStr = "Definitely "
+            else:
+                valueStr = "Somewhat "
+            if value < 0:
+                valueStr += policy1
+            else:
+                valueStr += policy0
 
+            forcedChoiceQData.append([forcedChoiceQ, value])
+
+            if forcedChoiceQ not in forcedChoiceQNumAsking:
+                forcedChoiceQNumAsking[forcedChoiceQ] = []
+            numAsking0 = surveyData[uuid][gidsInComparison[0]]["policyResults"]["metrics"]["numAsking"]+(random.random()-0.5)*jitterNoiseStd
+            numAsking1 = surveyData[uuid][gidsInComparison[1]]["policyResults"]["metrics"]["numAsking"]+(random.random()-0.5)*jitterNoiseStd
+
+            forcedChoiceQNumAsking[forcedChoiceQ].append([numAsking0, numAsking1, valueStr, gid_to_policy_descriptor[firstGID]])
 
         for rosasCategory in surveyData[uuid][0]['Survey']['RoSAS']:
             for gid in gidsInComparison:
@@ -1299,6 +1318,8 @@ def makePolicyGraphs(surveyData, descriptor=""):
     numAskingHelpingJitter = pd.DataFrame(numAskingHelpingJitter, columns = ['Policy', 'Num Asking', 'Num Helping'])
     askingData = pd.DataFrame(askingData, columns = ['Policy', 'Busyness', 'Proportion'])
     forcedChoiceQData = pd.DataFrame(forcedChoiceQData, columns = ['Question', 'Value'])
+    for forcedChoiceQ in forcedChoiceQNumAsking:
+        forcedChoiceQNumAsking[forcedChoiceQ] = pd.DataFrame(forcedChoiceQNumAsking[forcedChoiceQ], columns = [policy0+' Num Asking', policy1+' Num Asking', 'Response', 'First Policy'])
     rosasData = pd.DataFrame(rosasData, columns = ['Policy And RoSAS Category', 'Value'])
     rosasDifferencesData = pd.DataFrame(rosasDifferencesData, columns = ['RoSAS Category', policy0+' - '+policy1])
     for rosasRawCategory in rosasRawData:
@@ -1395,6 +1416,24 @@ def makePolicyGraphs(surveyData, descriptor=""):
     plt.savefig(baseDir + "forced_choice_qs_{}.png".format(descriptor))
     plt.clf()
 
+    # Num Times Asked Scatterplot per forcedChoiceQ
+    labelOrder = ["Definitely "+policy0, "Somewhat "+policy0, "Somewhat "+policy1, "Definitely "+policy1]
+    for forcedChoiceQ in forcedChoiceQNumAsking:
+        fig = plt.figure(figsize=(6,4))
+        # fig.patch.set_facecolor('k')
+        ax = fig.subplots(1, 1)
+        fig.suptitle(forcedChoiceQ)
+        sns.scatterplot(x = policy0+" Num Asking", y = policy1+" Num Asking", data = forcedChoiceQNumAsking[forcedChoiceQ], hue="Response", hue_order=labelOrder, style="First Policy", alpha=1,
+                         ax = ax)
+        handles, labels = ax.get_legend_handles_labels()
+        minXYLim = min(ax.get_xlim()[0], ax.get_ylim()[0])
+        maxXYLim = max(ax.get_xlim()[1], ax.get_ylim()[1])
+        ax.plot([minXYLim,maxXYLim], [minXYLim,maxXYLim], linewidth=2, linestyle='--', alpha=0.5)
+        l = ax.legend(handles=handles[0:], labels=labels[0:], bbox_to_anchor=(1.05, 1), loc='upper left')#, facecolor='k', edgecolor='darkgrey')
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        plt.savefig(baseDir + "num_asking_{}_{}.png".format(forcedChoiceQ, descriptor))
+        plt.clf()
+
     # RoSAS Data
     fig = plt.figure(figsize=(12,8))
     ax = fig.subplots(1, 1)
@@ -1468,84 +1507,90 @@ def makePolicyGraphs(surveyData, descriptor=""):
 
 def writeCSV(surveyData, taskDefinitions, filepath):
     gid_to_policy_descriptor = ["Hybrid", "Contextual", "Individual"]
+
+    policy0 = gid_to_policy_descriptor[gidsInComparison[0]]
+    policy1 = gid_to_policy_descriptor[gidsInComparison[1]]
+
     header = [
         "User ID",
         "First GID",
-        "Hybrid Cumulative Reward",
-        "Hybrid Num Correct Rooms",
-        "Hybrid Num Asking",
-        "Hybrid Num Helping",
-        "Hybrid Num Helping Rejected",
-        "Individual Cumulative Reward",
-        "Individual Num Correct Rooms",
-        "Individual Num Asking",
-        "Individual Num Helping",
-        "Individual Num Helping Rejected",
+        "Comparison Policy",
 
-        "Hybrid NASA TLX Mental Demand",
-        "Hybrid NASA TLX Physical Demand",
-        "Hybrid NASA TLX Temporal Demand",
-        "Hybrid NASA TLX Performance",
-        "Hybrid NASA TLX Effort",
-        "Hybrid NASA TLX Frustration",
-        "Individual NASA TLX Mental Demand",
-        "Individual NASA TLX Physical Demand",
-        "Individual NASA TLX Temporal Demand",
-        "Individual NASA TLX Performance",
-        "Individual NASA TLX Effort",
-        "Individual NASA TLX Frustration",
+        policy0+" Cumulative Reward",
+        policy0+" Num Correct Rooms",
+        policy0+" Num Asking",
+        policy0+" Num Helping",
+        policy0+" Num Helping Rejected",
+        "Comparison Cumulative Reward",
+        "Comparison Num Correct Rooms",
+        "Comparison Num Asking",
+        "Comparison Num Helping",
+        "Comparison Num Helping Rejected",
 
-        "Hybrid RoSAS Competence",
-        "Hybrid RoSAS Warmth",
-        "Hybrid RoSAS Discomfort",
-        "Hybrid RoSAS Curiosity",
-        "Individual RoSAS Competence",
-        "Individual RoSAS Warmth",
-        "Individual RoSAS Discomfort",
-        "Individual RoSAS Curiosity",
+        policy0+" NASA TLX Mental Demand",
+        policy0+" NASA TLX Physical Demand",
+        policy0+" NASA TLX Temporal Demand",
+        policy0+" NASA TLX Performance",
+        policy0+" NASA TLX Effort",
+        policy0+" NASA TLX Frustration",
+        "Comparison NASA TLX Mental Demand",
+        "Comparison NASA TLX Physical Demand",
+        "Comparison NASA TLX Temporal Demand",
+        "Comparison NASA TLX Performance",
+        "Comparison NASA TLX Effort",
+        "Comparison NASA TLX Frustration",
 
-        "Hybrid RoSAS Raw Reliable",
-        "Hybrid RoSAS Raw Competent",
-        "Hybrid RoSAS Raw Knowledgeable",
-        "Hybrid RoSAS Raw Interactive",
-        "Hybrid RoSAS Raw Responsive",
-        "Hybrid RoSAS Raw Capable",
-        "Hybrid RoSAS Raw Organic",
-        "Hybrid RoSAS Raw Sociable",
-        "Hybrid RoSAS Raw Emotional",
-        "Hybrid RoSAS Raw Compassionate",
-        "Hybrid RoSAS Raw Happy",
-        "Hybrid RoSAS Raw Feeling",
-        "Hybrid RoSAS Raw Awkward",
-        "Hybrid RoSAS Raw Scary",
-        "Hybrid RoSAS Raw Strange",
-        "Hybrid RoSAS Raw Awful",
-        "Hybrid RoSAS Raw Dangerous",
-        "Hybrid RoSAS Raw Aggressive",
-        "Hybrid RoSAS Raw Investigative",
-        "Hybrid RoSAS Raw Inquisitive",
-        "Hybrid RoSAS Raw Curious",
-        "Individual RoSAS Raw Reliable",
-        "Individual RoSAS Raw Competent",
-        "Individual RoSAS Raw Knowledgeable",
-        "Individual RoSAS Raw Interactive",
-        "Individual RoSAS Raw Responsive",
-        "Individual RoSAS Raw Capable",
-        "Individual RoSAS Raw Organic",
-        "Individual RoSAS Raw Sociable",
-        "Individual RoSAS Raw Emotional",
-        "Individual RoSAS Raw Compassionate",
-        "Individual RoSAS Raw Happy",
-        "Individual RoSAS Raw Feeling",
-        "Individual RoSAS Raw Awkward",
-        "Individual RoSAS Raw Scary",
-        "Individual RoSAS Raw Strange",
-        "Individual RoSAS Raw Awful",
-        "Individual RoSAS Raw Dangerous",
-        "Individual RoSAS Raw Aggressive",
-        "Individual RoSAS Raw Investigative",
-        "Individual RoSAS Raw Inquisitive",
-        "Individual RoSAS Raw Curious",
+        policy0+" RoSAS Competence",
+        policy0+" RoSAS Warmth",
+        policy0+" RoSAS Discomfort",
+        policy0+" RoSAS Curiosity",
+        "Comparison RoSAS Competence",
+        "Comparison RoSAS Warmth",
+        "Comparison RoSAS Discomfort",
+        "Comparison RoSAS Curiosity",
+
+        policy0+" RoSAS Raw Reliable",
+        policy0+" RoSAS Raw Competent",
+        policy0+" RoSAS Raw Knowledgeable",
+        policy0+" RoSAS Raw Interactive",
+        policy0+" RoSAS Raw Responsive",
+        policy0+" RoSAS Raw Capable",
+        policy0+" RoSAS Raw Organic",
+        policy0+" RoSAS Raw Sociable",
+        policy0+" RoSAS Raw Emotional",
+        policy0+" RoSAS Raw Compassionate",
+        policy0+" RoSAS Raw Happy",
+        policy0+" RoSAS Raw Feeling",
+        policy0+" RoSAS Raw Awkward",
+        policy0+" RoSAS Raw Scary",
+        policy0+" RoSAS Raw Strange",
+        policy0+" RoSAS Raw Awful",
+        policy0+" RoSAS Raw Dangerous",
+        policy0+" RoSAS Raw Aggressive",
+        policy0+" RoSAS Raw Investigative",
+        policy0+" RoSAS Raw Inquisitive",
+        policy0+" RoSAS Raw Curious",
+        "Comparison RoSAS Raw Reliable",
+        "Comparison RoSAS Raw Competent",
+        "Comparison RoSAS Raw Knowledgeable",
+        "Comparison RoSAS Raw Interactive",
+        "Comparison RoSAS Raw Responsive",
+        "Comparison RoSAS Raw Capable",
+        "Comparison RoSAS Raw Organic",
+        "Comparison RoSAS Raw Sociable",
+        "Comparison RoSAS Raw Emotional",
+        "Comparison RoSAS Raw Compassionate",
+        "Comparison RoSAS Raw Happy",
+        "Comparison RoSAS Raw Feeling",
+        "Comparison RoSAS Raw Awkward",
+        "Comparison RoSAS Raw Scary",
+        "Comparison RoSAS Raw Strange",
+        "Comparison RoSAS Raw Awful",
+        "Comparison RoSAS Raw Dangerous",
+        "Comparison RoSAS Raw Aggressive",
+        "Comparison RoSAS Raw Investigative",
+        "Comparison RoSAS Raw Inquisitive",
+        "Comparison RoSAS Raw Curious",
 
         "Which robot asked for help more times?",
         "Which robot asked for help at more appropriate times?",
@@ -1570,15 +1615,64 @@ def writeCSV(surveyData, taskDefinitions, filepath):
         "What do you think this study was about?",
         "Are there any other thoughts you’d like to share with us? If so, please add them here.",
 
+        "Hybrid Busyness 1 Proportion Asking",
+        "Hybrid Busyness 2 Proportion Asking",
+        "Hybrid Busyness 3 Proportion Asking",
+        "Hybrid Busyness 4 Proportion Asking",
+        "Hybrid Busyness 5 Proportion Asking",
+        "Hybrid Busyness 6 Proportion Asking",
+        "Comparison Busyness 1 Proportion Asking",
+        "Comparison Busyness 2 Proportion Asking",
+        "Comparison Busyness 3 Proportion Asking",
+        "Comparison Busyness 4 Proportion Asking",
+        "Comparison Busyness 5 Proportion Asking",
+        "Comparison Busyness 6 Proportion Asking",
+
+        "Hybrid Busyness 1 Proportion Helping",
+        "Hybrid Busyness 2 Proportion Helping",
+        "Hybrid Busyness 3 Proportion Helping",
+        "Hybrid Busyness 4 Proportion Helping",
+        "Hybrid Busyness 5 Proportion Helping",
+        "Hybrid Busyness 6 Proportion Helping",
+        "Comparison Busyness 1 Proportion Helping",
+        "Comparison Busyness 2 Proportion Helping",
+        "Comparison Busyness 3 Proportion Helping",
+        "Comparison Busyness 4 Proportion Helping",
+        "Comparison Busyness 5 Proportion Helping",
+        "Comparison Busyness 6 Proportion Helping",
+
+        "Hybrid Busyness 1 Num Helping Rejected",
+        "Hybrid Busyness 2 Num Helping Rejected",
+        "Hybrid Busyness 3 Num Helping Rejected",
+        "Hybrid Busyness 4 Num Helping Rejected",
+        "Hybrid Busyness 5 Num Helping Rejected",
+        "Hybrid Busyness 6 Num Helping Rejected",
+        "Comparison Busyness 1 Num Helping Rejected",
+        "Comparison Busyness 2 Num Helping Rejected",
+        "Comparison Busyness 3 Num Helping Rejected",
+        "Comparison Busyness 4 Num Helping Rejected",
+        "Comparison Busyness 5 Num Helping Rejected",
+        "Comparison Busyness 6 Num Helping Rejected",
+
+        policy0+" Human Performance",
+        policy0+" Robot Performance",
+        policy0+" Average Performance",
+        "Comparison Human Performance",
+        "Comparison Robot Performance",
+        "Comparison Average Performance",
+
+        policy0+" Mean Final Belief",
+        "Comparison Mean Final Belief",
+
         "Age",
         "Gender",
         "Video Game Experience",
         "Survey1 Duration",
         "Survey2 Duration",
-        "Hybrid Average Busyness",
-        "Individual Average Busyness",
-        "Hybrid Score",
-        "Individual Score",
+        policy0+" Average Busyness",
+        "Comparison Average Busyness",
+        policy0+" Score",
+        "Comparison Score",
 
         "First Attention Check Total",
         "Second Attention Check Total",
@@ -1590,82 +1684,83 @@ def writeCSV(surveyData, taskDefinitions, filepath):
         for uuid in surveyData:
             row = [uuid]
             row.append(surveyData[uuid]["firstGID"])
+            row.append(policy1)
 
-            row.append(surveyData[uuid][0]['policyResults']['metrics']['cumulativeReward'])
-            row.append(surveyData[uuid][0]['policyResults']['metrics']['numCorrectRooms'])
-            row.append(surveyData[uuid][0]['policyResults']['metrics']['numAsking'])
-            row.append(surveyData[uuid][0]['policyResults']['metrics']['numHelping'])
-            row.append(surveyData[uuid][0]['policyResults']['metrics']['numHelpingRejected'])
-            row.append(surveyData[uuid][2]['policyResults']['metrics']['cumulativeReward'])
-            row.append(surveyData[uuid][2]['policyResults']['metrics']['numCorrectRooms'])
-            row.append(surveyData[uuid][2]['policyResults']['metrics']['numAsking'])
-            row.append(surveyData[uuid][2]['policyResults']['metrics']['numHelping'])
-            row.append(surveyData[uuid][2]['policyResults']['metrics']['numHelpingRejected'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['policyResults']['metrics']['cumulativeReward'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['policyResults']['metrics']['numCorrectRooms'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['policyResults']['metrics']['numAsking'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['policyResults']['metrics']['numHelping'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['policyResults']['metrics']['numHelpingRejected'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['policyResults']['metrics']['cumulativeReward'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['policyResults']['metrics']['numCorrectRooms'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['policyResults']['metrics']['numAsking'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['policyResults']['metrics']['numHelping'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['policyResults']['metrics']['numHelpingRejected'])
 
-            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Mental Demand'])
-            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Physical Demand'])
-            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Temporal Demand'])
-            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Performance'])
-            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Effort'])
-            row.append(surveyData[uuid][0]['Survey']['NASA-TLX']['Frustration'])
-            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Mental Demand'])
-            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Physical Demand'])
-            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Temporal Demand'])
-            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Performance'])
-            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Effort'])
-            row.append(surveyData[uuid][2]['Survey']['NASA-TLX']['Frustration'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['NASA-TLX']['Mental Demand'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['NASA-TLX']['Physical Demand'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['NASA-TLX']['Temporal Demand'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['NASA-TLX']['Performance'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['NASA-TLX']['Effort'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['NASA-TLX']['Frustration'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['NASA-TLX']['Mental Demand'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['NASA-TLX']['Physical Demand'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['NASA-TLX']['Temporal Demand'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['NASA-TLX']['Performance'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['NASA-TLX']['Effort'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['NASA-TLX']['Frustration'])
 
-            row.append(surveyData[uuid][0]['Survey']['RoSAS']['Competence'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS']['Warmth'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS']['Discomfort'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS']['Curiosity'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS']['Competence'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS']['Warmth'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS']['Discomfort'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS']['Curiosity'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS']['Competence'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS']['Warmth'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS']['Discomfort'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS']['Curiosity'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS']['Competence'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS']['Warmth'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS']['Discomfort'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS']['Curiosity'])
 
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Reliable'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Competent'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Knowledgeable'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Interactive'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Responsive'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Capable'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Organic'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Sociable'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Emotional'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Compassionate'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Happy'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Feeling'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Awkward'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Scary'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Strange'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Awful'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Dangerous'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Aggressive'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Investigative'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Inquisitive'])
-            row.append(surveyData[uuid][0]['Survey']['RoSAS Raw']['Curious'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Reliable'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Competent'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Knowledgeable'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Interactive'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Responsive'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Capable'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Organic'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Sociable'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Emotional'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Compassionate'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Happy'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Feeling'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Awkward'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Scary'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Strange'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Awful'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Dangerous'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Aggressive'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Investigative'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Inquisitive'])
-            row.append(surveyData[uuid][2]['Survey']['RoSAS Raw']['Curious'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Reliable'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Competent'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Knowledgeable'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Interactive'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Responsive'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Capable'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Organic'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Sociable'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Emotional'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Compassionate'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Happy'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Feeling'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Awkward'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Scary'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Strange'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Awful'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Dangerous'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Aggressive'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Investigative'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Inquisitive'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['Survey']['RoSAS Raw']['Curious'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Reliable'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Competent'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Knowledgeable'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Interactive'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Responsive'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Capable'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Organic'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Sociable'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Emotional'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Compassionate'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Happy'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Feeling'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Awkward'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Scary'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Strange'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Awful'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Dangerous'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Aggressive'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Investigative'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Inquisitive'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['Survey']['RoSAS Raw']['Curious'])
 
             row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot asked for help more times?'])
             row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']['Robot Comparison']['Which robot asked for help at more appropriate times?'])
@@ -1690,15 +1785,64 @@ def writeCSV(surveyData, taskDefinitions, filepath):
             row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']["What do you think this study was about?"])
             row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']["Are there any other thoughts you’d like to share with us? If so, please add them here."])
 
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][1]["asking"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][2]["asking"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][3]["asking"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][4]["asking"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][5]["asking"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][6]["asking"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][1]["asking"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][2]["asking"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][3]["asking"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][4]["asking"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][5]["asking"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][6]["asking"]))
+
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][1]["helping"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][2]["helping"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][3]["helping"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][4]["helping"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][5]["helping"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][6]["helping"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][1]["helping"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][2]["helping"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][3]["helping"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][4]["helping"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][5]["helping"]))
+            row.append(np.mean(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][6]["helping"]))
+
+            row.append(sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][1]["asking"])-sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][1]["helping"]))
+            row.append(sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][2]["asking"])-sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][2]["helping"]))
+            row.append(sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][3]["asking"])-sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][3]["helping"]))
+            row.append(sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][4]["asking"])-sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][4]["helping"]))
+            row.append(sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][5]["asking"])-sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][5]["helping"]))
+            row.append(sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][6]["asking"])-sum(surveyData[uuid][gidsInComparison[0]]["policyResults"]['metricsByBusyness'][6]["helping"]))
+            row.append(sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][1]["asking"])-sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][1]["helping"]))
+            row.append(sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][2]["asking"])-sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][2]["helping"]))
+            row.append(sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][3]["asking"])-sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][3]["helping"]))
+            row.append(sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][4]["asking"])-sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][4]["helping"]))
+            row.append(sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][5]["asking"])-sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][5]["helping"]))
+            row.append(sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][6]["asking"])-sum(surveyData[uuid][gidsInComparison[1]]["policyResults"]['metricsByBusyness'][6]["helping"]))
+
+            row.append(surveyData[uuid][gidsInComparison[0]]['policyResults']['metrics']['humanPerformance'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['policyResults']['metrics']['robotPerformance'])
+            row.append(surveyData[uuid][gidsInComparison[0]]['policyResults']['metrics']['averagePerformance'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['policyResults']['metrics']['humanPerformance'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['policyResults']['metrics']['robotPerformance'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['policyResults']['metrics']['averagePerformance'])
+
+            row.append(surveyData[uuid][gidsInComparison[0]]['policyResults']['meanFinalBelief'])
+            row.append(surveyData[uuid][gidsInComparison[1]]['policyResults']['meanFinalBelief'])
+
             row.append(surveyData[uuid]['Demography']['Age'])
             row.append(surveyData[uuid]['Demography']['Gender'])
             row.append(surveyData[uuid]['Demography']['Video Game Experience'])
             row.append(surveyData[uuid]['Demography']['Survey1 Duration'])
             row.append(surveyData[uuid]['Demography']['Survey2 Duration'])
-            row.append(surveyData[uuid][0]["averageBusyness"])
-            row.append(surveyData[uuid][2]["averageBusyness"])
-            row.append(surveyData[uuid][0]["score"])
-            row.append(surveyData[uuid][2]["score"])
+            row.append(surveyData[uuid][gidsInComparison[0]]["averageBusyness"])
+            row.append(surveyData[uuid][gidsInComparison[1]]["averageBusyness"])
+            row.append(surveyData[uuid][gidsInComparison[0]]["score"])
+            row.append(surveyData[uuid][gidsInComparison[1]]["score"])
 
             row.append(surveyData[uuid][surveyData[uuid]["firstGID"]]['Survey']["Attention Check Total"])
             row.append(surveyData[uuid][surveyData[uuid]["secondGID"]]['Survey']["Attention Check Total"])
@@ -2143,10 +2287,32 @@ def getHumanPerformance(humanDidArriveOnTime):
 
 if __name__ == "__main__":
     numGIDs = 3
+    uuidsToKeep = []
 
-    baseDir = "../flask/ec2_outputs_evaluation_2021/"
-    # baseDir = "../flask/finalData/friendsData/"
-    # baseDir = "../flask/finalData/pilot3/"
+    # baseDir = "../flask/evaluation_2021/ec2_outputs_evaluation_2021_hybrid_v_individual/"
+    # gidsInComparison = [0, 2] # 0 must be first, since in the difference I take the first GID minus the second
+    # comparisonDescriptor = "Hybrid_vs_Individual"
+    # # uuidsToKeep += [2004] # amal test
+    # uuidsToKeep += [2006, 2008, 2016, 2021, 2028] # eval 1
+    # uuidsToKeep += [2038, 2042, 2058, 2085, 2046, 2060, 2077, 2040] # eval 2
+    # uuidsToKeep += [2078, 2081, 2061, 2048, 2051, 2043, 2080, 2055, 2072] # eval 3
+    # uuidsToKeep += [2098, 2096, 2094, 2123, 2111, 2114, 2115, 2108] # eval 5
+    # uuidsToKeep += [2095, 2104, 2099, 2090, 2118, 2086, 2093, 2130] # eval 6
+    # uuidsToKeep += [2143, 2158, 2163, 2141, 2157, 2129, 2162] # eval 7
+    # uuidsToKeep += [2168, 2172, 2175, 2176] # eval 9
+    # uuidsToKeep += [2179] # eval 10
+    # # uuidsToKeep += [2036, 2065, 2091, 2124, 2149, 2155] # didn't complete the survey attention check correctly
+
+    baseDir = "../flask/evaluation_2021/ec2_outputs_evaluation_2021_hybrid_v_contextual/"
+    gidsInComparison = [0, 1] # 0 must be first, since in the difference I take the first GID minus the second
+    comparisonDescriptor = "Hybrid_vs_Contextual"
+    uuidsToKeep += [3001, 3004, 3007, 3006, 3003, 3009] # eval 1
+    uuidsToKeep += [3011, 3013, 3020, 3035, 3041, 3048, 3052, 3055, 3064, 3065, 3074, 3078, 3076, 3080, 3083, 3061, 3079, 3084, 3091, 3092, 3093, 3094, 3095] # needs to be categorized
+    uuidsToKeep += [3097, 3105, 3107, 3117, 3122, 3123, 3125] # eval 16
+    uuidsToKeep += [3132, 3135, 3130, 3136] # eval 17
+    uuidsToKeep += [3146, 3143, 3149, 3159, 3163, 3166, 3172, 3174, 3177, 3179] # uncategorized
+    # uuidsToKeep += [3028, 3109, 3139, 3141, 3144] # remove for now because GID 1 missed query at the 6th robot action, but busyness was 6 so probably would not ask? Reassess later.
+    # uuidsToKeep += [3029, 3063, 3075, 3077, 3138, 3156, 3168, 3170] # did not correctly do survey attention checks
 
     completionCodesToUUIDFilename = "completionCodesToUUID.json"
     with open(baseDir+completionCodesToUUIDFilename, "rb") as f:
@@ -2158,7 +2324,7 @@ if __name__ == "__main__":
     completedGIDsFilename = "completedGIDs.json"
     with open(baseDir+completedGIDsFilename, "r") as f:
         completedGameIDs = json.load(f)
-    completedGameIDs["2"].append(2028)
+    if "2" in completedGameIDs: completedGameIDs["2"].append(2028)
     print("completedGameIDs", completedGameIDs)
     uuidToGID = {}
     for gid in completedGameIDs:
@@ -2184,15 +2350,6 @@ if __name__ == "__main__":
     # pprint.pprint(taskDefinitions)
 
     tutorialTaskDefinition = loadTaskDefinitionFile("../flask/assets/tasks/tutorial.json")
-
-    uuidsToKeep = []
-
-    gidsInComparison = [0, 2] # 0 must be first, since in the difference I take the first GID minus the second
-    comparisonDescriptor = "Hybrid_vs_Individual"
-    # uuidsToKeep += [2004] # amal test
-    uuidsToKeep += [2006, 2008, 2016, 2021, 2028, 2036] # eval 1
-    uuidsToKeep += [2038, 2040] # eval 2
-    uuidsToKeep += [2042, 2043, 2046, 2048, 2051, 2055, 2061, 2060, 2058] # need to categorize into evals
 
     # Remove the UUIDs of people who filled out the survey but are not actual datapoints
     uuidsToDel = []
@@ -2227,18 +2384,18 @@ if __name__ == "__main__":
     survey1Durations = []
     game2Durations = []
     survey2Durations = []
-    firstGIDToUUIDs = {gid:[] for gid in gidsInComparison}
+    firstGIDToUUIDs = {str(gid):[] for gid in gidsInComparison}
     for uuid in surveyData:
         print("UUID", uuid)
 
         firstGID = uuidToGID[uuid]
-        firstGIDToUUIDs[firstGID].append(uuid)
+        firstGIDToUUIDs[str(firstGID)].append(str(uuid))
         secondGID = gidsInComparison[1] if firstGID==gidsInComparison[0] else gidsInComparison[0]
         surveyData[uuid]["firstGID"] = firstGID
         surveyData[uuid]["secondGID"] = secondGID
 
         # Reverse the Robot Comparison Qs if firstGID is Hybrid (so Hybrid is always positive)
-        if firstGID == 0:
+        if firstGID == gidsInComparison[0]:
             for robotComparisonQ in surveyData[uuid]["Survey2"]["Robot Comparison"]:
                 surveyData[uuid]["Survey2"]["Robot Comparison"][robotComparisonQ] *= -1
 
@@ -2256,17 +2413,16 @@ if __name__ == "__main__":
 
             policyLog = loadPolicyLog(policyFilepath)
             surveyData[uuid][gid]["policyResults"] = {}
-            surveyData[uuid][gid]["policyResults"]["metrics"], surveyData[uuid][gid]["policyResults"]["rawData"], surveyData[uuid][gid]["policyResults"]["randomEffectsVariances"], surveyData[uuid][gid]["policyResults"]["metricsByBusyness"], surveyData[uuid][gid]["policyResults"]["askData"] = processPolicyLog(policyLog)
+            surveyData[uuid][gid]["policyResults"]["metrics"], surveyData[uuid][gid]["policyResults"]["rawData"], surveyData[uuid][gid]["policyResults"]["randomEffectsVariances"], surveyData[uuid][gid]["policyResults"]["metricsByBusyness"], surveyData[uuid][gid]["policyResults"]["askData"], surveyData[uuid][gid]["policyResults"]["meanFinalBelief"] = processPolicyLog(policyLog, uuid)
             surveyData[uuid][gid]["averageBusyness"] = 0.0
             for busyness in surveyData[uuid][gid]["policyResults"]["metricsByBusyness"]:
                 numTimesAtBusyness = len(surveyData[uuid][gid]["policyResults"]["metricsByBusyness"][busyness]['asking'])
                 surveyData[uuid][gid]["averageBusyness"] += busyness*numTimesAtBusyness/20.0
 
             surveyData[uuid][gid]["helpGivingData"], surveyData[uuid][gid]["humanHelpSequence"], surveyData[uuid][gid]["slownessesPerTask"], surveyData[uuid][gid]["score"], surveyData[uuid][gid]["humanDidArriveOnTime"], surveyData[uuid][gid]["userTookBreak"] = processGameLog(gameLog, taskDefinitions[gid])#, afterTaskI=6)
-            # surveyData[uuid][gid]["policyResults"]["metrics"]["humanPerformance"] = getHumanPerformance(surveyData[uuid][gid]["humanDidArriveOnTime"])/20 # surveyData[uuid][gid]["score"]/280
-            # surveyData[uuid][gid]["policyResults"]["metrics"]["robotPerformance"] = surveyData[uuid][gid]['policyResults']['metrics']['numCorrectRooms']/20
-            # surveyData[uuid][gid]["policyResults"]["metrics"]["averagePerformance"] = 0.5*surveyData[uuid][gid]["policyResults"]["metrics"]["humanPerformance"] + 0.5*surveyData[uuid][gid]["policyResults"]["metrics"]["robotPerformance"]
-            # surveyData[uuid][gid]["policyResults"]["metrics"]["rewardAdjusted"] = surveyData[uuid][gid]["policyResults"]["metrics"]["numCorrectRooms"] - 0.5*surveyData[uuid][gid]['policyResults']['metrics']['pctAsking']*20
+            surveyData[uuid][gid]["policyResults"]["metrics"]["humanPerformance"] = getHumanPerformance(surveyData[uuid][gid]["humanDidArriveOnTime"])/20 # surveyData[uuid][gid]["score"]/280
+            surveyData[uuid][gid]["policyResults"]["metrics"]["robotPerformance"] = surveyData[uuid][gid]['policyResults']['metrics']['numCorrectRooms']/20
+            surveyData[uuid][gid]["policyResults"]["metrics"]["averagePerformance"] = 0.5*surveyData[uuid][gid]["policyResults"]["metrics"]["humanPerformance"] + 0.5*surveyData[uuid][gid]["policyResults"]["metrics"]["robotPerformance"]
 
             surveyData[uuid][gid]["policyResults"]["robotAskedOnFirstRound"] = (surveyData[uuid][gid]["policyResults"]["rawData"][1] == 'ask')
             surveyData[uuid][gid]["policyResults"]["humanHelpedOnFirstRound"] = (surveyData[uuid][gid]["policyResults"]["rawData"][2]['robot_room_obs'] == 'obs_human_helped')
