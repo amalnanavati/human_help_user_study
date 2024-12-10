@@ -2,7 +2,7 @@
 
 This repository contains the online office simulator that was used to study humans' willingness to help a robot for the following paper:
 
-```
+```bibtex
 @inproceedings{nanavati2021modeling,
   title={Modeling Human Helpfulness with Individual and Contextual Factors for Robot Planning.},
   author={Nanavati, Amal and Mavrogiannis, Christoforos I and Weatherwax, Kevin and Takayama, Leila and Cakmak, Maya and Srinivasa, Siddhartha S},
@@ -16,13 +16,13 @@ This repository contains project-specific research code. It is likely not docume
 If this repository is helpful to you, please cite the above paper.
 
 ## Dependencies
-```
+```sh
 pip3 install flask
 pip3 install flask_cors
 ```
 
 ## Usage
-```
+```sh
 cd flask
 python3 run_example.py
 ```
